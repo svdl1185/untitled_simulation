@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CONFIG } from "../config.js";
 
 const PRESETS = [
   {
@@ -257,7 +258,8 @@ export class DayCycle {
   constructor() {
     this.hour = 10.4;
     this.auto = true;
-    this.dayLength = 96;
+    this.dayLength = CONFIG.time.dayLength;
+    this.dayIndex = 0;
     this.storm = 0;
     this.stormTarget = 0;
     this._stormFog = new THREE.Color(0x152028);
@@ -297,7 +299,11 @@ export class DayCycle {
   }
 
   update(dt) {
-    if (this.auto) this.hour = (this.hour + (24 / this.dayLength) * dt + 24) % 24;
+    if (this.auto) {
+      const next = this.hour + (24 / this.dayLength) * dt;
+      if (next >= 24) this.dayIndex += Math.floor(next / 24);
+      this.hour = ((next % 24) + 24) % 24;
+    }
     this.storm += (this.stormTarget - this.storm) * Math.min(1, dt * 0.55);
     this.sample();
   }

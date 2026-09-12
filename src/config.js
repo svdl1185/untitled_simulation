@@ -21,6 +21,11 @@ export const CONFIG = {
 
   cellSize: 3.8,
 
+  time: {
+    dayLength: 96,
+    daysPerYear: 12,
+  },
+
   fish: {
     restSpacing: 1.48,
     sepRadius: 2.25,
@@ -36,11 +41,11 @@ export const CONFIG = {
     cruiseWeight: 0.68,
     depthWeight: 0.07,
     forageWeight: 3.6,
-    forageGain: 0.13,
-    metabolism: 0.014,
+    forageGain: 0.16,
+    metabolism: 0.012,
     starveAt: 0.07,
-    recruitEnergy: 0.58,
-    spawnEnergy: 0.4,
+    recruitEnergy: 0.52,
+    spawnEnergy: 0.42,
     noiseWeight: 1.15,
     pitchDamp: 2.15,
     pitchLimit: 0.3,
@@ -95,6 +100,13 @@ export const CONFIG = {
     eatEnergy: 0.08,
     hungry: 0.42,
     satiated: 0.82,
+    starveAt: 0.06,
+    starveDays: 3,
+    mateEnergy: 0.74,
+    mateDist: 22,
+    pupCost: 0.22,
+    pupEnergy: 0.48,
+    carcass: 0.55,
   },
 
   flow: {
@@ -128,3 +140,7 @@ export const CONFIG = {
     detritus: 0.24,
   },
 };
+
+export function yearSeconds() {
+  return CONFIG.time.dayLength * CONFIG.time.daysPerYear;
+}

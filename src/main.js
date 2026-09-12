@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { School } from "./simulation/school.js";
-import { spawnSharks, resetSharks, createShark } from "./simulation/shark.js";
+import { spawnSharks, resetSharks, createShark, tryBreed } from "./simulation/shark.js";
 import { DayCycle } from "./simulation/day.js";
 import { Plankton } from "./simulation/plankton.js";
 import { createFishGeometry, createFishMaterial } from "./render/fish.js";
@@ -52,10 +52,11 @@ const school = new School(CONFIG.initialFish);
 school.colliders = outcrops.colliders;
 school.colliderCount = outcrops.colliderCount;
 const plankton = new Plankton();
+school.clipToBloom(plankton);
 const bloom = createPlanktonMesh(plankton, uniforms);
 scene.add(bloom.mesh);
 const sharks = spawnSharks(CONFIG.shark.count, school);
-const shark = sharks[0];
+let shark = sharks[0];
 
 camera.position.set(
   school.centroid.x + 28,
@@ -104,16 +105,43 @@ function addSharkMesh(s) {
 }
 
 function removeLastShark() {
-  if (sharks.length <= 1) return;
-  sharks.pop();
-  const mesh = sharkMeshes.pop();
-  if (!mesh) return;
-  scene.remove(mesh);
-  mesh.traverse(disposeObject);
+  removeSharkAt(sharks.length - 1);
+}
+
+function rebindLead() {
+  if (!sharks.length) {
+    shark = null;
+    followSharkIndex = 0;
+    return;
+  }
+  if (!shark || !sharks.includes(shark)) {
+    shark = sharks[Math.min(followSharkIndex, sharks.length - 1)] || sharks[0];
+  }
+  followSharkIndex = Math.max(0, sharks.indexOf(shark));
+  for (let i = 0; i < sharks.length; i++) sharks[i].id = i;
+}
+
+function removeSharkAt(i) {
+  if (i < 0 || i >= sharks.length) return;
+  const s = sharks[i];
+  if (s.controlled) s.setControlled(false);
+  sharks.splice(i, 1);
+  const mesh = sharkMeshes.splice(i, 1)[0];
+  if (mesh) {
+    scene.remove(mesh);
+    mesh.traverse(disposeObject);
+  }
+  if (inspect?.kind === "shark") inspect = null;
+  rebindLead();
+  if (followKind === "shark" && !sharks.length) {
+    followKind = "school";
+    if (camMode === CAM.FOLLOW) applyCamera(CAM.ORBIT);
+  }
+  syncCamHud();
 }
 
 function applySharkCount(n) {
-  const next = Math.max(1, Math.min(CONFIG.shark.max, n | 0));
+  const next = Math.max(0, Math.min(CONFIG.shark.max, n | 0));
   while (sharks.length > next) removeLastShark();
   while (sharks.length < next) {
     const s = createShark(sharks.length, next, school);
@@ -121,7 +149,7 @@ function applySharkCount(n) {
     sharks.push(s);
     addSharkMesh(s);
   }
-  if (followSharkIndex >= sharks.length) followSharkIndex = sharks.length - 1;
+  rebindLead();
   if (inspect?.kind === "shark" && inspect.id >= sharks.length) inspect = null;
   syncCamHud();
 }
@@ -198,10 +226,12 @@ hud.on("fear", (on) => {
 hud.on("reset", () => {
   school.respawn(Number(hud.get("fish")));
   plankton.seed();
+  school.clipToBloom(plankton);
   resetSharks(sharks, school);
+  day.dayIndex = 0;
 });
 hud.on("pilot", (on) => {
-  if (on !== shark.controlled) togglePilot(on);
+  if (shark && on !== shark.controlled) togglePilot(on);
 });
 hud.on("camera", (mode) => {
   if (mode === CAM.FOLLOW) followKind = "shark";
@@ -230,7 +260,11 @@ function resolveSchoolId() {
 }
 
 function pinnedShark() {
-  if (shark.controlled) return shark;
+  if (shark?.controlled) return shark;
+  if (!sharks.length) {
+    const c = school.centroid;
+    return { x: c.x, y: c.y, z: c.z, fwdX: 0, fwdY: 0, fwdZ: 1, camRadius: 36 };
+  }
   if (followSharkIndex >= sharks.length) followSharkIndex = Math.max(0, sharks.length - 1);
   return sharks[followSharkIndex];
 }
@@ -241,7 +275,7 @@ function pinnedSchool() {
 }
 
 function pinnedFollow() {
-  if (shark.controlled) return shark;
+  if (shark?.controlled) return shark;
   if (camMode === CAM.FOLLOW && followKind === "herring") {
     const i = followHerringIndex;
     if (i < school.count) {
@@ -267,11 +301,15 @@ function sameSubject(a, b) {
 }
 
 function cameraSubject() {
-  if (shark.controlled) return { kind: "shark", id: 0 };
+  if (shark?.controlled) return { kind: "shark", id: Math.max(0, sharks.indexOf(shark)) };
   if (camMode === CAM.FREE) return null;
   if (camMode === CAM.FOLLOW) {
     if (followKind === "herring" && followHerringIndex < school.count) {
       return { kind: "herring", id: followHerringIndex };
+    }
+    if (!sharks.length) {
+      resolveSchoolId();
+      return school.schoolN[followSchoolId] ? { kind: "school", id: followSchoolId } : null;
     }
     return { kind: "shark", id: followSharkIndex };
   }
@@ -294,6 +332,7 @@ function subjectDetail() {
   if (camMode === CAM.FREE) return "";
   if (camMode === CAM.FOLLOW) {
     if (followKind === "herring") return "";
+    if (!sharks.length) return "";
     return `${followSharkIndex + 1}/${sharks.length}`;
   }
   const ids = resolveSchoolId();
@@ -302,7 +341,7 @@ function subjectDetail() {
 }
 
 function cameraLabel() {
-  if (shark.controlled) return "Pilot shark";
+  if (shark?.controlled) return "Pilot shark";
   if (camMode === CAM.FOLLOW && followKind === "herring") return "Follow herring";
   const name = CAM_NAME[camMode] || "";
   const detail = subjectDetail();
@@ -326,6 +365,8 @@ function weatherText() {
 
 function sharkState(s) {
   if (s.controlled) return "Pilot";
+  if (s.energy < CONFIG.shark.starveAt) return "Starving";
+  if (s.sex === 0 && s.mateT <= 0 && s.energy >= CONFIG.shark.mateEnergy) return "Courting";
   const modes = {
     patrol: "AI patrol",
     stalk: "AI stalk",
@@ -336,19 +377,28 @@ function sharkState(s) {
 }
 
 function sharkSize(s) {
+  if (s.scale < 0.72) return "Juvenile";
   if (s.scale > 1.12) return "Large";
   if (s.scale < 0.88) return "Small";
   return "Adult";
 }
 
+function sexLabel(sex) {
+  return sex === 0 ? "Female" : "Male";
+}
+
 function hudView() {
   // Append another { id, label, value } when a new world or species
   // readout exists. bindStats reuses DOM nodes by id.
+  const foodCap = plankton.carryingCapacity(school.cap);
   const general = [
     { id: "sky", label: "Sky", value: day.look.name },
     { id: "time", label: "Time", value: clockText(day.hour) },
+    { id: "day", label: "Day", value: String((day.dayIndex | 0) + 1) },
     { id: "weather", label: "Weather", value: weatherText() },
-    { id: "fish", label: "Fish", value: school.count.toLocaleString() },
+    { id: "fish", label: "Herring", value: `${school.count.toLocaleString()} · ${foodCap.toLocaleString()}` },
+    { id: "spawned", label: "Spawned", value: school.totalBorn.toLocaleString() },
+    { id: "sharks", label: "Sharks", value: String(sharks.length) },
     { id: "bloom", label: "P / Z", value: `${Math.round((plankton.meanP ?? 0) * 100)} · ${Math.round((plankton.meanZ ?? 0) * 100)}` },
     { id: "schools", label: "Schools", value: String(school.occupied) },
     { id: "camera", label: "Camera", value: cameraLabel() },
@@ -363,9 +413,11 @@ function hudView() {
         title: `${sub.id + 1} of ${sharks.length}`,
         following: sameSubject(sub, cameraSubject()),
         stats: [
+          { id: "sex", label: "Sex", value: sexLabel(s.sex) },
           { id: "size", label: "Size", value: sharkSize(s) },
           { id: "hunger", label: "Hunger", value: `${Math.round(s.energy * 100)}%` },
           { id: "eaten", label: "Eaten", value: s.eaten.toLocaleString() },
+          { id: "pups", label: "Pups", value: String(s.pups || 0) },
           { id: "state", label: "State", value: sharkState(s) },
           { id: "depth", label: "Depth", value: depthText(s.y) },
           { id: "speed", label: "Speed", value: `${Math.hypot(s.vx, s.vy, s.vz).toFixed(1)} m/s` },
@@ -383,6 +435,7 @@ function hudView() {
       following: sameSubject(sub, cameraSubject()),
       stats: [
         { id: "members", label: "Herring", value: n.toLocaleString() },
+        { id: "sexes", label: "F / M", value: `${school.schoolFem[sub.id] || 0} / ${school.schoolMal[sub.id] || 0}` },
         { id: "energy", label: "Energy", value: `${Math.round((1 - (school.schoolHunger[sub.id] ?? 0.5)) * 100)}%` },
         { id: "depth", label: "Depth", value: depthText(c?.y ?? 0) },
         { id: "mode", label: "Mode", value: mill > 0.45 ? "Milling" : "Foraging" },
@@ -401,6 +454,7 @@ function hudView() {
       title: `School ${Math.max(1, ids.indexOf(sid) + 1)} of ${Math.max(1, ids.length)}`,
       following: sameSubject(sub, cameraSubject()),
       stats: [
+        { id: "sex", label: "Sex", value: sexLabel(school.sex[i]) },
         { id: "energy", label: "Energy", value: `${Math.round(school.energy[i] * 100)}%` },
         { id: "depth", label: "Depth", value: depthText(school.pos[i3 + 1]) },
         { id: "speed", label: "Speed", value: `${Math.hypot(vx, vy, vz).toFixed(1)} m/s` },
@@ -491,7 +545,7 @@ function pickSubject(clientX, clientY) {
 
 function syncCamHud() {
   hud.setCamera(CAM_NAME[camMode]);
-  if (!shark.controlled) hud.setHint(cameraHint(camMode, false));
+  if (!shark?.controlled) hud.setHint(cameraHint(camMode, false));
 }
 
 function camCtx() {
@@ -501,13 +555,13 @@ function camCtx() {
     schoolTarget: pinnedSchool(),
     day,
     outcrops,
-    piloting: shark.controlled,
+    piloting: !!(shark && shark.controlled),
     input,
   };
 }
 
 function applyCamera(mode) {
-  if (shark.controlled && mode !== CAM.FOLLOW) togglePilot(false);
+  if (shark?.controlled && mode !== CAM.FOLLOW) togglePilot(false);
   camMode = mode;
   inspect = null;
   rig.setMode(camMode, camCtx());
@@ -522,7 +576,7 @@ function cycleTarget() {
       followKind = "shark";
       rig.setMode(CAM.FOLLOW, camCtx());
     }
-    if (shark.controlled || sharks.length < 2) {
+    if (shark?.controlled || sharks.length < 2) {
       syncCamHud();
       return;
     }
@@ -539,7 +593,7 @@ function followShown() {
   const s = shownSubject();
   if (!s) return;
   inspect = null;
-  if (shark.controlled && (s.kind !== "shark" || s.id !== 0)) togglePilot(false);
+  if (shark?.controlled && (s.kind !== "shark" || s.id !== sharks.indexOf(shark))) togglePilot(false);
   if (s.kind === "shark") {
     followKind = "shark";
     followSharkIndex = s.id;
@@ -560,6 +614,7 @@ function followShown() {
 }
 
 function togglePilot(force) {
+  if (!shark) return;
   const next = force === undefined ? !shark.controlled : force;
   shark.setControlled(next);
   hud.setControl(next);
@@ -567,7 +622,7 @@ function togglePilot(force) {
     hud.setOpen(false);
     inspect = null;
     followKind = "shark";
-    followSharkIndex = 0;
+    followSharkIndex = Math.max(0, sharks.indexOf(shark));
     camMode = CAM.FOLLOW;
     rig.setMode(CAM.FOLLOW, camCtx());
   }
@@ -578,10 +633,10 @@ function togglePilot(force) {
 window.addEventListener("keydown", (e) => {
   if (e.repeat) return;
   if (e.code === "KeyV") {
-    if (shark.controlled) togglePilot(false);
+    if (shark?.controlled) togglePilot(false);
     applyCamera(CAM.FREE);
   }
-  if (e.code === "Escape" && shark.controlled && !hud.isOpen()) togglePilot(false);
+  if (e.code === "Escape" && shark?.controlled && !hud.isOpen()) togglePilot(false);
 });
 
 rig.setMode(CAM.CINEMATIC, camCtx());
@@ -620,9 +675,9 @@ function frame(now) {
     }
     if (followKind === "herring" && followHerringIndex >= school.count) {
       followKind = "school";
-      if (camMode === CAM.FOLLOW && !shark.controlled) applyCamera(CAM.ORBIT);
+      if (camMode === CAM.FOLLOW && !shark?.controlled) applyCamera(CAM.ORBIT);
     }
-    if (shark.controlled && (pointer.ox || pointer.oy) && !pointer.panning) {
+    if (shark?.controlled && (pointer.ox || pointer.oy) && !pointer.panning) {
       input.mouseDx = pointer.ox * 0.0012;
       input.mouseDy = pointer.oy * 0.0012;
     } else {
@@ -643,6 +698,18 @@ function frame(now) {
     renderer.toneMappingExposure = tod.exposure;
 
     school.update(dt, sharks, tod, plankton);
+    for (let i = sharks.length - 1; i >= 0; i--) {
+      if (!sharks[i].dead) continue;
+      plankton.recycle(sharks[i].x, sharks[i].z, CONFIG.shark.carcass);
+      removeSharkAt(i);
+    }
+    const pup = tryBreed(sharks);
+    if (pup) {
+      bindShark(pup);
+      sharks.push(pup);
+      addSharkMesh(pup);
+      rebindLead();
+    }
     plankton.update(dt, tod, t);
     bloom.update(tod);
     syncFish();

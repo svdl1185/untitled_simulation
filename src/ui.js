@@ -49,8 +49,8 @@ export const MENU = [
       {
         id: "sharks",
         kind: "slider",
-        label: "Sharks",
-        min: 1,
+        label: "Shark cap",
+        min: 0,
         max: CONFIG.shark.max,
         step: 1,
         value: CONFIG.shark.count,

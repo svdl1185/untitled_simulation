@@ -93,6 +93,7 @@ export class School {
     this.alarm = new Float32Array(max);
     this._alarm = new Float32Array(max);
     this.energy = new Float32Array(max);
+    this.sex = new Uint8Array(max);
     this.schoolId = new Uint8Array(max);
     this._compact = new Float32Array(this.maxSchools);
     this.schoolHunger = new Float32Array(this.maxSchools);
@@ -101,6 +102,8 @@ export class School {
     this.centroids = [];
     this.anchors = [];
     this.schoolN = new Uint32Array(this.maxSchools);
+    this.schoolFem = new Uint32Array(this.maxSchools);
+    this.schoolMal = new Uint32Array(this.maxSchools);
     this._sx = new Float64Array(this.maxSchools);
     this._sy = new Float64Array(this.maxSchools);
     this._sz = new Float64Array(this.maxSchools);
@@ -117,9 +120,11 @@ export class School {
     this.anchorT = 0;
     this.eatenThisFrame = 0;
     this.totalEaten = 0;
+    this.totalBorn = 0;
     this.cap = count;
     this._recruitAcc = 0;
     this._starveAcc = 0;
+    this._harvestDebt = 0;
     this._hungryN = 0;
     this.meanEnergy = 0.6;
     this._plankton = null;
@@ -186,8 +191,10 @@ export class School {
     this.count = n;
     this.cap = n;
     this.totalEaten = 0;
+    this.totalBorn = 0;
     this._recruitAcc = 0;
     this._starveAcc = 0;
+    this._harvestDebt = 0;
     this.schoolCount = this.initialSchools;
     this._splitLock.fill(0);
     for (let s = 0; s < this.maxSchools; s++) {
@@ -249,12 +256,22 @@ export class School {
       this.vel[i3 + 1] = (Math.random() - 0.5) * 0.08;
       this.vel[i3 + 2] = Math.cos(heading) * spd;
       this.phase[i] = Math.random() * Math.PI * 2;
-      this.scale[i] = 0.84 + Math.random() * 0.32;
+      const female = Math.random() < 0.5;
+      this.sex[i] = female ? 0 : 1;
+      this.scale[i] = (0.84 + Math.random() * 0.32) * (female ? 1.05 : 0.96);
       this.pref[i] = 0.86 + Math.random() * 0.28;
       this.energy[i] = 0.52 + Math.random() * 0.28;
     }
     this.schoolHunger.fill(0.4);
     this.meanEnergy = 0.66;
+    this._refreshCentroids();
+  }
+
+  clipToBloom(plankton) {
+    if (!plankton) return;
+    const foodCap = plankton.carryingCapacity(this.cap);
+    if (this.count <= foodCap) return;
+    this.count = foodCap;
     this._refreshCentroids();
   }
 
@@ -289,7 +306,9 @@ export class School {
       this.vel[i3 + 1] = 0;
       this.vel[i3 + 2] = a.hz * spd;
       this.phase[i] = Math.random() * Math.PI * 2;
-      this.scale[i] = 0.84 + Math.random() * 0.32;
+      const female = Math.random() < 0.5;
+      this.sex[i] = female ? 0 : 1;
+      this.scale[i] = (0.84 + Math.random() * 0.32) * (female ? 1.05 : 0.96);
       this.pref[i] = 0.86 + Math.random() * 0.28;
       this.alarm[i] = 0;
       this.energy[i] = 0.48 + Math.random() * 0.2;
@@ -315,6 +334,7 @@ export class School {
       this.pref[i] = this.pref[last];
       this.alarm[i] = this.alarm[last];
       this.energy[i] = this.energy[last];
+      this.sex[i] = this.sex[last];
       this.schoolId[i] = this.schoolId[last];
     }
     this.count = last;
@@ -610,6 +630,8 @@ export class School {
     svz.fill(0);
     this._se.fill(0);
     this.schoolN.fill(0);
+    this.schoolFem.fill(0);
+    this.schoolMal.fill(0);
     this._hungryN = 0;
     const halfSat = CONFIG.plankton.halfSat;
     const grazeRate = CONFIG.plankton.graze;
@@ -1089,6 +1111,8 @@ export class School {
       svz[sid] += nvz;
       this._se[sid] += this.energy[i];
       this.schoolN[sid]++;
+      if (this.sex[i] === 0) this.schoolFem[sid]++;
+      else this.schoolMal[sid]++;
     }
 
     const swap = this.alarm;
@@ -1133,6 +1157,8 @@ export class School {
     sumY.fill(0);
     sumZ.fill(0);
     this.schoolN.fill(0);
+    this.schoolFem.fill(0);
+    this.schoolMal.fill(0);
     for (let i = 0; i < this.count; i++) {
       const sid = this.schoolId[i];
       const i3 = i * 3;
@@ -1140,6 +1166,8 @@ export class School {
       sumY[sid] += this.pos[i3 + 1];
       sumZ[sid] += this.pos[i3 + 2];
       this.schoolN[sid]++;
+      if (this.sex[i] === 0) this.schoolFem[sid]++;
+      else this.schoolMal[sid]++;
     }
     let bestN = 0;
     let occupied = 0;
@@ -1442,15 +1470,26 @@ export class School {
 
   _recruit(dt, plankton) {
     const foodCap = plankton.carryingCapacity(this.cap);
-    const target = Math.min(this.cap, foodCap);
+    const ceiling = Math.min(this.cap, foodCap);
+    this._harvestDebt = Math.max(0, this._harvestDebt + this.eatenThisFrame);
+    const target = Math.min(this.cap, Math.max(ceiling, this.count + this._harvestDebt));
     if (this.count >= target || this.count >= this.max) return;
-    if (plankton.meanZ < 0.05 || this.meanEnergy < CONFIG.fish.recruitEnergy * 0.62) return;
+    if (plankton.meanZ < 0.045 || this.meanEnergy < CONFIG.fish.recruitEnergy * 0.55) return;
+    let breeders = 0;
+    for (let s = 0; s < this.maxSchools; s++) {
+      if (this.schoolFem[s] < 4 || this.schoolMal[s] < 4) continue;
+      if (this.schoolHunger[s] > 0.58) continue;
+      breeders += Math.min(this.schoolFem[s], this.schoolMal[s]);
+    }
+    if (breeders < 8) return;
     const deficit = target - this.count;
-    const fed = 0.2 + plankton.meanZ * 0.55 + this.meanEnergy * 0.4;
-    this._recruitAcc += Math.min(16, 3 + deficit * 0.018) * fed * dt;
+    const fed = 0.28 + plankton.meanZ * 0.5 + this.meanEnergy * 0.45;
+    this._recruitAcc += Math.min(28, 10 + deficit * 0.035) * fed * dt;
     while (this._recruitAcc >= 1 && this.count < target && this.count < this.max) {
       this._recruitAcc -= 1;
+      const before = this.count;
       this._spawnOne(plankton);
+      if (this.count > before) this._harvestDebt = Math.max(0, this._harvestDebt - 1);
     }
   }
 
@@ -1458,11 +1497,11 @@ export class School {
     let sid = 0;
     let best = -1;
     for (let s = 0; s < this.maxSchools; s++) {
-      if (this.schoolN[s] < 8) continue;
+      if (this.schoolFem[s] < 4 || this.schoolMal[s] < 4) continue;
       if (this.schoolHunger[s] > 0.52) continue;
       const c = this.centroids[s];
       const food = plankton.sample(c.x, c.z);
-      const score = food * (1.15 - this.schoolHunger[s]);
+      const score = food * (1.15 - this.schoolHunger[s]) * this.schoolFem[s];
       if (score > best) {
         best = score;
         sid = s;
@@ -1470,7 +1509,7 @@ export class School {
     }
     if (best < 0.08) {
       for (let s = 0; s < this.maxSchools; s++) {
-        if (this.schoolN[s] < 8) continue;
+        if (this.schoolFem[s] < 1 || this.schoolMal[s] < 1) continue;
         const food = plankton.sample(this.centroids[s].x, this.centroids[s].z);
         if (food > best) {
           best = food;
@@ -1478,11 +1517,13 @@ export class School {
         }
       }
     }
+    if (best < 0) return;
     const i = this.count;
     const i3 = i * 3;
     const c = this.centroids[sid];
     const a = this.anchors[sid];
     const rest = CONFIG.fish.restSpacing;
+    const female = Math.random() < 0.5;
     this.schoolId[i] = sid;
     this.pos[i3] = c.x + (Math.random() - 0.5) * rest * 3;
     this.pos[i3 + 1] = c.y + (Math.random() - 0.5) * rest * 1.4;
@@ -1491,11 +1532,16 @@ export class School {
     this.vel[i3 + 1] = 0;
     this.vel[i3 + 2] = a.hz * a.cruise;
     this.phase[i] = Math.random() * Math.PI * 2;
-    this.scale[i] = 0.84 + Math.random() * 0.32;
+    this.sex[i] = female ? 0 : 1;
+    this.scale[i] = (0.84 + Math.random() * 0.32) * (female ? 1.05 : 0.96);
     this.pref[i] = 0.86 + Math.random() * 0.28;
     this.alarm[i] = 0;
     this.energy[i] = CONFIG.fish.spawnEnergy * (0.85 + Math.random() * 0.3);
     this.count = i + 1;
+    this.totalBorn++;
+    if (female) this.schoolFem[sid]++;
+    else this.schoolMal[sid]++;
+    this.schoolN[sid]++;
     plankton.graze(c.x, c.z, CONFIG.plankton.spawnCost);
   }
 
@@ -1503,7 +1549,7 @@ export class School {
     const foodCap = plankton.carryingCapacity(this.cap);
     const over = Math.max(0, this.count - foodCap);
     const hungry = this._hungryN;
-    this._starveAcc += Math.min(12, over * 0.0035 + hungry * 0.007) * dt;
+    this._starveAcc += Math.min(5, over * 0.002 + hungry * 0.00085) * dt;
     let guard = 28;
     while (this._starveAcc >= 1 && this.count > 48 && guard-- > 0) {
       this._starveAcc -= 1;

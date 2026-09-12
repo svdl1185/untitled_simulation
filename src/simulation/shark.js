@@ -1,4 +1,4 @@
-import { CONFIG } from "../config.js";
+import { CONFIG, yearSeconds } from "../config.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 
@@ -24,6 +24,7 @@ export class Shark {
     this.scale = opts.scale ?? 1;
     this.aggression = opts.aggression ?? 1;
     this.tint = opts.tint ?? null;
+    this.sex = opts.sex ?? (Math.random() < 0.5 ? 0 : 1);
     this.cruiseMul = 0.78 + this.scale * 0.22;
     this.turnMul = 1.55 - this.scale * 0.48;
     this.x = 8;
@@ -63,7 +64,11 @@ export class Shark {
     this.speedCap = CONFIG.shark.cruiseSpeed;
     this.eatEvents = [];
     this.eaten = 0;
+    this.pups = 0;
     this.biteT = 0;
+    this.starveT = 0;
+    this.dead = false;
+    this.mateT = opts.mateT ?? (0.4 + Math.random() * 0.6) * yearSeconds();
     this.energy = 0.55 + Math.random() * 0.28;
     this.fearRadius = CONFIG.shark.fearRadius;
     this.fearStrength = CONFIG.fish.fearWeight;
@@ -111,6 +116,7 @@ export class Shark {
   }
 
   update(dt, input, school, look, pack = null) {
+    if (this.dead) return;
     const cfg = CONFIG.shark;
     if (this.controlled) this._player(dt, input, cfg);
     else this._ai(dt, school, cfg, pack);
@@ -152,7 +158,11 @@ export class Shark {
     this.z += flow.z * dt;
 
     const drain = cfg.energyDrain * (this.lunging ? 2.4 : this.aiMode === "strike" ? 1.6 : 1);
-    this.energy = Math.max(0.02, this.energy - drain * dt);
+    this.energy = Math.max(0, this.energy - drain * dt);
+    this.mateT = Math.max(0, this.mateT - dt);
+    if (this.energy < cfg.starveAt) this.starveT += dt;
+    else this.starveT = Math.max(0, this.starveT - dt * 1.8);
+    if (this.starveT >= cfg.starveDays * CONFIG.time.dayLength) this.dead = true;
 
     this._keepInWater(cfg, dt, true);
 
@@ -368,6 +378,29 @@ export class Shark {
       force = cfg.maxForce * (closing ? (hungry ? 1.25 : 1) : 0.62);
       arriveR = hungry ? 5 : 12;
       this.thrust = closing ? (hungry ? 0.92 : 0.68) : 0.38;
+    } else if (this.sex === 0 && this.mateT <= 0 && this.energy >= cfg.mateEnergy && pack) {
+      const mate = nearestOpposite(this, pack);
+      if (mate) {
+        tx = mate.x;
+        ty = mate.y;
+        tz = mate.z;
+        maxSpd = cfg.cruiseSpeed * 0.72 * this.cruiseMul;
+        force = cfg.maxForce * 0.58;
+        arriveR = 7;
+        this.thrust = 0.44;
+        this.bursting = false;
+      } else {
+        const rdx = this.roamX - this.x;
+        const rdz = this.roamZ - this.z;
+        if (rdx * rdx + rdz * rdz < 22 * 22) this._pickRoam();
+        tx = this.roamX;
+        ty = this.roamY;
+        tz = this.roamZ;
+        maxSpd = cfg.cruiseSpeed * 0.58 * this.cruiseMul;
+        force = cfg.maxForce * 0.48;
+        arriveR = 24;
+        this.thrust = 0.36;
+      }
     } else if (satiated && !hungry) {
       const rdx = this.roamX - this.x;
       const rdz = this.roamZ - this.z;
@@ -579,10 +612,13 @@ export class Shark {
 export function createShark(i, count, school) {
   const kind = KINDS[i % KINDS.length];
   const n = Math.max(1, count | 0);
+  const sex = i === 0 ? 0 : i === 1 ? 1 : Math.random() < 0.5 ? 0 : 1;
+  const dimorph = sex === 0 ? 1.08 : 0.94;
   const shark = new Shark({
     id: i,
-    scale: kind.scale * (0.97 + Math.random() * 0.06),
-    aggression: kind.aggression,
+    sex,
+    scale: kind.scale * dimorph * (0.97 + Math.random() * 0.06),
+    aggression: kind.aggression * (sex === 0 ? 0.96 : 1.05),
     tint: kind.tint,
   });
   const ang = (i / n) * Math.PI * 2 + 0.55;
@@ -602,6 +638,75 @@ export function createShark(i, count, school) {
   return shark;
 }
 
+function nearestOpposite(self, pack) {
+  let best = null;
+  let bestD = Infinity;
+  for (let i = 0; i < pack.length; i++) {
+    const o = pack[i];
+    if (o === self || o.dead || o.sex === self.sex) continue;
+    const d = Math.hypot(o.x - self.x, o.y - self.y, o.z - self.z);
+    if (d < bestD) {
+      bestD = d;
+      best = o;
+    }
+  }
+  return best;
+}
+
+export function tryBreed(pack) {
+  if (pack.length >= CONFIG.shark.max) return null;
+  const cfg = CONFIG.shark;
+  const year = yearSeconds();
+  for (let i = 0; i < pack.length; i++) {
+    const a = pack[i];
+    if (a.dead || a.sex !== 0 || a.mateT > 0 || a.energy < cfg.mateEnergy) continue;
+    const b = nearestOpposite(a, pack);
+    if (!b) continue;
+    const d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    if (d > cfg.mateDist) continue;
+    a.energy = Math.max(cfg.hungry, a.energy - cfg.pupCost);
+    a.mateT = year;
+    a.pups++;
+    return birthShark(a, b, pack.length);
+  }
+  return null;
+}
+
+export function birthShark(mother, father, id) {
+  const kind = KINDS[id % KINDS.length];
+  const sex = Math.random() < 0.5 ? 0 : 1;
+  const parentScale = 0.55 * mother.scale + 0.45 * (father?.scale ?? mother.scale);
+  const pup = new Shark({
+    id,
+    sex,
+    scale: parentScale * (0.55 + Math.random() * 0.08) * (sex === 0 ? 1.06 : 0.95),
+    aggression: kind.aggression * (sex === 0 ? 0.96 : 1.05),
+    tint: mother.tint || kind.tint,
+    mateT: yearSeconds(),
+  });
+  const side = mother.flankSign || 1;
+  pup.x = mother.x + mother.fwdZ * 6 * side;
+  pup.y = mother.y;
+  pup.z = mother.z - mother.fwdX * 6 * side;
+  pup.vx = mother.vx * 0.4;
+  pup.vy = 0;
+  pup.vz = mother.vz * 0.4;
+  pup.yaw = mother.yaw;
+  pup.yawLook = mother.yaw;
+  pup.fwdX = mother.fwdX;
+  pup.fwdY = 0;
+  pup.fwdZ = mother.fwdZ;
+  pup.energy = CONFIG.shark.pupEnergy;
+  pup.huntIndex = mother.huntIndex;
+  pup.flankSign = -side;
+  pup.seekX = pup.x;
+  pup.seekY = pup.y;
+  pup.seekZ = pup.z;
+  pup.aiMode = "patrol";
+  pup.aiT = 4 + Math.random() * 3;
+  return pup;
+}
+
 export function spawnSharks(n, school) {
   const pack = [];
   const count = Math.max(1, Math.min(CONFIG.shark.max ?? n, n | 0));
@@ -613,8 +718,12 @@ export function resetSharks(pack, school) {
   for (let i = 0; i < pack.length; i++) {
     const s = pack[i];
     s.eaten = 0;
+    s.pups = 0;
     s.energy = 0.55 + Math.random() * 0.25;
     s.biteT = 0;
+    s.starveT = 0;
+    s.dead = false;
+    s.mateT = Math.random() * yearSeconds();
     s.lunging = false;
     s.lungeT = 0;
     s.aiMode = "patrol";
