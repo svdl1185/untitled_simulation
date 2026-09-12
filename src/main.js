@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { School } from "./simulation/school.js";
-import { spawnSharks, resetSharks, focusShark, createShark } from "./simulation/shark.js";
+import { spawnSharks, resetSharks, createShark } from "./simulation/shark.js";
 import { DayCycle } from "./simulation/day.js";
 import { Plankton } from "./simulation/plankton.js";
 import { Rays } from "./simulation/rays.js";
@@ -137,6 +137,8 @@ function applySharkCount(n) {
     sharks.push(s);
     addSharkMesh(s);
   }
+  if (followSharkIndex >= sharks.length) followSharkIndex = sharks.length - 1;
+  syncCamHud();
 }
 
 const eatFX = createEatParticles();
@@ -197,6 +199,8 @@ function syncRays() {
 
 const CAM_NAME = CAMERA_MODES;
 let camMode = CAM.CINEMATIC;
+let followSharkIndex = 0;
+let followSchoolId = 0;
 const rig = createCameraRig(camera);
 
 const { input, consumePointer } = createInput(canvas);
@@ -231,11 +235,55 @@ hud.on("pilot", (on) => {
   if (on !== shark.controlled) togglePilot(on);
 });
 hud.on("camera", (mode) => applyCamera(mode));
+hud.on("nextTarget", () => cycleTarget());
+
+function occupiedSchoolIds() {
+  const ids = [];
+  for (let s = 0; s < school.maxSchools; s++) {
+    if (school.schoolN[s] > 0) ids.push(s);
+  }
+  return ids;
+}
+
+function resolveSchoolId() {
+  const ids = occupiedSchoolIds();
+  if (!ids.length) {
+    followSchoolId = 0;
+    return ids;
+  }
+  if (!ids.includes(followSchoolId)) followSchoolId = ids[0];
+  return ids;
+}
+
+function pinnedShark() {
+  if (shark.controlled) return shark;
+  if (followSharkIndex >= sharks.length) followSharkIndex = Math.max(0, sharks.length - 1);
+  return sharks[followSharkIndex];
+}
+
+function pinnedSchool() {
+  resolveSchoolId();
+  return school.centroids[followSchoolId] || school.centroid;
+}
+
+function subjectDetail() {
+  if (camMode === CAM.FREE) return "";
+  if (camMode === CAM.FOLLOW) return `${followSharkIndex + 1}/${sharks.length}`;
+  const ids = resolveSchoolId();
+  if (!ids.length) return "";
+  return `${ids.indexOf(followSchoolId) + 1}/${ids.length}`;
+}
+
+function syncCamHud() {
+  hud.setCamera(CAM_NAME[camMode], subjectDetail());
+  if (!shark.controlled) hud.setHint(cameraHint(camMode, false));
+}
 
 function camCtx() {
   return {
     school,
-    follow: shark.controlled ? shark : focusShark(sharks),
+    follow: pinnedShark(),
+    schoolTarget: pinnedSchool(),
     day,
     outcrops,
     piloting: shark.controlled,
@@ -247,8 +295,20 @@ function applyCamera(mode) {
   if (shark.controlled && mode !== CAM.FOLLOW) togglePilot(false);
   camMode = mode;
   rig.setMode(camMode, camCtx());
-  hud.setCamera(CAM_NAME[camMode]);
-  if (!shark.controlled) hud.setHint(cameraHint(camMode, false));
+  syncCamHud();
+}
+
+function cycleTarget() {
+  if (camMode === CAM.FREE) return;
+  if (camMode === CAM.FOLLOW) {
+    if (shark.controlled || sharks.length < 2) return;
+    followSharkIndex = (followSharkIndex + 1) % sharks.length;
+  } else {
+    const ids = resolveSchoolId();
+    if (ids.length < 2) return;
+    followSchoolId = ids[(ids.indexOf(followSchoolId) + 1) % ids.length];
+  }
+  syncCamHud();
 }
 
 function togglePilot(force) {
@@ -257,11 +317,12 @@ function togglePilot(force) {
   hud.setControl(next);
   if (next) {
     hud.setOpen(false);
+    followSharkIndex = 0;
     camMode = CAM.FOLLOW;
     rig.setMode(CAM.FOLLOW, camCtx());
-    hud.setCamera(CAM_NAME[camMode]);
   }
   hud.setHint(cameraHint(camMode, next));
+  hud.setCamera(CAM_NAME[camMode], subjectDetail());
 }
 
 window.addEventListener("keydown", (e) => {
@@ -274,6 +335,7 @@ window.addEventListener("keydown", (e) => {
 });
 
 rig.setMode(CAM.CINEMATIC, camCtx());
+syncCamHud();
 
 function updateCamera(dt, pointer) {
   rig.update(dt, { ...camCtx(), pointer });
@@ -334,7 +396,7 @@ function frame(now) {
     outcrops.update(dt, tod);
     updateCamera(dt, pointer);
     env.update(t, camera, tod);
-    hud.tick(dt, school, sharks, day, plankton);
+    hud.tick(dt, school, sharks, day, plankton, pinnedShark(), subjectDetail());
 
     renderer.render(scene, camera);
   } catch (err) {

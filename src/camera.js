@@ -18,15 +18,15 @@ export function cameraHint(mode, piloting) {
     return "Drag to look · WASD fly · Scroll dolly · Shift+drag or right-drag pan";
   }
   if (mode === CAM.FOLLOW) {
-    return "Drag to orbit shark · Scroll zoom · Right-drag pan";
+    return "N next shark · Drag to orbit · Scroll zoom · Right-drag pan";
   }
   if (mode === CAM.SURFACE) {
-    return "Drag to spin · Scroll zoom way out · Right-drag pan";
+    return "N next school · Drag to spin · Scroll zoom · Right-drag pan";
   }
   if (mode === CAM.ORBIT) {
-    return "Drag to orbit · Scroll zoom · Right-drag or Shift-drag pan";
+    return "N next school · Drag to orbit · Scroll zoom · Right-drag pan";
   }
-  return "Drag to look around · Scroll zoom · V free roam · C camera · P pilot";
+  return "N next school · Drag to look around · Scroll zoom · V free roam · C camera";
 }
 
 export function createCameraRig(camera) {
@@ -148,6 +148,7 @@ export function createCameraRig(camera) {
     pan.set(0, 0, 0);
     const school = ctx.school;
     const follow = ctx.follow;
+    const aim = ctx.schoolTarget || school.centroid;
     if (next === CAM.FREE) {
       enterFree();
       return;
@@ -160,18 +161,18 @@ export function createCameraRig(camera) {
       return;
     }
     if (next === CAM.SURFACE) {
-      captureAround(school.centroid.x, school.centroid.y, school.centroid.z);
+      captureAround(aim.x, aim.y, aim.z);
       radiusWant = radius = 110;
       phi = 0.48;
       return;
     }
     if (next === CAM.ORBIT) {
-      captureAround(school.centroid.x, school.centroid.y, school.centroid.z);
+      captureAround(aim.x, aim.y, aim.z);
       radiusWant = radius = Math.max(42, radius);
       phi = THREE.MathUtils.clamp(phi, 0.35, 1.55);
       return;
     }
-    captureAround(school.centroid.x, school.centroid.y, school.centroid.z);
+    captureAround(aim.x, aim.y, aim.z);
   }
 
   function updateFree(dt, input, pointer) {
@@ -182,7 +183,7 @@ export function createCameraRig(camera) {
     }
     const cp = Math.cos(freePitch);
     _fwd.set(Math.sin(freeYaw) * cp, Math.sin(freePitch), Math.cos(freeYaw) * cp);
-    _right.set(Math.cos(freeYaw), 0, -Math.sin(freeYaw));
+    _right.set(-Math.cos(freeYaw), 0, Math.sin(freeYaw));
     if (pointer.px || pointer.py) {
       const scale = 0.085;
       camera.position.addScaledVector(_right, -pointer.px * scale);
@@ -205,38 +206,32 @@ export function createCameraRig(camera) {
   }
 
   function cinematicAim(dt, ctx) {
-    const { school, follow, day, outcrops } = ctx;
+    const { school, schoolTarget, day, outcrops } = ctx;
     cineT += dt;
     const look = day.look;
     const night = look.night;
     const dawn = look.dawn;
-    const dusk = look.dusk;
-    let tx = school.centroid.x;
-    let ty = school.centroid.y - 1.5;
-    let tz = school.centroid.z;
+    const pack = schoolTarget || school.centroid;
+    let tx = pack.x;
+    let ty = pack.y - 1.5;
+    let tz = pack.z;
     let wantR = 40 + Math.sin(cineT * 0.13) * 8;
     let wantPhi = 1.22;
     let spin = 0.09;
     if (night > 0.55) {
       wantR = 22 + Math.sin(cineT * 0.2) * 4;
       wantPhi = 1.32;
-      ty = school.centroid.y - 0.8;
+      ty = pack.y - 0.8;
       spin = 0.05;
-    } else if (dusk > 0.45 && follow) {
-      wantR = 30;
-      tx = follow.x;
-      ty = follow.y - 0.6;
-      tz = follow.z;
-      wantPhi = 1.18;
     } else if (dawn > 0.45) {
       wantR = 48;
-      ty = school.centroid.y + 1;
+      ty = pack.y + 1;
       wantPhi = 1.05;
     } else if (outcrops?.sites?.length) {
       const site = outcrops.sites[(cineT * 0.08) % outcrops.sites.length | 0];
       wantR = 36 + Math.sin(cineT * 0.13) * 6;
-      tx = THREE.MathUtils.lerp(school.centroid.x, site.x, 0.18);
-      tz = THREE.MathUtils.lerp(school.centroid.z, site.z, 0.18);
+      tx = THREE.MathUtils.lerp(pack.x, site.x, 0.18);
+      tz = THREE.MathUtils.lerp(pack.z, site.z, 0.18);
     }
     const air = THREE.MathUtils.smoothstep(70, 220, radiusWant);
     wantPhi = THREE.MathUtils.lerp(wantPhi, 0.52, air);
@@ -298,7 +293,7 @@ export function createCameraRig(camera) {
       return;
     }
 
-    const aim = school.centroid;
+    const aim = ctx.schoolTarget || school.centroid;
     const followAmt = 1 - Math.exp(-dt * 2.4);
     target.x += (aim.x - target.x) * followAmt;
     target.y += (aim.y - target.y) * followAmt;

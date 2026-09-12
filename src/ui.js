@@ -77,6 +77,7 @@ export const MENU = [
         value: 0,
         key: "C",
       },
+      { id: "nextTarget", kind: "action", label: "Next target", key: "N" },
       { id: "pilot", kind: "toggle", label: "Pilot shark", key: "P" },
     ],
   },
@@ -87,6 +88,7 @@ const KEY_HELP = [
   ["Drag", "Orbit the view"],
   ["Scroll", "Zoom in and out"],
   ["Right-drag", "Pan · Shift-drag also pans"],
+  ["N", "Next shark or school"],
   ["V", "Free roam (WASD fly, drag to look)"],
   ["WASD", "Move · E/Q rise/dive · Shift boost · Space lunge"],
 ];
@@ -309,10 +311,10 @@ export function createHUD() {
     on(id, fn) {
       handlers.set(id, fn);
     },
-    setCamera(name) {
+    setCamera(name, detail) {
       const i = CAMERA_MODES.indexOf(name);
       if (i >= 0) set("camera", i);
-      document.getElementById("cam-mode").textContent = name;
+      document.getElementById("cam-mode").textContent = detail ? `${name} ${detail}` : name;
     },
     setControl(on) {
       set("pilot", on);
@@ -321,7 +323,7 @@ export function createHUD() {
     setHint(text) {
       hint.textContent = text;
     },
-    tick(dt, school, sharks, day, plankton) {
+    tick(dt, school, sharks, day, plankton, shownShark, camDetail) {
       frames++;
       acc += dt;
       if (acc >= 0.4) {
@@ -331,18 +333,7 @@ export function createHUD() {
       }
       const pack = Array.isArray(sharks) ? sharks : [sharks];
       const player = pack[0];
-      let shown = player;
-      if (!player.controlled) {
-        let score = -1;
-        for (let i = 0; i < pack.length; i++) {
-          const s = pack[i];
-          const sc = s.lunging ? 4 : s.aiMode === "strike" ? 3 : s.aiMode === "stalk" ? 1.5 : 0;
-          if (sc > score) {
-            score = sc;
-            shown = s;
-          }
-        }
-      }
+      const shown = shownShark || player;
       let eaten = 0;
       for (let i = 0; i < pack.length; i++) eaten += pack[i].eaten;
       document.getElementById("fish-count").textContent = school.count.toLocaleString();
@@ -355,6 +346,10 @@ export function createHUD() {
       const hungerEl = document.getElementById("hunger-count");
       if (hungerEl) hungerEl.textContent = `${Math.round(shown.energy * 100)}%`;
       document.getElementById("fps").textContent = String(fpsVal);
+      if (camDetail != null) {
+        const name = CAMERA_MODES[values.camera] || "";
+        document.getElementById("cam-mode").textContent = camDetail ? `${name} ${camDetail}` : name;
+      }
       if (!player.controlled) {
         const modes = {
           patrol: "AI patrol",
