@@ -56,7 +56,8 @@ export class Rays {
     }
   }
 
-  update(dt, shark, look) {
+  update(dt, sharks, look) {
+    const pack = Array.isArray(sharks) ? sharks : sharks ? [sharks] : [];
     const { count, pos, vel } = this;
     const cfg = CONFIG.rays;
     const t = look?.simTime ?? 0;
@@ -66,7 +67,6 @@ export class Rays {
     this.grid.rebuild(pos, count);
     const { heads, next, keyOf, nx, ny, nz, mask, inv, minX, minY, minZ } = this.grid;
     const sepR2 = cfg.sepRadius * cfg.sepRadius;
-    const fearR2 = cfg.fearRadius * cfg.fearRadius;
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
@@ -94,15 +94,30 @@ export class Rays {
       let ay = 0;
       let az = (hz * cfg.cruise + wz * cfg.cruise - vz) * 1.6;
 
-      const dxs = px - shark.x;
-      const dys = py - shark.y;
-      const dzs = pz - shark.z;
-      const pd2 = dxs * dxs + dys * dys + dzs * dzs;
-      const inFear = pd2 < fearR2 && pd2 > 1e-4;
+      let inFear = false;
+      let dxs = 0;
+      let dys = 0;
+      let dzs = 0;
+      let pd2 = 1e15;
+      for (let p = 0; p < pack.length; p++) {
+        const shark = pack[p];
+        const dx = px - shark.x;
+        const dy = py - shark.y;
+        const dz = pz - shark.z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        const r2 = cfg.fearRadius * cfg.fearRadius * shark.scale * shark.scale;
+        if (d2 < r2 && d2 > 1e-4) inFear = true;
+        if (d2 < pd2) {
+          pd2 = d2;
+          dxs = dx;
+          dys = dy;
+          dzs = dz;
+        }
+      }
       let maxSpd = cfg.maxSpeed;
-      if (inFear) {
+      if (inFear && pd2 > 1e-4) {
         const d = Math.sqrt(pd2);
-        const panic = 1 - d / cfg.fearRadius;
+        const panic = 1 - d / Math.max(cfg.fearRadius, d);
         ax += (dxs / d) * cfg.fleeSpeed * panic * 2.4;
         az += (dzs / d) * cfg.fleeSpeed * panic * 2.4;
         ay -= panic * 3.5;

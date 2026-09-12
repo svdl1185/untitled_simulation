@@ -3,6 +3,10 @@ import { UniformGrid3D } from "./grid.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 
+function packOf(sharks) {
+  return Array.isArray(sharks) ? sharks : sharks ? [sharks] : [];
+}
+
 const NEAR_K = 6;
 const NEIGHBOR_BUDGET = 40;
 const N27X = new Int8Array(27);
@@ -314,22 +318,22 @@ export class School {
     return this.centroids[idx];
   }
 
-  update(dt, shark, look, plankton) {
+  update(dt, sharks, look, plankton) {
     this.eatenThisFrame = 0;
     this._plankton = plankton || null;
-    this._wanderAnchors(dt, shark, look);
+    const pack = packOf(sharks);
+    this._wanderAnchors(dt, pack, look);
     this.grid.rebuild(this.pos, this.count);
-    this._flock(dt, shark, look);
-    this._reorganize(dt, shark, look);
-    this._eat(shark);
+    this._flock(dt, pack, look);
+    this._reorganize(dt, pack, look);
+    this._eat(pack);
     if (plankton) this._recruit(dt, plankton);
   }
 
-  _wanderAnchors(dt, shark, look) {
+  _wanderAnchors(dt, pack, look) {
     this.anchorT += dt * 0.11;
     const bound = CONFIG.halfX - 28;
     const depth = look?.preferredDepth ?? CONFIG.fish.preferredDepth;
-    const fearR = shark.fearRadius;
     const lead = CONFIG.fish.lead;
     for (let s = 0; s < this.maxSchools; s++) {
       this._splitLock[s] = Math.max(0, this._splitLock[s] - dt);
@@ -345,17 +349,25 @@ export class School {
 
       let hx = a.hx;
       let hz = a.hz;
-      const dx = c.x - shark.x;
-      const dy = c.y - shark.y;
-      const dz = c.z - shark.z;
-      const d2 = dx * dx + dz * dz;
-      const avoidR = fearR + CONFIG.fish.schoolRadius;
-      const sharkNear = d2 < avoidR * avoidR && d2 > 1;
+      let sharkNear = false;
+      let farAll = true;
+      for (let p = 0; p < pack.length; p++) {
+        const shark = pack[p];
+        const dx = c.x - shark.x;
+        const dy = c.y - shark.y;
+        const dz = c.z - shark.z;
+        const d2 = dx * dx + dz * dz;
+        const avoidR = shark.fearRadius + CONFIG.fish.schoolRadius;
+        if (d2 + dy * dy < (shark.fearRadius + 82) ** 2) farAll = false;
+        if (d2 < avoidR * avoidR && d2 > 1) {
+          sharkNear = true;
+          const d = Math.sqrt(d2);
+          const w = (1 - d / avoidR) ** 2;
+          hx += (dx / d) * w * 1.4;
+          hz += (dz / d) * w * 1.4;
+        }
+      }
       if (sharkNear) {
-        const d = Math.sqrt(d2);
-        const w = (1 - d / avoidR) ** 2;
-        hx += (dx / d) * w * 1.4;
-        hz += (dz / d) * w * 1.4;
         a.wantMill = 0;
         a.modeT = 5 + Math.random() * 4;
       } else {
@@ -364,8 +376,7 @@ export class School {
         hx = Math.sin(ang);
         hz = Math.cos(ang);
         if (a.modeT <= 0) {
-          const far = dx * dx + dy * dy + dz * dz > (fearR + 82) ** 2;
-          if (a.mill < 0.5 && far && Math.random() < 0.38) {
+          if (a.mill < 0.5 && farAll && Math.random() < 0.38) {
             a.wantMill = 1;
             a.modeT = 8 + Math.random() * 12;
           } else {
@@ -437,7 +448,7 @@ export class School {
     }
   }
 
-  _flock(dt, shark, look) {
+  _flock(dt, pack, look) {
     const { count, pos, vel, schoolId } = this;
     const cfg = CONFIG.fish;
     const rest = cfg.restSpacing;
@@ -457,16 +468,7 @@ export class School {
     const nd = this._nd;
     const simT = look?.simTime ?? 0;
 
-    const sx = shark.x;
-    const sy = shark.y;
-    const sz = shark.z;
-    const fearR = shark.fearRadius;
-    const fearR2 = fearR * fearR;
-    let sLen = Math.hypot(shark.vx, shark.vy, shark.vz);
-    if (sLen < 1e-4) sLen = 1;
-    const sfx = shark.vx / sLen;
-    const sfy = shark.vy / sLen;
-    const sfz = shark.vz / sLen;
+    const nPred = pack.length;
 
     const compact = this._compact;
     for (let s = 0; s < this.maxSchools; s++) {
@@ -475,12 +477,18 @@ export class School {
         continue;
       }
       const c = this.centroids[s];
-      const d = Math.hypot(c.x - sx, c.y - sy, c.z - sz);
-      const inner = fearR + 10;
-      const outer = fearR + holdR0 + 30;
       let u = 0;
-      if (d < inner) u = 1;
-      else if (d < outer) u = (outer - d) / (outer - inner);
+      for (let p = 0; p < nPred; p++) {
+        const pred = pack[p];
+        const fearR = pred.fearRadius;
+        const d = Math.hypot(c.x - pred.x, c.y - pred.y, c.z - pred.z);
+        const inner = fearR + 10;
+        const outer = fearR + holdR0 + 30;
+        let uu = 0;
+        if (d < inner) uu = 1;
+        else if (d < outer) uu = (outer - d) / (outer - inner);
+        if (uu > u) u = uu;
+      }
       compact[s] = u * u;
     }
 
@@ -645,12 +653,39 @@ export class School {
         }
       }
 
-      const pdx = px - sx;
-      const pdy = py - sy;
-      const pdz = pz - sz;
-      const pd2 = pdx * pdx + pdy * pdy + pdz * pdz;
+      let pdx = 0;
+      let pdy = 0;
+      let pdz = 0;
+      let pd2 = 1e15;
+      let sfx = 0;
+      let sfy = 0;
+      let sfz = 0;
+      let fearR = 1;
+      let inFear = false;
+      let lunging = false;
+      for (let p = 0; p < nPred; p++) {
+        const pred = pack[p];
+        const dx = px - pred.x;
+        const dy = py - pred.y;
+        const dz = pz - pred.z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < pred.fearRadius * pred.fearRadius && d2 > 1e-5) inFear = true;
+        if (d2 < pd2) {
+          pd2 = d2;
+          pdx = dx;
+          pdy = dy;
+          pdz = dz;
+          fearR = pred.fearRadius;
+          lunging = pred.lunging;
+          let sLen = Math.hypot(pred.vx, pred.vy, pred.vz);
+          if (sLen < 1e-4) sLen = 1;
+          sfx = pred.vx / sLen;
+          sfy = pred.vy / sLen;
+          sfz = pred.vz / sLen;
+        }
+      }
       let nextAlarm = this.alarm[i] * Math.exp(-dt * 3.1);
-      if (pd2 < fearR2 && pd2 > 1e-5) nextAlarm = 1;
+      if (inFear) nextAlarm = 1;
       else if (neighAlarm > 0.22) {
         const spread = neighAlarm * 0.58;
         if (spread > nextAlarm) {
@@ -762,7 +797,7 @@ export class School {
         const d = Math.sqrt(pd2 > 1e-5 ? pd2 : 1e-5);
         const falloff = Math.max(0, 1 - d / Math.max(fearR, d));
         const ahead = (pdx * sfx + pdy * sfy + pdz * sfz) / d;
-        const panic = Math.max(alarm, falloff * falloff * (0.75 + 0.5 * Math.max(0, ahead)));
+        const panic = Math.max(alarm, falloff * falloff * (0.75 + 0.5 * Math.max(0, ahead))) * (lunging ? 1.28 : 1);
         let fx = pdx / d + anchor.hx * 0.55;
         let fy = pdy / d * 0.22;
         let fz = pdz / d + anchor.hz * 0.55;
@@ -1007,17 +1042,17 @@ export class School {
     return Math.max(cfg.minSchoolSize, Math.min(400, (this.count * cfg.minSchoolFrac) | 0));
   }
 
-  _reorganize(dt, shark, look) {
+  _reorganize(dt, pack, look) {
     this._orgT += dt;
     if (this._orgT < 0.45) return;
     this._orgT = 0;
-    this._trySplits(shark, look);
-    this._tryJoins(shark, look);
-    this._tryMerges(shark, look);
+    this._trySplits(pack, look);
+    this._tryJoins(pack, look);
+    this._tryMerges(pack, look);
     this._refreshCentroids();
   }
 
-  _trySplits(shark, look) {
+  _trySplits(pack, look) {
     const minS = this._minSchoolSize();
     const cfg = CONFIG.fish;
     const splitR = cfg.splitDistance * (look?.schoolRadiusScale ?? 1);
@@ -1090,10 +1125,17 @@ export class School {
       const ah = Math.hypot(avx, avz) || 1;
       const bh = Math.hypot(bvx0, bvz0) || 1;
       const headingDot = (avx * bvx0 + avz * bvz0) / (ah * bh);
-      const sdx = c.x - shark.x;
-      const sdy = c.y - shark.y;
-      const sdz = c.z - shark.z;
-      const sharkNear = sdx * sdx + sdy * sdy + sdz * sdz < (shark.fearRadius + 55) ** 2;
+      let sharkNear = false;
+      for (let p = 0; p < pack.length; p++) {
+        const shark = pack[p];
+        const sdx = c.x - shark.x;
+        const sdy = c.y - shark.y;
+        const sdz = c.z - shark.z;
+        if (sdx * sdx + sdy * sdy + sdz * sdz < (shark.fearRadius + 55) ** 2) {
+          sharkNear = true;
+          break;
+        }
+      }
       if (headingDot > 0.6 && !sharkNear) continue;
 
       let bx = 0;
@@ -1135,11 +1177,10 @@ export class School {
     }
   }
 
-  _tryJoins(shark, look) {
+  _tryJoins(pack, look) {
     const minS = this._minSchoolSize();
     const holdR = CONFIG.fish.schoolRadius * (look?.schoolRadiusScale ?? 1);
     const slack = CONFIG.fish.joinSlack;
-    const fearR2 = shark.fearRadius * shark.fearRadius;
     const { pos, vel, schoolId, count } = this;
     let switched = 0;
     const cap = 70;
@@ -1149,10 +1190,18 @@ export class School {
       if (this.schoolN[sid] <= minS) continue;
       if (this._splitLock[sid] > 0.5) continue;
       const i3 = i * 3;
-      const dxs = pos[i3] - shark.x;
-      const dys = pos[i3 + 1] - shark.y;
-      const dzs = pos[i3 + 2] - shark.z;
-      if (dxs * dxs + dys * dys + dzs * dzs < fearR2) continue;
+      let scared = false;
+      for (let p = 0; p < pack.length; p++) {
+        const shark = pack[p];
+        const dxs = pos[i3] - shark.x;
+        const dys = pos[i3 + 1] - shark.y;
+        const dzs = pos[i3 + 2] - shark.z;
+        if (dxs * dxs + dys * dys + dzs * dzs < shark.fearRadius * shark.fearRadius) {
+          scared = true;
+          break;
+        }
+      }
+      if (scared) continue;
       const c = this.centroids[sid];
       const dox = pos[i3] - c.x;
       const doy = pos[i3 + 1] - c.y;
@@ -1184,20 +1233,27 @@ export class School {
     }
   }
 
-  _tryMerges(shark, look) {
+  _tryMerges(pack, look) {
     const minS = this._minSchoolSize();
     const mergeR = CONFIG.fish.mergeDistance * (0.85 + (look?.tight ?? 0) * 0.4);
     const mergeR2 = mergeR * mergeR;
-    const fearR = shark.fearRadius;
     const { schoolId, count } = this;
     for (let a = 0; a < this.maxSchools; a++) {
       if (this.schoolN[a] < minS) continue;
       if (this._splitLock[a] > 0) continue;
       const ca = this.centroids[a];
-      const adx = ca.x - shark.x;
-      const ady = ca.y - shark.y;
-      const adz = ca.z - shark.z;
-      if (adx * adx + ady * ady + adz * adz < (fearR + 12) ** 2) continue;
+      let scared = false;
+      for (let p = 0; p < pack.length; p++) {
+        const shark = pack[p];
+        const adx = ca.x - shark.x;
+        const ady = ca.y - shark.y;
+        const adz = ca.z - shark.z;
+        if (adx * adx + ady * ady + adz * adz < (shark.fearRadius + 12) ** 2) {
+          scared = true;
+          break;
+        }
+      }
+      if (scared) continue;
       for (let b = a + 1; b < this.maxSchools; b++) {
         if (this.schoolN[b] < minS) continue;
         if (this._splitLock[b] > 0) continue;
@@ -1222,25 +1278,25 @@ export class School {
     }
   }
 
-  _eat(shark) {
-    const r = shark.biteRadius;
-    const r2 = r * r;
-    const mx = shark.mouthX;
-    const my = shark.mouthY;
-    const mz = shark.mouthZ;
+  _eat(pack) {
     const { pos, count } = this;
     for (let i = count - 1; i >= 0; i--) {
       const i3 = i * 3;
-      const dx = pos[i3] - mx;
-      const dy = pos[i3 + 1] - my;
-      const dz = pos[i3 + 2] - mz;
-      if (dx * dx + dy * dy + dz * dz < r2) {
-        const x = pos[i3];
-        const y = pos[i3 + 1];
-        const z = pos[i3 + 2];
-        this.remove(i);
-        if (shark.feed) shark.feed();
-        shark.onEat(x, y, z);
+      const x = pos[i3];
+      const y = pos[i3 + 1];
+      const z = pos[i3 + 2];
+      for (let p = 0; p < pack.length; p++) {
+        const shark = pack[p];
+        const r = shark.biteRadius;
+        const dx = x - shark.mouthX;
+        const dy = y - shark.mouthY;
+        const dz = z - shark.mouthZ;
+        if (dx * dx + dy * dy + dz * dz < r * r) {
+          this.remove(i);
+          if (shark.feed) shark.feed();
+          shark.onEat(x, y, z);
+          break;
+        }
       }
     }
   }

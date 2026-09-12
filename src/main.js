@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { School } from "./simulation/school.js";
-import { Shark } from "./simulation/shark.js";
+import { spawnSharks, resetSharks, focusShark, createShark } from "./simulation/shark.js";
 import { DayCycle } from "./simulation/day.js";
 import { Plankton } from "./simulation/plankton.js";
 import { Rays } from "./simulation/rays.js";
@@ -59,10 +59,8 @@ scene.add(bloom.mesh);
 const rays = new Rays(CONFIG.rays.count);
 rays.colliders = outcrops.colliders;
 rays.colliderCount = outcrops.colliderCount;
-const shark = new Shark();
-shark.x = school.centroid.x + 52;
-shark.y = school.centroid.y - 2;
-shark.z = school.centroid.z + 38;
+const sharks = spawnSharks(CONFIG.shark.count, school);
+const shark = sharks[0];
 
 camera.position.set(
   school.centroid.x + 28,
@@ -93,18 +91,60 @@ rayMesh.geometry.setAttribute(
 );
 scene.add(rayMesh);
 
-window.__sim = { school, shark, plankton, rays, camera, fishMesh, rayMesh, day, outcrops, renderer, getCam: () => camMode, setCam: (m) => { camMode = m; hud.setCamera(CAM_NAME[camMode]); } };
+window.__sim = { school, shark, sharks, plankton, rays, camera, fishMesh, rayMesh, day, outcrops, renderer, getCam: () => camMode, setCam: (m) => { camMode = m; hud.setCamera(CAM_NAME[camMode]); } };
 
-const sharkMesh = createSharkMesh(uniforms);
-scene.add(sharkMesh);
+const sharkMeshes = [];
+let fearVisible = false;
+
+function bindShark(s) {
+  s.onEat = (x, y, z) => {
+    s.eaten++;
+    s.eatEvents.push({ x, y, z, t: 0 });
+    eatFX.burst(x, y, z);
+  };
+}
+
+function disposeObject(obj) {
+  obj.geometry?.dispose();
+  if (!obj.material) return;
+  const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+  for (const m of mats) m.dispose();
+}
+
+function addSharkMesh(s) {
+  const mesh = createSharkMesh(uniforms, { tint: s.tint });
+  mesh.userData.fear.visible = fearVisible;
+  scene.add(mesh);
+  sharkMeshes.push(mesh);
+  return mesh;
+}
+
+function removeLastShark() {
+  if (sharks.length <= 1) return;
+  sharks.pop();
+  const mesh = sharkMeshes.pop();
+  if (!mesh) return;
+  scene.remove(mesh);
+  mesh.traverse(disposeObject);
+}
+
+function applySharkCount(n) {
+  const next = Math.max(1, Math.min(CONFIG.shark.max, n | 0));
+  while (sharks.length > next) removeLastShark();
+  while (sharks.length < next) {
+    const s = createShark(sharks.length, next, school);
+    bindShark(s);
+    sharks.push(s);
+    addSharkMesh(s);
+  }
+}
 
 const eatFX = createEatParticles();
 scene.add(eatFX.points);
-shark.onEat = (x, y, z) => {
-  shark.eaten++;
-  shark.eatEvents.push({ x, y, z, t: 0 });
-  eatFX.burst(x, y, z);
-};
+for (const s of sharks) {
+  bindShark(s);
+  addSharkMesh(s);
+}
 
 const _dir = new THREE.Vector3();
 const _z = new THREE.Vector3(0, 0, 1);
@@ -177,6 +217,7 @@ hud.setCamera(CAM_NAME[camMode]);
 hud.setControl(false);
 
 hud.on("fish", (n) => school.setCount(n));
+hud.on("sharks", (n) => applySharkCount(n));
 hud.on("hour", (h) => {
   day.setHour(h);
   hud.set("liveClock", false);
@@ -188,14 +229,14 @@ hud.on("storm", (on) => {
   day.stormTarget = on ? 1 : 0;
 });
 hud.on("fear", (on) => {
-  sharkMesh.userData.fear.visible = on;
+  fearVisible = on;
+  for (const mesh of sharkMeshes) mesh.userData.fear.visible = on;
 });
 hud.on("reset", () => {
   school.respawn(Number(hud.get("fish")));
   plankton.seed();
   rays.respawn(CONFIG.rays.count);
-  shark.eaten = 0;
-  shark.energy = 0.72;
+  resetSharks(sharks, school);
 });
 hud.on("pilot", (on) => {
   if (on !== shark.controlled) togglePilot(on);
@@ -295,12 +336,13 @@ function updateCamera(dt) {
   }
 
   if (camMode === CAM.FOLLOW || shark.controlled) {
+    const follow = shark.controlled ? shark : focusShark(sharks);
     const back = shark.controlled ? 16 : 22;
     const lift = shark.controlled ? 5.2 : 9;
     _camPos.set(
-      shark.x - shark.fwdX * back,
-      shark.y - shark.fwdY * back * 0.12 + lift,
-      shark.z - shark.fwdZ * back
+      follow.x - follow.fwdX * back,
+      follow.y - follow.fwdY * back * 0.12 + lift,
+      follow.z - follow.fwdZ * back
     );
     _camPos.y = Math.max(_camPos.y, seafloorHeight(_camPos.x, _camPos.z) + 3.2);
     _camPos.y = Math.min(_camPos.y, -0.8);
@@ -309,9 +351,9 @@ function updateCamera(dt) {
     followSpring.y = THREE.MathUtils.clamp(followSpring.y, camFloor, -0.7);
     camera.position.copy(followSpring);
     _look.set(
-      shark.x + shark.fwdX * 8,
-      shark.y - 1.8,
-      shark.z + shark.fwdZ * 8
+      follow.x + follow.fwdX * 8,
+      follow.y - 1.8,
+      follow.z + follow.fwdZ * 8
     );
     _look.y = Math.min(_look.y, -1.1);
     _look.y = Math.max(_look.y, seafloorHeight(_look.x, _look.z) + 1.6);
@@ -337,6 +379,7 @@ function updateCamera(dt) {
   const night = look.night;
   const dawn = look.dawn;
   const dusk = look.dusk;
+  const cine = focusShark(sharks);
   let radius = 36 + Math.sin(cineT * 0.13) * 8;
   let y = school.centroid.y + 9;
   let tx = school.centroid.x;
@@ -347,10 +390,10 @@ function updateCamera(dt) {
     y = school.centroid.y + 5.5;
   } else if (dusk > 0.45) {
     radius = 28;
-    tx = shark.x;
-    ty = shark.y - 1;
-    tz = shark.z;
-    y = Math.min(shark.y + 3.5, -4);
+    tx = cine.x;
+    ty = cine.y - 1;
+    tz = cine.z;
+    y = Math.min(cine.y + 3.5, -4);
   } else if (dawn > 0.45) {
     radius = 42;
     y = Math.min(school.centroid.y + 12, -3.2);
@@ -382,42 +425,53 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+window.__sim.meshes = sharkMeshes;
+
 let last = performance.now();
 syncFish();
 syncRays();
 let raf = 0;
 
 function frame(now) {
-  const dt = Math.min((now - last) / 1000, 0.033);
-  last = now;
-  const t = now * 0.001;
+  try {
+    const dt = Math.min((now - last) / 1000, 0.033);
+    last = now;
+    const t = now * 0.001;
 
-  const look = consumeLook();
-  input.mouseDx = look.mx;
-  input.mouseDy = look.my;
+    const look = consumeLook();
+    input.mouseDx = look.mx;
+    input.mouseDy = look.my;
 
-  day.update(dt);
-  const tod = day.look;
-  tod.simTime = t;
-  if (shark.lunging && tod.caustic > 0.05) tod.caustic = Math.min(1.15, tod.caustic + 0.28);
-  syncWorldUniforms(uniforms, tod);
-  renderer.toneMappingExposure = tod.exposure;
+    day.update(dt);
+    const tod = day.look;
+    tod.simTime = t;
+    let lunging = false;
+    for (const s of sharks) {
+      s.update(dt, input, school, tod, sharks);
+      if (s.lunging) lunging = true;
+    }
+    if (lunging && tod.caustic > 0.05) tod.caustic = Math.min(1.15, tod.caustic + 0.28);
+    syncWorldUniforms(uniforms, tod);
+    renderer.toneMappingExposure = tod.exposure;
 
-  shark.update(dt, input, school, tod);
-  school.update(dt, shark, tod, plankton);
-  rays.update(dt, shark, tod);
-  plankton.update(dt, tod, t);
-  bloom.update();
-  syncFish();
-  syncRays();
-  syncSharkMesh(sharkMesh, shark, uniforms);
-  eatFX.update(dt);
-  outcrops.update(dt, tod);
-  updateCamera(dt);
-  env.update(t, camera, tod);
-  hud.tick(dt, school, shark, day, plankton);
+    school.update(dt, sharks, tod, plankton);
+    rays.update(dt, sharks, tod);
+    plankton.update(dt, tod, t);
+    bloom.update();
+    syncFish();
+    syncRays();
+    for (let i = 0; i < sharks.length; i++) syncSharkMesh(sharkMeshes[i], sharks[i]);
+    eatFX.update(dt);
+    outcrops.update(dt, tod);
+    updateCamera(dt);
+    env.update(t, camera, tod);
+    hud.tick(dt, school, sharks, day, plankton);
 
-  renderer.render(scene, camera);
+    renderer.render(scene, camera);
+  } catch (err) {
+    console.error(err);
+    window.__frameErr = String(err && err.stack ? err.stack : err);
+  }
   raf = requestAnimationFrame(frame);
 }
 

@@ -45,6 +45,15 @@ export const MENU = [
         value: CONFIG.initialFish,
         format: (n) => Number(n).toLocaleString(),
       },
+      {
+        id: "sharks",
+        kind: "slider",
+        label: "Sharks",
+        min: 1,
+        max: CONFIG.shark.max,
+        step: 1,
+        value: CONFIG.shark.count,
+      },
       { id: "reset", kind: "action", label: "Reset school", key: "R" },
     ],
   },
@@ -310,7 +319,7 @@ export function createHUD() {
         ? "Click the water to capture the mouse · WASD turn/thrust · E/Q rise/dive · Shift boost · Space lunge · Esc release"
         : "M menu · V free roam · C camera · P pilot";
     },
-    tick(dt, school, shark, day, plankton) {
+    tick(dt, school, sharks, day, plankton) {
       frames++;
       acc += dt;
       if (acc >= 0.4) {
@@ -318,22 +327,38 @@ export function createHUD() {
         frames = 0;
         acc = 0;
       }
+      const pack = Array.isArray(sharks) ? sharks : [sharks];
+      const player = pack[0];
+      let shown = player;
+      if (!player.controlled) {
+        let score = -1;
+        for (let i = 0; i < pack.length; i++) {
+          const s = pack[i];
+          const sc = s.lunging ? 4 : s.aiMode === "strike" ? 3 : s.aiMode === "stalk" ? 1.5 : 0;
+          if (sc > score) {
+            score = sc;
+            shown = s;
+          }
+        }
+      }
+      let eaten = 0;
+      for (let i = 0; i < pack.length; i++) eaten += pack[i].eaten;
       document.getElementById("fish-count").textContent = school.count.toLocaleString();
       document.getElementById("school-count").textContent = String(school.occupied);
-      document.getElementById("eaten-count").textContent = shark.eaten.toLocaleString();
+      document.getElementById("eaten-count").textContent = eaten.toLocaleString();
       const bloomEl = document.getElementById("bloom-count");
       if (bloomEl && plankton) bloomEl.textContent = `${Math.round(plankton.mean * 100)}%`;
       const hungerEl = document.getElementById("hunger-count");
-      if (hungerEl) hungerEl.textContent = `${Math.round(shark.energy * 100)}%`;
+      if (hungerEl) hungerEl.textContent = `${Math.round(shown.energy * 100)}%`;
       document.getElementById("fps").textContent = String(fpsVal);
-      if (!shark.controlled) {
+      if (!player.controlled) {
         const modes = {
           patrol: "AI patrol",
           stalk: "AI stalk",
           strike: "AI strike",
           recover: "AI recover",
         };
-        document.getElementById("control-state").textContent = modes[shark.aiMode] || "AI";
+        document.getElementById("control-state").textContent = modes[shown.aiMode] || "AI";
       }
       if (day) {
         document.getElementById("tod-label").textContent = day.look.name;

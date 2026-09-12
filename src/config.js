@@ -61,6 +61,9 @@ export const CONFIG = {
   },
 
   shark: {
+    count: 3,
+    max: 8,
+    spacing: 34,
     length: 11.2,
     cruiseSpeed: 11,
     boostSpeed: 19,

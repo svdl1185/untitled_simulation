@@ -11,19 +11,23 @@ function prepare(g) {
   return g;
 }
 
-export function createSharkMesh(uniforms) {
-  const body = _body();
-  const dorsal = _triFin(0, 0.55, 0.1, 1.15, 1.4, 0.28);
-  const tailUpper = _triFin(0, 0.15, -4.6, 1.6, 1.9, 0.2);
-  const tailLower = _triFin(0, -0.05, -4.6, -1.05, 1.35, 0.18);
-  const pecL = _pec(1);
-  const pecR = _pec(-1);
-  const pelvic = _triFin(0, -0.42, -0.8, -0.45, 0.7, 0.12);
+export function createSharkMesh(uniforms, opts = {}) {
+  const tint = opts.tint || { r: 1, g: 1, b: 1 };
+  const body = _body(tint);
+  const dorsal = _triFin(0, 0.55, 0.1, 1.15, 1.4, 0.28, tint);
+  const tailUpper = _triFin(0, 0.15, -4.6, 1.6, 1.9, 0.2, tint);
+  const tailLower = _triFin(0, -0.05, -4.6, -1.05, 1.35, 0.18, tint);
+  const pecL = _pec(1, tint);
+  const pecR = _pec(-1, tint);
+  const pelvic = _triFin(0, -0.42, -0.8, -0.45, 0.7, 0.12, tint);
   const geo = mergeGeometries(
     [body, dorsal, tailUpper, tailLower, pecL, pecR, pelvic].map(prepare),
     false
   );
   geo.computeVertexNormals();
+
+  const uSharkAmp = { value: 0.55 };
+  const uSharkPhase = { value: 0 };
 
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true,
@@ -32,54 +36,57 @@ export function createSharkMesh(uniforms) {
     side: THREE.DoubleSide,
     envMapIntensity: 0.15,
   });
-    if (uniforms) {
-      mat.onBeforeCompile = (shader) => {
-        shader.uniforms.uTime = uniforms.uTime;
-        shader.uniforms.uSharkAmp = uniforms.uSharkAmp;
-        shader.uniforms.uSharkPhase = uniforms.uSharkPhase;
-        shader.vertexShader = shader.vertexShader.replace(
-          "#include <common>",
-          `#include <common>
+  if (uniforms) {
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = uniforms.uTime;
+      shader.uniforms.uSharkAmp = uSharkAmp;
+      shader.uniforms.uSharkPhase = uSharkPhase;
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <common>",
+        `#include <common>
           uniform float uTime;
           uniform float uSharkAmp;
           uniform float uSharkPhase;
           `
-        );
-        shader.vertexShader = shader.vertexShader.replace(
-          "#include <begin_vertex>",
-          `
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        `
           vec3 transformed = vec3(position);
           float along = position.z;
-          float tail = smoothstep(1.4, -4.85, along);
-          float head = 1.0 - smoothstep(-0.4, 4.6, along);
+          float bodyN = clamp((5.2 - along) / 10.05, 0.0, 1.0);
+          float tail = smoothstep(0.32, 1.0, bodyN);
+          float head = 1.0 - smoothstep(0.0, 0.28, bodyN);
           float phase = uSharkPhase;
-          float wave = sin(phase - along * 0.55);
+          float wave = sin(phase - along * 0.62);
           float amp = uSharkAmp;
-          transformed.x += wave * amp * (0.08 + tail * tail * 1.85);
-          transformed.x -= sin(phase) * amp * 0.14 * head;
-          transformed.y += cos(phase - along * 0.4) * amp * 0.1 * tail;
+          float lat = wave * amp * (0.05 + pow(tail, 1.65) * 2.2);
+          lat -= sin(phase) * amp * 0.2 * head;
+          transformed.x += lat;
+          transformed.y += cos(phase - along * 0.45) * amp * 0.09 * tail * tail;
           if (abs(position.x) > 0.52 && position.z > 0.35 && position.z < 2.05) {
             float pec = (abs(position.x) - 0.52) / 1.4;
-            transformed.y += sin(phase * 0.7) * 0.28 * sign(position.x) * pec * amp;
-            transformed.z += sin(phase * 0.7 + 0.5) * 0.08 * pec * amp;
+            float pecAmp = min(amp, 0.72);
+            transformed.y += sin(phase * 0.85) * 0.34 * sign(position.x) * pec * pecAmp;
+            transformed.z += sin(phase * 0.85 + 0.55) * 0.1 * pec * pecAmp;
           }
           `
-        );
-        shader.vertexShader = shader.vertexShader.replace(
-          "#include <beginnormal_vertex>",
-          `
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <beginnormal_vertex>",
+        `
           vec3 objectNormal = vec3(normal);
           float alongN = position.z;
-          float tailN = smoothstep(1.4, -4.85, alongN);
-          float dWave = cos(uSharkPhase - alongN * 0.55) * 0.55;
-          objectNormal.x += dWave * uSharkAmp * tailN * 0.35;
+          float tailN = smoothstep(0.32, 1.0, clamp((5.2 - alongN) / 10.05, 0.0, 1.0));
+          float dWave = cos(uSharkPhase - alongN * 0.62) * 0.62;
+          objectNormal.x += dWave * uSharkAmp * tailN * 0.4;
           objectNormal = normalize(objectNormal);
           `
-        );
-      };
-      mat.customProgramCacheKey = () => "shark-swim-v3";
-      attachWorldShading(mat, uniforms);
-    }
+      );
+    };
+    mat.customProgramCacheKey = () => "shark-swim-v4";
+    attachWorldShading(mat, uniforms);
+  }
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
 
@@ -113,10 +120,16 @@ export function createSharkMesh(uniforms) {
   group.add(fear);
   group.userData.fear = fear;
   group.userData.body = mesh;
+  group.userData.uSharkAmp = uSharkAmp;
+  group.userData.uSharkPhase = uSharkPhase;
   return group;
 }
 
-function _body() {
+function _shade(baseR, baseG, baseB, tint) {
+  return [baseR * tint.r, baseG * tint.g, baseB * tint.b];
+}
+
+function _body(tint) {
   const profile = [
     new THREE.Vector2(0.01, -4.85),
     new THREE.Vector2(0.12, -4.55),
@@ -134,16 +147,17 @@ function _body() {
   const pos = g.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i);
-    const t = THREE.MathUtils.smoothstep(y, -0.4, 0.35);
-    col[i * 3] = 0.32 + t * 0.22;
-    col[i * 3 + 1] = 0.38 + t * 0.18;
-    col[i * 3 + 2] = 0.42 + t * 0.14;
+    const t = THREE.MathUtils.smoothstep(y, -0.45, 0.38);
+    const [r, gc, b] = _shade(0.26 + t * 0.28, 0.3 + t * 0.26, 0.34 + t * 0.2, tint);
+    col[i * 3] = r;
+    col[i * 3 + 1] = gc;
+    col[i * 3 + 2] = b;
   }
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
   return g;
 }
 
-function _triFin(x, y, z, h, length, thickness) {
+function _triFin(x, y, z, h, length, thickness, tint) {
   const g = new THREE.BufferGeometry();
   const t = thickness;
   const verts = new Float32Array([
@@ -156,16 +170,17 @@ function _triFin(x, y, z, h, length, thickness) {
   g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
   g.setIndex([0, 1, 2, 0, 2, 3, 1, 4, 2, 3, 2, 4]);
   const col = new Float32Array(5 * 3);
+  const [r, gc, b] = _shade(0.2, 0.26, 0.32, tint);
   for (let i = 0; i < 5; i++) {
-    col[i * 3] = 0.22;
-    col[i * 3 + 1] = 0.28;
-    col[i * 3 + 2] = 0.34;
+    col[i * 3] = r;
+    col[i * 3 + 1] = gc;
+    col[i * 3 + 2] = b;
   }
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
   return g;
 }
 
-function _pec(side) {
+function _pec(side, tint) {
   const g = new THREE.BufferGeometry();
   const s = side;
   const verts = new Float32Array([
@@ -175,23 +190,28 @@ function _pec(side) {
   ]);
   g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
   g.setIndex([0, 1, 2]);
-  const col = new Float32Array([0.3, 0.36, 0.4, 0.24, 0.3, 0.35, 0.32, 0.38, 0.42]);
+  const a = _shade(0.28, 0.34, 0.38, tint);
+  const b = _shade(0.22, 0.28, 0.33, tint);
+  const c = _shade(0.3, 0.36, 0.4, tint);
+  const col = new Float32Array([...a, ...b, ...c]);
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
   return g;
 }
 
-export function syncSharkMesh(group, shark, uniforms) {
+export function syncSharkMesh(group, shark) {
   const spd = Math.hypot(shark.vx, shark.vy, shark.vz);
-  const amp = (0.32 + Math.min(spd, 28) * 0.018) * (shark.lunging ? 1.45 : 1);
-  if (uniforms?.uSharkAmp) uniforms.uSharkAmp.value = amp;
-  if (uniforms?.uSharkPhase) uniforms.uSharkPhase.value = shark.swimT;
-  const wag = Math.sin(shark.swimT) * 0.045 * (0.4 + amp);
-  const bob = Math.sin(shark.swimT + 0.6) * 0.02 * (0.45 + amp);
+  const coast = !shark.bursting && !shark.lunging && shark.thrust < 0.5;
+  const amp = (0.26 + Math.min(spd, 28) * 0.02) * (shark.lunging ? 1.55 : coast ? 0.52 : 1);
+  if (group.userData.uSharkAmp) group.userData.uSharkAmp.value = amp;
+  if (group.userData.uSharkPhase) group.userData.uSharkPhase.value = shark.swimT;
+  const wag = Math.sin(shark.swimT) * 0.055 * (0.35 + amp) * (coast ? 0.45 : 1);
+  const bob = Math.sin(shark.swimT + 0.6) * 0.018 * (0.4 + amp);
   group.position.set(shark.x, shark.y, shark.z);
-  group.rotation.set(shark.pitch + bob, shark.yaw + wag, shark.roll + wag * 0.4, "YXZ");
+  group.rotation.set(shark.pitch + bob, shark.yaw + wag, shark.roll + wag * 0.35, "YXZ");
+  group.scale.setScalar(shark.scale);
   const fear = group.userData.fear;
   if (fear.visible) {
-    const r = shark.fearRadius;
+    const r = shark.fearRadius / Math.max(shark.scale, 0.01);
     fear.scale.setScalar(r);
     fear.children.forEach((ring) => {
       ring.material.opacity = shark.lunging ? 0.38 : 0.2;
