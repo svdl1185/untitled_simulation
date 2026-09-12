@@ -34,9 +34,15 @@ export function createEnvironment(scene, uniforms) {
       const depth = Math.max(0, -camera.position.y);
       const thermo =
         1 + 0.42 * Math.exp(-((camera.position.y + 18) * (camera.position.y + 18)) / 22);
+      const pull = THREE.MathUtils.smoothstep(
+        48,
+        210,
+        Math.max(camera.position.y, Math.hypot(camera.position.x, camera.position.z) * 0.28)
+      );
       scene.fog.color.copy(above ? look.fogAbove : look.fog);
       scene.fog.density =
-        (above ? look.fogD * 0.62 : look.fogD) * thermo + (above ? 0 : depth * 0.00008);
+        ((above ? look.fogD * 0.62 : look.fogD) * thermo + (above ? 0 : depth * 0.00008)) *
+        (1 - pull * 0.86);
       scene.background.copy(above ? look.bgAbove : look.bg);
       sun.color.copy(look.sun);
       sun.intensity = (above ? look.sunI * 1.15 : look.sunI) * look.wavePulse;
@@ -54,7 +60,7 @@ export function createEnvironment(scene, uniforms) {
 }
 
 function _sky(uniforms) {
-  const geo = new THREE.SphereGeometry(280, 24, 16);
+  const geo = new THREE.SphereGeometry(1400, 24, 16);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,

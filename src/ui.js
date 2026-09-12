@@ -84,8 +84,10 @@ export const MENU = [
 
 const KEY_HELP = [
   ["M / Tab", "Open or close this menu"],
-  ["V", "Free roam (WASD fly, click to look)"],
-  ["Esc", "Close menu / release mouse"],
+  ["Drag", "Orbit the view"],
+  ["Scroll", "Zoom in and out"],
+  ["Right-drag", "Pan · Shift-drag also pans"],
+  ["V", "Free roam (WASD fly, drag to look)"],
   ["WASD", "Move · E/Q rise/dive · Shift boost · Space lunge"],
 ];
 
@@ -315,9 +317,9 @@ export function createHUD() {
     setControl(on) {
       set("pilot", on);
       document.getElementById("control-state").textContent = on ? "Pilot" : "AI patrol";
-      hint.textContent = on
-        ? "Click the water to capture the mouse · WASD turn/thrust · E/Q rise/dive · Shift boost · Space lunge · Esc release"
-        : "M menu · V free roam · C camera · P pilot";
+    },
+    setHint(text) {
+      hint.textContent = text;
     },
     tick(dt, school, sharks, day, plankton) {
       frames++;

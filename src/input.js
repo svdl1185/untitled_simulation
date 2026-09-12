@@ -12,10 +12,11 @@ export function createInput(canvas) {
     mouseDy: 0,
     orbitDx: 0,
     orbitDy: 0,
+    panDx: 0,
+    panDy: 0,
     wheel: 0,
     dragging: false,
-    pointerLocked: false,
-    ignoreLookUntil: 0,
+    panning: false,
   };
 
   const keys = {
@@ -33,6 +34,21 @@ export function createInput(canvas) {
     ShiftRight: "boost",
   };
 
+  let lastX = 0;
+  let lastY = 0;
+  let dragPointer = null;
+
+  function isPan(e) {
+    return e.button === 1 || e.button === 2 || (e.button === 0 && e.shiftKey);
+  }
+
+  function endDrag() {
+    dragPointer = null;
+    input.dragging = false;
+    input.panning = false;
+    canvas.classList.remove("is-dragging", "is-panning");
+  }
+
   window.addEventListener("keydown", (e) => {
     if (e.code === "Space") {
       e.preventDefault();
@@ -48,69 +64,90 @@ export function createInput(canvas) {
     if (bind) input[bind] = false;
   });
 
-  canvas.addEventListener("mousedown", (e) => {
-    if (e.button === 0 && !input.pointerLocked) input.dragging = true;
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (e.button > 2) return;
+    dragPointer = e.pointerId;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    if (isPan(e)) {
+      input.panning = true;
+      input.dragging = false;
+      canvas.classList.add("is-panning");
+    } else {
+      input.dragging = true;
+      input.panning = false;
+      canvas.classList.add("is-dragging");
+    }
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      /* untrusted / already released */
+    }
+    e.preventDefault();
   });
-  window.addEventListener("mouseup", () => {
-    input.dragging = false;
-  });
-  window.addEventListener("mousemove", (e) => {
-    if (performance.now() < input.ignoreLookUntil) return;
-    const dx = Math.max(-18, Math.min(18, e.movementX)) * 0.00085;
-    const dy = Math.max(-18, Math.min(18, e.movementY)) * 0.00085;
-    if (input.pointerLocked) {
-      input.mouseDx += dx;
-      input.mouseDy += dy;
-    } else if (input.dragging) {
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (dragPointer !== e.pointerId) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    if (!dx && !dy) return;
+    if (input.panning) {
+      input.panDx += dx;
+      input.panDy += dy;
+    } else {
       input.orbitDx += dx;
       input.orbitDy += dy;
     }
   });
+
+  canvas.addEventListener("pointerup", (e) => {
+    if (dragPointer === e.pointerId) endDrag();
+  });
+  canvas.addEventListener("pointercancel", (e) => {
+    if (dragPointer === e.pointerId) endDrag();
+  });
+  canvas.addEventListener("lostpointercapture", () => {
+    if (dragPointer != null) endDrag();
+  });
+
   canvas.addEventListener(
     "wheel",
     (e) => {
-      e.preventDefault();
-      input.wheel += e.deltaY;
+      if (e.cancelable) e.preventDefault();
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 16;
+      else if (e.deltaMode === 2) dy *= 400;
+      input.wheel += dy;
     },
     { passive: false }
   );
 
-  document.addEventListener("pointerlockchange", () => {
-    input.pointerLocked = document.pointerLockElement === canvas;
-    if (input.pointerLocked) {
-      input.ignoreLookUntil = performance.now() + 280;
-      input.mouseDx = 0;
-      input.mouseDy = 0;
-    }
-  });
-
   return {
     input,
-    consumeLook() {
-      const mx = input.mouseDx;
-      const my = input.mouseDy;
-      input.mouseDx = 0;
-      input.mouseDy = 0;
-      return { mx, my };
-    },
-    consumeOrbit() {
+    consumePointer() {
       const ox = input.orbitDx;
       const oy = input.orbitDy;
+      const px = input.panDx;
+      const py = input.panDy;
       const wheel = input.wheel;
       input.orbitDx = 0;
       input.orbitDy = 0;
+      input.panDx = 0;
+      input.panDy = 0;
       input.wheel = 0;
-      return { ox, oy, wheel };
-    },
-    lock() {
-      input.ignoreLookUntil = performance.now() + 280;
-      input.mouseDx = 0;
-      input.mouseDy = 0;
-      const p = canvas.requestPointerLock();
-      if (p && typeof p.catch === "function") p.catch(() => {});
-    },
-    unlock() {
-      if (document.pointerLockElement) document.exitPointerLock();
+      return {
+        ox,
+        oy,
+        px,
+        py,
+        wheel,
+        dragging: input.dragging,
+        panning: input.panning,
+      };
     },
   };
 }
