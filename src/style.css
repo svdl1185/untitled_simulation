@@ -51,6 +51,7 @@ body {
 
 .hud-top,
 .hud-left,
+.hud-right,
 #pilot-hint {
   position: fixed;
   z-index: 2;
@@ -100,12 +101,73 @@ h3 {
   top: 72px;
   left: 28px;
   bottom: 72px;
+  width: min(340px, calc(100vw - 56px));
+  overflow: auto;
+  pointer-events: none;
+}
+
+.hud-left .hud-panel {
+  pointer-events: auto;
+  padding: 14px 16px 16px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(16px);
+}
+
+.hud-right {
+  top: 72px;
+  right: 28px;
+  bottom: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: min(360px, calc(100vw - 56px));
+  pointer-events: none;
+}
+
+#btn-notes {
+  pointer-events: auto;
+  align-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  appearance: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+}
+
+#btn-notes:hover,
+#btn-notes[aria-expanded="true"] {
+  background: rgba(90, 200, 190, 0.18);
+  border-color: rgba(160, 230, 220, 0.4);
+}
+
+#hud-notes-body {
+  pointer-events: auto;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  overflow: auto;
-  padding-right: 8px;
-  max-width: min(360px, calc(100vw - 56px));
+  padding: 14px 16px 16px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(16px);
+}
+
+.hud-right.is-collapsed #hud-notes-body {
+  display: none;
 }
 
 .hud-panel {
@@ -163,7 +225,7 @@ h3 {
   pointer-events: auto;
   justify-self: start;
   appearance: none;
-  margin-top: 4px;
+  margin-top: 6px;
   border-radius: 999px;
   padding: 7px 14px;
   font: inherit;
@@ -171,20 +233,92 @@ h3 {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink);
-  background: var(--panel);
+  background: rgba(231, 244, 242, 0.08);
   border: 1px solid var(--line);
   cursor: pointer;
-  backdrop-filter: blur(12px);
 }
 
-#hud-follow:hover:not(:disabled) {
+#hud-follow:hover {
   background: rgba(90, 200, 190, 0.18);
   border-color: rgba(160, 230, 220, 0.4);
 }
 
-#hud-follow:disabled {
-  opacity: 0.55;
-  cursor: default;
+.hud-location-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.hud-location-about,
+.fauna-about,
+.fauna-program,
+.fauna-meta,
+.fauna-guild {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.fauna-guild,
+.fauna-latin {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.fauna-card {
+  border-top: 1px solid var(--line);
+  padding: 10px 0 4px;
+}
+
+.fauna-card:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.fauna-card summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.fauna-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.fauna-summary-text {
+  display: grid;
+  gap: 2px;
+}
+
+.fauna-common {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fauna-latin {
+  font-size: 12px;
+}
+
+.fauna-count {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fauna-card .fauna-guild {
+  margin-top: 8px;
+}
+
+.fauna-card h4 {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .stat span {
@@ -211,6 +345,7 @@ h3 {
 
 #btn-menu,
 #btn-menu-close,
+#btn-notes,
 .menu-action,
 .switch {
   appearance: none;
@@ -235,6 +370,7 @@ h3 {
 #btn-menu:hover,
 #btn-menu.on,
 #btn-menu-close:hover,
+#btn-notes:hover,
 .menu-action:hover,
 .switch:hover {
   background: rgba(90, 200, 190, 0.18);
@@ -433,14 +569,25 @@ kbd {
   .hud-top {
     flex-direction: column;
   }
-  .hud-left {
+  .hud-left,
+  .hud-right {
     top: auto;
     bottom: 72px;
-    max-height: 42vh;
+    max-height: 38vh;
+  }
+  .hud-left {
+    left: 28px;
+    right: auto;
+    width: min(320px, calc(100vw - 56px));
+  }
+  .hud-right {
+    left: auto;
+    right: 28px;
+    width: min(280px, calc(50vw - 20px));
   }
   .stat strong,
   .hud-subject-title {
-    font-size: 18px;
+    font-size: 16px;
   }
   #menu {
     width: 100%;

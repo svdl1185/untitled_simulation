@@ -16,12 +16,8 @@
         <kbd>M</kbd>
       </button>
     </header>
-    <aside class="hud-left">
-      <section class="hud-panel" id="hud-general">
-        <h3>General</h3>
-        <div class="hud-stats" id="hud-general-body"></div>
-      </section>
-      <section class="hud-panel" id="hud-subject" hidden>
+    <aside class="hud-left" id="hud-subject" hidden>
+      <section class="hud-panel">
         <h3 id="hud-subject-kind">Subject</h3>
         <p class="hud-subject-title" id="hud-subject-title"></p>
         <p class="hud-subject-sub" id="hud-subject-sub"></p>
@@ -29,6 +25,18 @@
         <div class="hud-stats" id="hud-subject-body"></div>
         <button type="button" id="hud-follow">Follow</button>
       </section>
+    </aside>
+    <aside class="hud-right" id="hud-notes">
+      <button type="button" id="btn-notes" aria-expanded="true" aria-controls="hud-notes-body">
+        <span>Field notes</span>
+        <kbd>I</kbd>
+      </button>
+      <div id="hud-notes-body">
+        <section class="hud-panel" id="hud-general">
+          <h3>General</h3>
+          <div class="hud-stats" id="hud-general-body"></div>
+        </section>
+      </div>
     </aside>
     <div id="menu-backdrop" hidden></div>
     <aside id="menu" hidden>
@@ -38,7 +46,7 @@
       </div>
       <div id="menu-body"></div>
     </aside>
-    <p id="pilot-hint">N next target · Click an animal to inspect · Drag to look around · Scroll zoom · V free roam · C camera · P pilot</p>
+    <p id="pilot-hint">Click an animal · Drag to look · WASD fly · Scroll dolly · I field notes</p>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

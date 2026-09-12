@@ -4,29 +4,34 @@ import { seafloorHeight } from "./simulation/obstacles.js";
 
 export const CAM = { CINEMATIC: 0, FOLLOW: 1, ORBIT: 2, SURFACE: 3, FREE: 4 };
 
+export const FOLLOW_CAMERAS = [
+  { name: "Chase", mode: CAM.FOLLOW },
+  { name: "Orbit", mode: CAM.ORBIT },
+  { name: "Cinematic", mode: CAM.CINEMATIC },
+  { name: "Surface", mode: CAM.SURFACE },
+];
+
+export const CAMERA_MODES = FOLLOW_CAMERAS.map((c) => c.name);
+
 const ORBIT_SENS = 0.0058;
 const PAN_SENS = 0.0024;
 const ZOOM_SENS = 0.0017;
 const PHI_MIN = 0.1;
 const PHI_MAX = Math.PI - 0.12;
 
-export function cameraHint(mode, piloting) {
+export function followCameraIndex(mode) {
+  const i = FOLLOW_CAMERAS.findIndex((c) => c.mode === mode);
+  return i < 0 ? 0 : i;
+}
+
+export function cameraHint(mode, piloting, following = false) {
   if (piloting) {
-    return "Drag to look · Scroll zoom · WASD thrust · E/Q rise/dive · Shift boost · Space lunge";
+    return "Drag to look · Scroll zoom · WASD thrust · E/Q rise/dive · Shift boost · Space lunge · Esc release";
   }
-  if (mode === CAM.FREE) {
-    return "Drag to look · WASD fly · Scroll dolly · Shift+drag or right-drag pan";
+  if (mode === CAM.FREE || !following) {
+    return "Click an animal · Drag to look · WASD fly · Scroll dolly · I field notes";
   }
-  if (mode === CAM.FOLLOW) {
-    return "N next shark · Click to inspect · Drag to orbit · Scroll zoom · Right-drag pan";
-  }
-  if (mode === CAM.SURFACE) {
-    return "N next school · Drag to spin · Scroll zoom · Right-drag pan";
-  }
-  if (mode === CAM.ORBIT) {
-    return "N next school · Drag to orbit · Scroll zoom · Right-drag pan";
-  }
-  return "N next school · Drag to look around · Scroll zoom · V free roam · C camera";
+  return "C camera · N next · Drag orbit · Scroll zoom · V free roam";
 }
 
 export function createCameraRig(camera) {
@@ -148,7 +153,7 @@ export function createCameraRig(camera) {
     pan.set(0, 0, 0);
     const school = ctx.school;
     const follow = ctx.follow;
-    const aim = ctx.schoolTarget || school.centroid;
+    const aim = follow || ctx.schoolTarget || school.centroid;
     if (next === CAM.FREE) {
       enterFree();
       return;
@@ -206,12 +211,12 @@ export function createCameraRig(camera) {
   }
 
   function cinematicAim(dt, ctx) {
-    const { school, schoolTarget, day, outcrops } = ctx;
+    const { school, schoolTarget, follow, day, outcrops } = ctx;
     cineT += dt;
     const look = day.look;
     const night = look.night;
     const dawn = look.dawn;
-    const pack = schoolTarget || school.centroid;
+    const pack = follow || schoolTarget || school.centroid;
     let tx = pack.x;
     let ty = pack.y - 1.5;
     let tz = pack.z;
@@ -293,7 +298,7 @@ export function createCameraRig(camera) {
       return;
     }
 
-    const aim = ctx.schoolTarget || school.centroid;
+    const aim = follow || ctx.schoolTarget || school.centroid;
     const followAmt = 1 - Math.exp(-dt * 2.4);
     target.x += (aim.x - target.x) * followAmt;
     target.y += (aim.y - target.y) * followAmt;

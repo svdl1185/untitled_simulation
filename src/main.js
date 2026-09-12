@@ -12,8 +12,8 @@ import { createWorldUniforms, syncWorldUniforms } from "./render/caustics.js";
 import { createEnvironment, createEatParticles } from "./render/environment.js";
 import { createPlanktonMesh } from "./render/plankton.js";
 import { createInput } from "./input.js";
-import { CAM, cameraHint, createCameraRig } from "./camera.js";
-import { createHUD, CAMERA_MODES } from "./ui.js";
+import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followCameraIndex } from "./camera.js";
+import { createHUD } from "./ui.js";
 import { sharkCard, herringCard, schoolCard } from "./species.js";
 
 if (window.__schoolTeardown) window.__schoolTeardown();
@@ -132,11 +132,13 @@ function removeSharkAt(i) {
     scene.remove(mesh);
     mesh.traverse(disposeObject);
   }
-  if (inspect?.kind === "shark") inspect = null;
   rebindLead();
-  if (followKind === "shark" && !sharks.length) {
-    followKind = "school";
-    if (camMode === CAM.FOLLOW) applyCamera(CAM.ORBIT);
+  if (tracking?.kind === "shark") {
+    if (!sharks.length) stopFollow();
+    else if (tracking.id >= sharks.length) {
+      tracking.id = Math.max(0, sharks.length - 1);
+      inspect = tracking;
+    }
   }
   syncCamHud();
 }
@@ -151,7 +153,6 @@ function applySharkCount(n) {
     addSharkMesh(s);
   }
   rebindLead();
-  if (inspect?.kind === "shark" && inspect.id >= sharks.length) inspect = null;
   syncCamHud();
 }
 
@@ -191,20 +192,21 @@ function syncFish() {
 }
 
 const CAM_NAME = CAMERA_MODES;
-let camMode = CAM.CINEMATIC;
-let followKind = "school";
+let camMode = CAM.FREE;
+let followKind = "shark";
 let followSharkIndex = 0;
 let followSchoolId = 0;
 let followHerringIndex = 0;
 let inspect = null;
+let tracking = null;
 const herringCam = { x: 0, y: 0, z: 0, fwdX: -1, fwdY: 0, fwdZ: 0, camRadius: 16 };
+const schoolCam = { x: 0, y: 0, z: 0, fwdX: 0, fwdY: 0, fwdZ: 1, camRadius: 42 };
 const rig = createCameraRig(camera);
 
 const { input, consumePointer } = createInput(canvas);
 const hud = createHUD();
-hud.setCamera(CAM_NAME[camMode]);
 hud.setControl(false);
-hud.setHint(cameraHint(camMode, false));
+hud.setHint(cameraHint(CAM.FREE, false, false));
 
 hud.on("fish", (n) => school.setCount(n));
 hud.on("sharks", (n) => applySharkCount(n));
@@ -232,10 +234,9 @@ hud.on("reset", () => {
 hud.on("pilot", (on) => {
   if (shark && on !== shark.controlled) togglePilot(on);
 });
-hud.on("camera", (mode) => {
-  if (mode === CAM.FOLLOW) followKind = "shark";
-  else if (mode !== CAM.FREE) followKind = "school";
-  applyCamera(mode);
+hud.on("camera", (index) => {
+  const spec = FOLLOW_CAMERAS[index];
+  if (spec && isFollowing()) applyCamera(spec.mode);
 });
 hud.on("nextTarget", () => cycleTarget());
 hud.on("followSubject", () => followShown());
@@ -258,91 +259,88 @@ function resolveSchoolId() {
   return ids;
 }
 
-function pinnedShark() {
-  if (shark?.controlled) return shark;
-  if (!sharks.length) {
-    const c = school.centroid;
-    return { x: c.x, y: c.y, z: c.z, fwdX: 0, fwdY: 0, fwdZ: 1, camRadius: 36 };
-  }
-  if (followSharkIndex >= sharks.length) followSharkIndex = Math.max(0, sharks.length - 1);
-  return sharks[followSharkIndex];
+function herringAsFollow(i) {
+  const i3 = i * 3;
+  herringCam.x = school.pos[i3];
+  herringCam.y = school.pos[i3 + 1];
+  herringCam.z = school.pos[i3 + 2];
+  const vx = school.vel[i3];
+  const vy = school.vel[i3 + 1];
+  const vz = school.vel[i3 + 2];
+  const len = Math.hypot(vx, vy, vz) || 1;
+  herringCam.fwdX = vx / len;
+  herringCam.fwdY = vy / len;
+  herringCam.fwdZ = vz / len;
+  return herringCam;
 }
 
-function pinnedSchool() {
-  resolveSchoolId();
-  return school.centroids[followSchoolId] || school.centroid;
+function schoolAsFollow(id) {
+  const c = school.centroids[id] || school.centroid;
+  schoolCam.x = c.x;
+  schoolCam.y = c.y;
+  schoolCam.z = c.z;
+  const len = Math.hypot(c.vx || 0, c.vz || 0) || 1;
+  schoolCam.fwdX = (c.vx || 0) / len;
+  schoolCam.fwdY = 0;
+  schoolCam.fwdZ = (c.vz || 1) / len;
+  return schoolCam;
 }
 
-function pinnedFollow() {
-  if (shark?.controlled) return shark;
-  if (camMode === CAM.FOLLOW && followKind === "herring") {
-    const i = followHerringIndex;
-    if (i < school.count) {
-      const i3 = i * 3;
-      herringCam.x = school.pos[i3];
-      herringCam.y = school.pos[i3 + 1];
-      herringCam.z = school.pos[i3 + 2];
-      const vx = school.vel[i3];
-      const vy = school.vel[i3 + 1];
-      const vz = school.vel[i3 + 2];
-      const len = Math.hypot(vx, vy, vz) || 1;
-      herringCam.fwdX = vx / len;
-      herringCam.fwdY = vy / len;
-      herringCam.fwdZ = vz / len;
-      return herringCam;
-    }
-  }
-  return pinnedShark();
+function subjectValid(sub) {
+  if (!sub) return false;
+  if (sub.kind === "shark") return sub.id >= 0 && sub.id < sharks.length;
+  if (sub.kind === "herring") return sub.id >= 0 && sub.id < school.count;
+  if (sub.kind === "school") return school.schoolN[sub.id] > 0;
+  return false;
 }
 
 function sameSubject(a, b) {
   return !!(a && b && a.kind === b.kind && a.id === b.id);
 }
 
-function cameraSubject() {
-  if (shark?.controlled) return { kind: "shark", id: Math.max(0, sharks.indexOf(shark)) };
-  if (camMode === CAM.FREE) return null;
-  if (camMode === CAM.FOLLOW) {
-    if (followKind === "herring" && followHerringIndex < school.count) {
-      return { kind: "herring", id: followHerringIndex };
-    }
-    if (!sharks.length) {
-      resolveSchoolId();
-      return school.schoolN[followSchoolId] ? { kind: "school", id: followSchoolId } : null;
-    }
-    return { kind: "shark", id: followSharkIndex };
+function isFollowing() {
+  return !!(tracking && subjectValid(tracking)) || !!(shark && shark.controlled);
+}
+
+function pinnedFollow() {
+  if (shark?.controlled) return shark;
+  const sub = subjectValid(tracking) ? tracking : null;
+  if (!sub) return null;
+  if (sub.kind === "shark") return sharks[sub.id];
+  if (sub.kind === "herring") return herringAsFollow(sub.id);
+  return schoolAsFollow(sub.id);
+}
+
+function pinnedSchool() {
+  if (tracking?.kind === "school" && subjectValid(tracking)) {
+    return school.centroids[tracking.id] || school.centroid;
   }
   resolveSchoolId();
-  if (!school.schoolN[followSchoolId]) return null;
-  return { kind: "school", id: followSchoolId };
+  return school.centroids[followSchoolId] || school.centroid;
 }
 
 function shownSubject() {
-  if (inspect) {
-    if (inspect.kind === "shark" && inspect.id < sharks.length) return inspect;
-    if (inspect.kind === "school" && school.schoolN[inspect.id] > 0) return inspect;
-    if (inspect.kind === "herring" && inspect.id < school.count) return inspect;
-    inspect = null;
-  }
-  return cameraSubject();
+  if (subjectValid(inspect)) return inspect;
+  inspect = null;
+  if (subjectValid(tracking)) return tracking;
+  return null;
 }
 
 function subjectDetail() {
-  if (camMode === CAM.FREE) return "";
-  if (camMode === CAM.FOLLOW) {
-    if (followKind === "herring") return "";
-    if (!sharks.length) return "";
-    return `${followSharkIndex + 1}/${sharks.length}`;
+  if (!isFollowing()) return "";
+  const sub = tracking;
+  if (sub?.kind === "shark") return `${sub.id + 1}/${sharks.length}`;
+  if (sub?.kind === "school") {
+    const ids = occupiedSchoolIds();
+    return `${Math.max(1, ids.indexOf(sub.id) + 1)}/${Math.max(1, ids.length)}`;
   }
-  const ids = resolveSchoolId();
-  if (!ids.length) return "";
-  return `${ids.indexOf(followSchoolId) + 1}/${ids.length}`;
+  return "";
 }
 
 function cameraLabel() {
   if (shark?.controlled) return "Pilot shark";
-  if (camMode === CAM.FOLLOW && followKind === "herring") return "Follow herring";
-  const name = CAM_NAME[camMode] || "";
+  if (!isFollowing()) return "Free roam";
+  const name = FOLLOW_CAMERAS[followCameraIndex(camMode)]?.name || CAM_NAME[0];
   const detail = subjectDetail();
   return detail ? `${name} ${detail}` : name;
 }
@@ -376,10 +374,10 @@ function hudView() {
   ];
   const sub = shownSubject();
   let subject = null;
-  const following = sameSubject(sub, cameraSubject());
+  const following = sameSubject(sub, tracking) && isFollowing();
   if (sub?.kind === "shark") {
     const s = sharks[sub.id];
-    if (s) subject = sharkCard(s, { index: sub.id, total: sharks.length, following });
+    if (s) subject = sharkCard(s, { following });
   } else if (sub?.kind === "school") {
     const ids = occupiedSchoolIds();
     subject = schoolCard(school, sub.id, {
@@ -433,7 +431,7 @@ function pickSubject(clientX, clientY) {
   let bestFishD = Infinity;
   for (let i = 0; i < school.count; i++) {
     const i3 = i * 3;
-    const d = screenHit(pos[i3], pos[i3 + 1], pos[i3 + 2], 20 + scale[i] * 10);
+    const d = screenHit(pos[i3], pos[i3 + 1], pos[i3 + 2], 22 + scale[i] * 12);
     if (d < bestFishD) {
       bestFishD = d;
       bestFish = i;
@@ -462,8 +460,12 @@ function pickSubject(clientX, clientY) {
 }
 
 function syncCamHud() {
-  hud.setCamera(CAM_NAME[camMode]);
-  if (!shark?.controlled) hud.setHint(cameraHint(camMode, false));
+  const following = isFollowing();
+  hud.setCameraLive(following);
+  if (following) {
+    hud.setCamera(FOLLOW_CAMERAS[followCameraIndex(camMode)]?.name || "Chase");
+  }
+  if (!shark?.controlled) hud.setHint(cameraHint(camMode, false, following));
 }
 
 function camCtx() {
@@ -479,56 +481,74 @@ function camCtx() {
 }
 
 function applyCamera(mode) {
+  if (mode === CAM.FREE) {
+    if (shark?.controlled) {
+      shark.setControlled(false);
+      hud.setControl(false);
+    }
+    tracking = null;
+    camMode = CAM.FREE;
+    rig.setMode(CAM.FREE, camCtx());
+    syncCamHud();
+    return;
+  }
   if (shark?.controlled && mode !== CAM.FOLLOW) togglePilot(false);
   camMode = mode;
-  inspect = null;
   rig.setMode(camMode, camCtx());
   syncCamHud();
 }
 
-function cycleTarget() {
-  inspect = null;
-  if (camMode === CAM.FREE) return;
-  if (camMode === CAM.FOLLOW) {
-    if (followKind === "herring") {
-      followKind = "shark";
-      rig.setMode(CAM.FOLLOW, camCtx());
-    }
-    if (shark?.controlled || sharks.length < 2) {
-      syncCamHud();
-      return;
-    }
-    followSharkIndex = (followSharkIndex + 1) % sharks.length;
-  } else {
-    const ids = resolveSchoolId();
-    if (ids.length < 2) return;
-    followSchoolId = ids[(ids.indexOf(followSchoolId) + 1) % ids.length];
-  }
-  syncCamHud();
+function stopFollow() {
+  applyCamera(CAM.FREE);
 }
 
 function followShown() {
   const s = shownSubject();
   if (!s) return;
-  inspect = null;
-  if (shark?.controlled && (s.kind !== "shark" || s.id !== sharks.indexOf(shark))) togglePilot(false);
+  if (sameSubject(s, tracking) && isFollowing()) {
+    stopFollow();
+    inspect = s;
+    return;
+  }
+  if (shark?.controlled && (s.kind !== "shark" || s.id !== sharks.indexOf(shark))) {
+    togglePilot(false);
+  }
+  tracking = { kind: s.kind, id: s.id };
+  inspect = tracking;
+  followKind = s.kind;
   if (s.kind === "shark") {
-    followKind = "shark";
     followSharkIndex = s.id;
     applyCamera(CAM.FOLLOW);
     return;
   }
-  if (s.kind === "school") {
-    followKind = "school";
-    followSchoolId = s.id;
-    const schoolCam = camMode === CAM.FOLLOW || camMode === CAM.FREE ? CAM.ORBIT : camMode;
-    applyCamera(schoolCam);
+  if (s.kind === "herring") {
+    followHerringIndex = s.id;
+    followSchoolId = school.schoolId[s.id];
+    applyCamera(CAM.FOLLOW);
     return;
   }
-  followKind = "herring";
-  followHerringIndex = s.id;
-  followSchoolId = school.schoolId[s.id];
-  applyCamera(CAM.FOLLOW);
+  followSchoolId = s.id;
+  applyCamera(CAM.ORBIT);
+}
+
+function cycleTarget() {
+  if (!isFollowing() || shark?.controlled) return;
+  if (tracking?.kind === "shark") {
+    if (sharks.length < 2) return;
+    tracking = { kind: "shark", id: (tracking.id + 1) % sharks.length };
+    followSharkIndex = tracking.id;
+    inspect = tracking;
+    rig.setMode(camMode, camCtx());
+  } else if (tracking?.kind === "school") {
+    const ids = occupiedSchoolIds();
+    if (ids.length < 2) return;
+    const next = ids[(ids.indexOf(tracking.id) + 1) % ids.length];
+    tracking = { kind: "school", id: next };
+    followSchoolId = next;
+    inspect = tracking;
+    rig.setMode(camMode, camCtx());
+  }
+  syncCamHud();
 }
 
 function togglePilot(force) {
@@ -538,26 +558,30 @@ function togglePilot(force) {
   hud.setControl(next);
   if (next) {
     hud.setOpen(false);
-    inspect = null;
+    tracking = { kind: "shark", id: Math.max(0, sharks.indexOf(shark)) };
+    inspect = tracking;
     followKind = "shark";
-    followSharkIndex = Math.max(0, sharks.indexOf(shark));
+    followSharkIndex = tracking.id;
     camMode = CAM.FOLLOW;
     rig.setMode(CAM.FOLLOW, camCtx());
   }
-  hud.setHint(cameraHint(camMode, next));
-  hud.setCamera(CAM_NAME[camMode]);
+  hud.setHint(cameraHint(camMode, next, isFollowing()));
+  syncCamHud();
 }
 
 window.addEventListener("keydown", (e) => {
   if (e.repeat) return;
   if (e.code === "KeyV") {
-    if (shark?.controlled) togglePilot(false);
-    applyCamera(CAM.FREE);
+    stopFollow();
   }
-  if (e.code === "Escape" && shark?.controlled && !hud.isOpen()) togglePilot(false);
+  if (e.code === "Escape" && !hud.isOpen()) {
+    if (shark?.controlled) togglePilot(false);
+    else if (isFollowing()) stopFollow();
+    else inspect = null;
+  }
 });
 
-rig.setMode(CAM.CINEMATIC, camCtx());
+rig.setMode(CAM.FREE, camCtx());
 syncCamHud();
 
 function updateCamera(dt, pointer) {
@@ -574,7 +598,6 @@ window.__sim.meshes = sharkMeshes;
 window.__sim.input = input;
 window.__sim.rig = rig;
 window.__sim.pick = pickSubject;
-window.__sim.getInspect = () => inspect;
 
 let last = performance.now();
 syncFish();
@@ -592,10 +615,8 @@ function frame(now) {
     if (pointer.click && !hud.isOpen()) {
       inspect = pickSubject(pointer.click.x, pointer.click.y);
     }
-    if (followKind === "herring" && followHerringIndex >= school.count) {
-      followKind = "school";
-      if (camMode === CAM.FOLLOW && !shark?.controlled) applyCamera(CAM.ORBIT);
-    }
+    if (tracking?.kind === "herring" && tracking.id >= school.count) stopFollow();
+    if (tracking?.kind === "school" && !school.schoolN[tracking.id]) stopFollow();
     if (shark?.controlled && (pointer.ox || pointer.oy) && !pointer.panning) {
       input.mouseDx = pointer.ox * 0.0012;
       input.mouseDy = pointer.oy * 0.0012;

@@ -1,4 +1,6 @@
 export const CONFIG = {
+  location: "north-sea-shelf",
+
   maxFish: 20000,
   initialFish: 12000,
   schoolCount: 2,

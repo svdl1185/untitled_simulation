@@ -1,17 +1,12 @@
 import { CONFIG } from "./config.js";
+import { CAMERA_MODES } from "./camera.js";
 
 /**
  * Add a control: push an item into MENU, then hud.on(id, handler) in main.js.
  * Or at runtime: hud.addSection(...) / hud.addItem(...).
  * Toggles default to off unless `value` is true. Sliders/selects keep the value you set here.
  */
-export const CAMERA_MODES = [
-  "Cinematic",
-  "Follow shark",
-  "Orbit",
-  "Surface",
-  "Free roam",
-];
+export { CAMERA_MODES };
 
 export const MENU = [
   {
@@ -86,12 +81,14 @@ export const MENU = [
 
 const KEY_HELP = [
   ["M / Tab", "Open or close this menu"],
-  ["Click", "Inspect a shark, herring, or school"],
-  ["Drag", "Orbit the view"],
-  ["Scroll", "Zoom in and out"],
+  ["Click", "Select a shark, herring, or school"],
+  ["I", "Open or close field notes"],
+  ["Drag", "Look around · orbit when following"],
+  ["Scroll", "Zoom or dolly"],
   ["Right-drag", "Pan · Shift-drag also pans"],
-  ["N", "Next shark or school"],
-  ["V", "Free roam (WASD fly, drag to look)"],
+  ["C", "Follow camera (after Follow)"],
+  ["N", "Next followed animal"],
+  ["V / Esc", "Free roam"],
   ["WASD", "Move · E/Q rise/dive · Shift boost · Space lunge"],
 ];
 
@@ -130,6 +127,8 @@ export function createHUD() {
   const btnMenu = document.getElementById("btn-menu");
   const btnClose = document.getElementById("btn-menu-close");
   const hint = document.getElementById("pilot-hint");
+  const notes = document.getElementById("hud-notes");
+  const btnNotes = document.getElementById("btn-notes");
   const generalBody = document.getElementById("hud-general-body");
   const subjectPanel = document.getElementById("hud-subject");
   const subjectKind = document.getElementById("hud-subject-kind");
@@ -146,6 +145,8 @@ export function createHUD() {
   const handlers = new Map();
   const values = {};
   let open = false;
+  let notesOpen = true;
+  let cameraLive = false;
   body.replaceChildren();
 
   for (const section of MENU) {
@@ -220,6 +221,20 @@ export function createHUD() {
     if (open && document.pointerLockElement) document.exitPointerLock();
   }
 
+  function setNotesOpen(next) {
+    notesOpen = !!next;
+    notes.classList.toggle("is-collapsed", !notesOpen);
+    btnNotes.setAttribute("aria-expanded", notesOpen ? "true" : "false");
+  }
+
+  function setCameraLive(on) {
+    cameraLive = !!on;
+    const cam = fields.get("camera");
+    const next = fields.get("nextTarget");
+    if (cam) cam.row.hidden = !cameraLive;
+    if (next) next.row.hidden = !cameraLive;
+  }
+
   function bindField(item, field) {
     const id = item.id;
     if (item.kind === "toggle") {
@@ -273,7 +288,9 @@ export function createHUD() {
   btnMenu.addEventListener("click", () => setOpen(!open));
   btnClose.addEventListener("click", () => setOpen(false));
   backdrop.addEventListener("click", () => setOpen(false));
+  btnNotes.addEventListener("click", () => setNotesOpen(!notesOpen));
   btnFollow.addEventListener("click", () => emit("followSubject", true));
+  setCameraLive(false);
 
   window.addEventListener("keydown", (e) => {
     if (e.code === "Tab" || e.code === "KeyM") {
@@ -290,11 +307,18 @@ export function createHUD() {
       setOpen(false);
       return;
     }
+    if (e.code === "KeyI") {
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
+      e.preventDefault();
+      setNotesOpen(!notesOpen);
+      return;
+    }
     if (e.repeat) return;
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
     for (const section of MENU) {
       for (const item of section.items) {
         if (!item.key || e.code !== `Key${item.key}`) continue;
+        if ((item.id === "camera" || item.id === "nextTarget") && !cameraLive) continue;
         if (item.kind === "toggle") {
           const next = !values[item.id];
           set(item.id, next);
@@ -336,6 +360,7 @@ export function createHUD() {
     setHint(text) {
       hint.textContent = text;
     },
+    setCameraLive,
     tick(dt, view = {}) {
       frames++;
       acc += dt;
@@ -360,12 +385,10 @@ export function createHUD() {
         const sub = subject.subtitle || "";
         subjectSub.textContent = sub;
         subjectSub.hidden = !sub;
-        subjectRows.set(subject.stats || []);
         noteRows.set(subject.notes || []);
+        subjectRows.set(subject.stats || []);
         const following = !!subject.following;
-        btnFollow.disabled = following;
-        btnFollow.textContent = following ? "Following" : "Follow";
-        btnFollow.hidden = subject.followable === false;
+        btnFollow.textContent = following ? "Unfollow" : "Follow";
       }
       if (view.day) {
         if (values.liveClock) set("hour", Number(view.day.hour.toFixed(2)));
