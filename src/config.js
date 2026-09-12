@@ -96,7 +96,7 @@ export const CONFIG = {
     lungeTime: 2.15,
     biteCooldown: 0.16,
     lungeBiteCooldown: 0.1,
-    energyDrain: 0.012,
+    energyDrain: 0.002,
     eatEnergy: 0.08,
     hungry: 0.42,
     satiated: 0.82,
