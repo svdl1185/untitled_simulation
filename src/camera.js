@@ -31,7 +31,7 @@ export function cameraHint(mode, piloting) {
 
 export function createCameraRig(camera) {
   camera.near = 0.35;
-  camera.far = 1800;
+  camera.far = 2400;
   camera.updateProjectionMatrix();
 
   const target = new THREE.Vector3();
@@ -57,9 +57,9 @@ export function createCameraRig(camera) {
   function rangeFor(m, piloting) {
     if (piloting) return [12, 240];
     if (m === CAM.FOLLOW) return [8, 280];
-    if (m === CAM.SURFACE) return [20, 480];
-    if (m === CAM.FREE) return [4, 560];
-    return [12, 460];
+    if (m === CAM.SURFACE) return [20, 720];
+    if (m === CAM.FREE) return [4, 780];
+    return [12, 640];
   }
 
   function applyZoom(wheel, m, piloting) {

@@ -22,12 +22,12 @@ This coastal herring patch is the first nested cell of that ocean.
 
 ## What is running now
 
-A few hundred metres of shelf, floor at −56 m, a sandy beach on +Z.
+A few hundred metres of shelf: about 480 m alongshore and 540 m from beach to basin. Inner shelf sits near −36 m; the floor drops to −110 m offshore. A sandy beach is on +Z.
 
 | Layer | What it does |
 | --- | --- |
 | **Flow** | Tide (beach-normal), longshore current, thermocline shear, eddies, storm boost. Sampled per animal. |
-| **Plankton** | 96×96 chlorophyll / zooplankton field. Advected by flow, grazed by herring, grows at night and in storms. Mean bloom caps how many fish the patch can hold. |
+| **Plankton** | 128×128 NPZD field (nutrients, phytoplankton, zooplankton, detritus). Advected by flow, grazed by herring, recycled from excretion and carcasses. Mean zooplankton caps how many fish the patch can hold. |
 | **Herring** | Up to 20k Reynolds boids on a hashed 3D grid. They forage up the plankton gradient, peel off the beach before they strand, recruit when the bloom can feed them. |
 | **Sharks** | A small pack (1–8) with burst-and-glide swimming, hunger, satiation, size/aggression variants. Satiated sharks roam instead of farming the school. |
 | **Rays** | A benthic guild on their own grid. They hug the sand, ride weaker flow, and flee sharks. |
@@ -92,7 +92,7 @@ If two species eat the same thing at the same depth at the same time, one of the
 
 ### 4. Nest the domain
 
-The 380 m box is cell zero.
+The ~480×540 m shelf cell is cell zero.
 
 - **Stream chunks** of seafloor and fields as the camera moves.
 - **Super-individuals / density volumes** for schools beyond a couple of kilometres.

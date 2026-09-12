@@ -34,6 +34,8 @@ const SITES = [
   { x: -76, z: -30, seed: 4404, scale: 0.88, count: 4 },
   { x: 90, z: -6, seed: 5505, scale: 1.08, count: 5 },
   { x: -8, z: 10, seed: 6606, scale: 0.78, count: 3 },
+  { x: 38, z: -168, seed: 7707, scale: 1.22, count: 5 },
+  { x: -122, z: -188, seed: 8808, scale: 1.05, count: 4 },
 ];
 
 const WRECK = { x: -102, z: 78 };

@@ -349,7 +349,9 @@ export function createHUD() {
       document.getElementById("school-count").textContent = String(school.occupied);
       document.getElementById("eaten-count").textContent = eaten.toLocaleString();
       const bloomEl = document.getElementById("bloom-count");
-      if (bloomEl && plankton) bloomEl.textContent = `${Math.round(plankton.mean * 100)}%`;
+      if (bloomEl && plankton) {
+        bloomEl.textContent = `${Math.round((plankton.meanP ?? plankton.mean) * 100)} · ${Math.round((plankton.meanZ ?? plankton.mean) * 100)}`;
+      }
       const hungerEl = document.getElementById("hunger-count");
       if (hungerEl) hungerEl.textContent = `${Math.round(shown.energy * 100)}%`;
       document.getElementById("fps").textContent = String(fpsVal);

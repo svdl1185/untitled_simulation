@@ -56,7 +56,7 @@ export class Rays {
     }
   }
 
-  update(dt, sharks, look) {
+  update(dt, sharks, look, plankton) {
     const pack = Array.isArray(sharks) ? sharks : sharks ? [sharks] : [];
     const { count, pos, vel } = this;
     const cfg = CONFIG.rays;
@@ -214,6 +214,19 @@ export class Rays {
       pz = pushed.z;
       pz = Math.min(pz, CONFIG.beach.startZ - 4);
       px = Math.max(-CONFIG.halfX + 6, Math.min(CONFIG.halfX - 6, px));
+
+      if (plankton) {
+        const det = plankton.sampleLayer("d", px, pz);
+        if (det > 0.02) {
+          const eaten = plankton.grazeLayer(
+            "d",
+            px,
+            pz,
+            cfg.graze * dt * (det / (det + 0.22))
+          );
+          if (eaten > 0) plankton.depositLayer("n", px, pz, eaten * 0.55);
+        }
+      }
 
       pos[i3] = px;
       pos[i3 + 1] = py;

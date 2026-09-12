@@ -33,10 +33,10 @@ export function createEnvironment(scene, uniforms) {
       const above = camera.position.y > 2.4;
       const depth = Math.max(0, -camera.position.y);
       const thermo =
-        1 + 0.42 * Math.exp(-((camera.position.y + 18) * (camera.position.y + 18)) / 22);
+        1 + 0.42 * Math.exp(-((camera.position.y - CONFIG.thermoY) * (camera.position.y - CONFIG.thermoY)) / 36);
       const pull = THREE.MathUtils.smoothstep(
-        48,
-        210,
+        64,
+        280,
         Math.max(camera.position.y, Math.hypot(camera.position.x, camera.position.z) * 0.28)
       );
       scene.fog.color.copy(above ? look.fogAbove : look.fog);
@@ -60,7 +60,7 @@ export function createEnvironment(scene, uniforms) {
 }
 
 function _sky(uniforms) {
-  const geo = new THREE.SphereGeometry(1400, 24, 16);
+  const geo = new THREE.SphereGeometry(1800, 24, 16);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
@@ -95,9 +95,9 @@ function _motes() {
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
-    pos[i * 3] = (Math.random() - 0.5) * 200;
+    pos[i * 3] = (Math.random() - 0.5) * CONFIG.halfX * 2;
     pos[i * 3 + 1] = CONFIG.floorY + 4 + Math.random() * (-4 - (CONFIG.floorY + 4));
-    pos[i * 3 + 2] = (Math.random() - 0.5) * 200;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * CONFIG.halfZ * 2;
   }
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   const mat = new THREE.PointsMaterial({

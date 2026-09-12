@@ -9,12 +9,19 @@ export function seafloorHeight(x, z) {
     Math.sin(z * 0.07) * 1.1 +
     Math.sin(x * 0.16 + z * 0.12) * 0.35;
 
+  const shelf = CONFIG.shelfY;
+  let basinT = (b.startZ - zWave) / (b.startZ + CONFIG.halfZ);
+  if (basinT < 0) basinT = 0;
+  else if (basinT > 1) basinT = 1;
+  basinT = basinT * basinT * (3 - 2 * basinT);
+  const offshore = shelf + basinT * (CONFIG.floorY - shelf);
+
   let t = (zWave - b.startZ) / (b.shoreZ - b.startZ);
   if (t < 0) t = 0;
   else if (t > 1) t = 1;
   t = t * t * (3 - 2 * t);
   const duneAmp = 1 - t * 0.72;
-  let y = CONFIG.floorY + dunes * duneAmp + t * (b.shoreY - CONFIG.floorY);
+  let y = offshore + dunes * duneAmp + t * (b.shoreY - shelf);
 
   if (zWave > b.shoreZ) {
     let u = (zWave - b.shoreZ) / (b.endZ - b.shoreZ);

@@ -3,10 +3,22 @@ import { CONFIG } from "../config.js";
 import { seafloorHeight } from "../simulation/obstacles.js";
 import { attachWorldShading } from "./caustics.js";
 
+function _xzExtent() {
+  const pad = 48;
+  const minZ = -CONFIG.halfZ - pad * 0.4;
+  const maxZ = CONFIG.beach.endZ + pad;
+  return {
+    spanX: CONFIG.halfX * 2 + pad * 2,
+    spanZ: maxZ - minZ,
+    zCenter: (minZ + maxZ) * 0.5,
+  };
+}
+
 export function createWaterSurface(uniforms) {
-  const geo = new THREE.PlaneGeometry(480, 520, 80, 88);
+  const ext = _xzExtent();
+  const geo = new THREE.PlaneGeometry(ext.spanX, ext.spanZ, 96, 108);
   geo.rotateX(-Math.PI / 2);
-  geo.translate(0, 0, 20);
+  geo.translate(0, 0, ext.zCenter);
   const shoreZ = CONFIG.beach.shoreZ.toFixed(1);
   const mat = new THREE.ShaderMaterial({
     uniforms: {
@@ -99,9 +111,10 @@ export function createWaterSurface(uniforms) {
 }
 
 export function createSeafloor(uniforms) {
-  const geo = new THREE.PlaneGeometry(440, 460, 128, 148);
+  const ext = _xzExtent();
+  const geo = new THREE.PlaneGeometry(ext.spanX, ext.spanZ, 160, 176);
   geo.rotateX(-Math.PI / 2);
-  geo.translate(0, 0, 22);
+  geo.translate(0, 0, ext.zCenter);
   const pos = geo.attributes.position;
   const col = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
@@ -177,7 +190,7 @@ export function createSandDetail(uniforms) {
     const g = new THREE.SphereGeometry(0.55 + Math.random() * 0.9, 7, 5);
     const m = new THREE.Mesh(g, rockMat);
     const a = Math.random() * Math.PI * 2;
-    const r = 18 + Math.random() * 130;
+    const r = 22 + Math.random() * (CONFIG.halfX * 0.7);
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     m.position.set(x, seafloorHeight(x, z) + 0.12, z);
@@ -188,8 +201,8 @@ export function createSandDetail(uniforms) {
   for (let i = 0; i < 50; i++) {
     const g = new THREE.SphereGeometry(0.2 + Math.random() * 0.4, 5, 4);
     const m = new THREE.Mesh(g, pebbleMat);
-    const x = (Math.random() - 0.5) * 180;
-    const z = (Math.random() - 0.5) * 180;
+    const x = (Math.random() - 0.5) * CONFIG.halfX * 1.6;
+    const z = (Math.random() - 0.5) * CONFIG.halfZ * 1.4;
     m.position.set(x, seafloorHeight(x, z) + 0.12, z);
     m.scale.y = 0.45;
     group.add(m);
@@ -203,8 +216,8 @@ export function createSandDetail(uniforms) {
   for (let i = 0; i < 36; i++) {
     const g = new THREE.SphereGeometry(0.35 + Math.random() * 1.1, 6, 5);
     const m = new THREE.Mesh(g, i % 3 === 0 ? rockMat : dryMat);
-    const x = (Math.random() - 0.5) * 200;
-    const z = 70 + Math.random() * 120;
+    const x = (Math.random() - 0.5) * CONFIG.halfX * 1.7;
+    const z = CONFIG.beach.startZ + 20 + Math.random() * (CONFIG.beach.endZ - CONFIG.beach.startZ);
     m.position.set(x, seafloorHeight(x, z) + 0.15, z);
     m.rotation.set(Math.random() * 0.5, Math.random() * Math.PI, Math.random() * 0.5);
     m.scale.set(1.1 + Math.random(), 0.22 + Math.random() * 0.2, 0.9 + Math.random() * 0.4);
@@ -214,8 +227,10 @@ export function createSandDetail(uniforms) {
 }
 
 export function createThermocline(uniforms) {
-  const geo = new THREE.PlaneGeometry(380, 380, 1, 1);
+  const span = CONFIG.halfX * 2 + 40;
+  const geo = new THREE.PlaneGeometry(span, span, 1, 1);
   geo.rotateX(-Math.PI / 2);
+  const thermoY = CONFIG.thermoY.toFixed(1);
   const mat = new THREE.ShaderMaterial({
     uniforms: {
       uTime: uniforms.uTime,
@@ -237,7 +252,7 @@ export function createThermocline(uniforms) {
       uniform float uCamY;
       varying vec3 vWorld;
       void main() {
-        float near = 1.0 - smoothstep(4.0, 16.0, abs(uCamY + 18.0));
+        float near = 1.0 - smoothstep(5.0, 22.0, abs(uCamY - (${thermoY})));
         float ripple = 0.5 + 0.5 * sin(vWorld.x * 0.04 + uTime * 0.15);
         float alpha = 0.045 * near * (0.65 + 0.35 * ripple);
         gl_FragColor = vec4(0.55, 0.78, 0.82, alpha);
@@ -245,7 +260,7 @@ export function createThermocline(uniforms) {
     `,
   });
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.y = -18;
+  mesh.position.y = CONFIG.thermoY;
   mesh.renderOrder = 1;
   return mesh;
 }

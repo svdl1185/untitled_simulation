@@ -35,7 +35,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x041c24);
 scene.fog = new THREE.FogExp2(0x06232c, 0.0058);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.35, 1800);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.35, 2400);
 
 const uniforms = createWorldUniforms();
 const day = new DayCycle();
@@ -164,7 +164,7 @@ function syncFish() {
     if (_dir.dot(_z) < -0.999) _q.set(0, 1, 0, 0);
     else _q.setFromUnitVectors(_z, _dir);
     _p.set(pos[i3], pos[i3 + 1], pos[i3 + 2]);
-    const sc = scale[i];
+    const sc = scale[i] * (0.9 + 0.1 * school.energy[i]);
     _s.set(sc, sc, sc);
     _m.compose(_p, _q, _s);
     fishMesh.setMatrixAt(i, _m);
@@ -324,9 +324,9 @@ function frame(now) {
     renderer.toneMappingExposure = tod.exposure;
 
     school.update(dt, sharks, tod, plankton);
-    rays.update(dt, sharks, tod);
+    rays.update(dt, sharks, tod, plankton);
     plankton.update(dt, tod, t);
-    bloom.update();
+    bloom.update(tod);
     syncFish();
     syncRays();
     for (let i = 0; i < sharks.length; i++) syncSharkMesh(sharkMeshes[i], sharks[i]);
