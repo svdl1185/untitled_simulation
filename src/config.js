@@ -6,6 +6,7 @@ export const CONFIG = {
 
   surfaceY: 0,
   floorY: -56,
+  thermoY: -18,
   halfX: 190,
   halfZ: 190,
 
@@ -33,6 +34,7 @@ export const CONFIG = {
     boundsWeight: 1.6,
     cruiseWeight: 1.55,
     depthWeight: 0.03,
+    forageWeight: 9.5,
     preferredDepth: -24,
     surfaceClearance: 1.35,
     floorClearance: 2.2,
@@ -72,5 +74,38 @@ export const CONFIG = {
     biteRadius: 1.65,
     lungeBiteRadius: 3.4,
     mouthOffset: 4.8,
+    energyDrain: 0.012,
+    eatEnergy: 0.085,
+    hungry: 0.42,
+    satiated: 0.82,
+  },
+
+  flow: {
+    tide: 1.85,
+    tidePeriod: 48,
+    longshore: 1.2,
+    longshorePeriod: 74,
+    shear: 0.9,
+    stormMul: 1.65,
+  },
+
+  plankton: {
+    nx: 96,
+    nz: 96,
+    graze: 0.00011,
+    grow: 0.016,
+  },
+
+  rays: {
+    count: 36,
+    max: 48,
+    cruise: 2.15,
+    maxSpeed: 5.4,
+    fleeSpeed: 8.2,
+    maxAccel: 7.5,
+    floorClearance: 0.72,
+    sepRadius: 5.4,
+    fearRadius: 26,
+    length: 3.6,
   },
 };

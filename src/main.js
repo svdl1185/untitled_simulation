@@ -3,12 +3,16 @@ import { CONFIG } from "./config.js";
 import { School } from "./simulation/school.js";
 import { Shark } from "./simulation/shark.js";
 import { DayCycle } from "./simulation/day.js";
+import { Plankton } from "./simulation/plankton.js";
+import { Rays } from "./simulation/rays.js";
 import { createFishGeometry, createFishMaterial } from "./render/fish.js";
+import { createRayGeometry, createRayMaterial } from "./render/rays.js";
 import { createSharkMesh, syncSharkMesh } from "./render/sharkMesh.js";
 import { createWaterSurface, createSeafloor, createSandDetail, createThermocline } from "./render/water.js";
 import { createOutcrops } from "./render/outcrops.js";
 import { createWorldUniforms, syncWorldUniforms } from "./render/caustics.js";
 import { createEnvironment, createEatParticles } from "./render/environment.js";
+import { createPlanktonMesh } from "./render/plankton.js";
 import { seafloorHeight } from "./simulation/obstacles.js";
 import { createInput } from "./input.js";
 import { createHUD, CAMERA_MODES } from "./ui.js";
@@ -49,6 +53,12 @@ scene.add(water, floor, sand, thermo, outcrops.group);
 const school = new School(CONFIG.initialFish);
 school.colliders = outcrops.colliders;
 school.colliderCount = outcrops.colliderCount;
+const plankton = new Plankton();
+const bloom = createPlanktonMesh(plankton, uniforms);
+scene.add(bloom.mesh);
+const rays = new Rays(CONFIG.rays.count);
+rays.colliders = outcrops.colliders;
+rays.colliderCount = outcrops.colliderCount;
 const shark = new Shark();
 shark.x = school.centroid.x + 52;
 shark.y = school.centroid.y - 2;
@@ -71,7 +81,19 @@ fishMesh.geometry.setAttribute(
   new THREE.InstancedBufferAttribute(school.phase, 1)
 );
 scene.add(fishMesh);
-window.__sim = { school, shark, camera, fishMesh, day, outcrops, renderer, getCam: () => camMode, setCam: (m) => { camMode = m; hud.setCamera(CAM_NAME[camMode]); } };
+
+const rayGeo = createRayGeometry();
+const rayMat = createRayMaterial(uniforms);
+const rayMesh = new THREE.InstancedMesh(rayGeo, rayMat, CONFIG.rays.max);
+rayMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+rayMesh.frustumCulled = false;
+rayMesh.geometry.setAttribute(
+  "aPhase",
+  new THREE.InstancedBufferAttribute(rays.phase, 1)
+);
+scene.add(rayMesh);
+
+window.__sim = { school, shark, plankton, rays, camera, fishMesh, rayMesh, day, outcrops, renderer, getCam: () => camMode, setCam: (m) => { camMode = m; hud.setCamera(CAM_NAME[camMode]); } };
 
 const sharkMesh = createSharkMesh(uniforms);
 scene.add(sharkMesh);
@@ -115,6 +137,27 @@ function syncFish() {
   fishMesh.geometry.attributes.aPhase.needsUpdate = true;
 }
 
+function syncRays() {
+  const { pos, vel, scale, count } = rays;
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3;
+    _dir.set(vel[i3], vel[i3 + 1], vel[i3 + 2]);
+    const len = _dir.length();
+    if (len < 1e-4) _dir.set(0, 0, 1);
+    else _dir.multiplyScalar(1 / len);
+    if (_dir.dot(_z) < -0.999) _q.set(0, 1, 0, 0);
+    else _q.setFromUnitVectors(_z, _dir);
+    _p.set(pos[i3], pos[i3 + 1], pos[i3 + 2]);
+    const sc = scale[i] * CONFIG.rays.length;
+    _s.set(sc, sc, sc);
+    _m.compose(_p, _q, _s);
+    rayMesh.setMatrixAt(i, _m);
+  }
+  rayMesh.count = count;
+  rayMesh.instanceMatrix.needsUpdate = true;
+  rayMesh.geometry.attributes.aPhase.needsUpdate = true;
+}
+
 const CAM = { CINEMATIC: 0, FOLLOW: 1, ORBIT: 2, SURFACE: 3, FREE: 4 };
 const CAM_NAME = CAMERA_MODES;
 let camMode = CAM.CINEMATIC;
@@ -149,7 +192,10 @@ hud.on("fear", (on) => {
 });
 hud.on("reset", () => {
   school.respawn(Number(hud.get("fish")));
+  plankton.seed();
+  rays.respawn(CONFIG.rays.count);
   shark.eaten = 0;
+  shark.energy = 0.72;
 });
 hud.on("pilot", (on) => {
   if (on !== shark.controlled) togglePilot(on);
@@ -338,6 +384,7 @@ window.addEventListener("resize", () => {
 
 let last = performance.now();
 syncFish();
+syncRays();
 let raf = 0;
 
 function frame(now) {
@@ -351,19 +398,24 @@ function frame(now) {
 
   day.update(dt);
   const tod = day.look;
+  tod.simTime = t;
   if (shark.lunging && tod.caustic > 0.05) tod.caustic = Math.min(1.15, tod.caustic + 0.28);
   syncWorldUniforms(uniforms, tod);
   renderer.toneMappingExposure = tod.exposure;
 
   shark.update(dt, input, school, tod);
-  school.update(dt, shark, tod);
+  school.update(dt, shark, tod, plankton);
+  rays.update(dt, shark, tod);
+  plankton.update(dt, tod, t);
+  bloom.update();
   syncFish();
+  syncRays();
   syncSharkMesh(sharkMesh, shark, uniforms);
   eatFX.update(dt);
   outcrops.update(dt, tod);
   updateCamera(dt);
   env.update(t, camera, tod);
-  hud.tick(dt, school, shark, day);
+  hud.tick(dt, school, shark, day, plankton);
 
   renderer.render(scene, camera);
   raf = requestAnimationFrame(frame);

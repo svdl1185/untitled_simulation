@@ -1,5 +1,6 @@
 import { CONFIG } from "../config.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
+import { sampleFlow } from "./flow.js";
 
 /**
  * Reynolds-style vehicle: steer velocity toward a desired velocity,
@@ -46,6 +47,7 @@ export class Shark {
     this.speedCap = CONFIG.shark.cruiseSpeed;
     this.eatEvents = [];
     this.eaten = 0;
+    this.energy = 0.72;
     this.fearRadius = CONFIG.shark.fearRadius;
     this.fearStrength = CONFIG.fish.fearWeight;
     this.biteRadius = CONFIG.shark.biteRadius;
@@ -62,6 +64,10 @@ export class Shark {
     this.yawLook = this.yaw;
     this.pitchLook = this.pitch;
     if (on) this.lunging = false;
+  }
+
+  feed() {
+    this.energy = Math.min(1, this.energy + CONFIG.shark.eatEnergy);
   }
 
   startLunge() {
@@ -93,6 +99,14 @@ export class Shark {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.z += this.vz * dt;
+
+    const flow = sampleFlow(this.x, this.y, this.z, look?.simTime ?? 0, look?.storm ?? 0);
+    this.x += flow.x * dt;
+    this.y += flow.y * dt * 0.45;
+    this.z += flow.z * dt;
+
+    const drain = cfg.energyDrain * (this.lunging ? 2.4 : this.aiMode === "strike" ? 1.6 : 1);
+    this.energy = Math.max(0.02, this.energy - drain * dt);
 
     this._keepInWater(cfg, dt, true);
 
@@ -227,6 +241,9 @@ export class Shark {
 
     if (this.aiT <= 0) this._nextMode(school, dist, holdR);
 
+    const hungry = this.energy < cfg.hungry;
+    const satiated = this.energy > cfg.satiated;
+
     this.circleA += dt * (this.aiMode === "stalk" ? 0.28 : 0.16);
     this.wanderTheta += (Math.random() - 0.5) * 1.1 * dt;
 
@@ -255,23 +272,23 @@ export class Shark {
       arriveR = 16;
       this.thrust = 0.48;
     } else if (this.aiMode === "stalk") {
-      const r = flank + 3 * Math.sin(this.circleA * 0.55);
-      tx = cx - hx * 8 + fx * this.flankSign * r;
+      const r = flank + 3 * Math.sin(this.circleA * 0.55) - (hungry ? 6 : 0);
+      tx = cx - hx * (hungry ? 2 : 8) + fx * this.flankSign * r;
       ty = cy - 2.2;
-      tz = cz - hz * 8 + fz * this.flankSign * r;
-      const closing = dist > flank + 8;
-      maxSpd = cfg.cruiseSpeed * (closing ? 0.95 : 0.58);
+      tz = cz - hz * (hungry ? 2 : 8) + fz * this.flankSign * r;
+      const closing = dist > flank + (hungry ? 2 : 8);
+      maxSpd = cfg.cruiseSpeed * (closing ? (hungry ? 1.05 : 0.95) : 0.58);
       force = cfg.maxForce * (closing ? 1 : 0.7);
-      arriveR = 12;
+      arriveR = hungry ? 8 : 12;
       this.thrust = closing ? 0.62 : 0.4;
     } else {
-      const r = 46 + 8 * Math.sin(this.circleA * 0.3);
+      const r = (satiated ? 58 : 46) + 8 * Math.sin(this.circleA * 0.3);
       const wx = Math.cos(this.wanderTheta) * 7;
       const wz = Math.sin(this.wanderTheta) * 7;
       tx = cx + hx * 14 + fx * Math.cos(this.circleA) * r + wx;
       ty = cy - 1.2;
       tz = cz + hz * 14 + fz * Math.sin(this.circleA) * r + wz;
-      maxSpd = cfg.cruiseSpeed * (dist > 75 ? 0.9 : 0.7);
+      maxSpd = cfg.cruiseSpeed * (dist > 75 ? 0.9 : satiated ? 0.52 : 0.7);
       force = cfg.maxForce * 0.8;
       arriveR = 18;
       this.thrust = dist > 75 ? 0.6 : 0.38;
@@ -305,25 +322,39 @@ export class Shark {
   }
 
   _nextMode(school, dist, holdR) {
+    const hungry = this.energy < CONFIG.shark.hungry;
+    const satiated = this.energy > CONFIG.shark.satiated;
     if (this.aiMode === "recover") {
-      this.aiMode = "patrol";
-      this.aiT = 5 + Math.random() * 4;
+      if (hungry && school.count > 8) {
+        this.aiMode = "stalk";
+        this.aiT = 4 + Math.random() * 2;
+      } else {
+        this.aiMode = "patrol";
+        this.aiT = 5 + Math.random() * 4;
+      }
       this._nextHunt(school);
       this.flankSign *= -1;
-    } else if (this.aiMode === "patrol" && dist < 62 && school.count > 8) {
-      this.aiMode = "stalk";
-      this.aiT = 7 + Math.random() * 4;
+    } else if (this.aiMode === "patrol") {
+      if (!satiated && dist < (hungry ? 92 : 62) && school.count > 8) {
+        this.aiMode = "stalk";
+        this.aiT = hungry ? 4 + Math.random() * 3 : 7 + Math.random() * 4;
+      } else {
+        this.aiT = 3 + Math.random() * 3;
+      }
     } else if (this.aiMode === "stalk") {
-      if (dist < holdR + 20 && school.count > 8) {
+      if (satiated) {
+        this.aiMode = "patrol";
+        this.aiT = 6 + Math.random() * 4;
+      } else if (dist < holdR + (hungry ? 32 : 20) && school.count > 8) {
         this.aiMode = "strike";
-        this.aiT = 1.45;
+        this.aiT = hungry ? 1.8 : 1.45;
         this.startLunge();
       } else {
-        this.aiT = 2.4;
+        this.aiT = hungry ? 1.4 : 2.4;
       }
     } else if (this.aiMode === "strike") {
       this.aiMode = "recover";
-      this.aiT = 6 + Math.random() * 3;
+      this.aiT = hungry ? 3 + Math.random() * 2 : 6 + Math.random() * 3;
     } else {
       this.aiMode = "patrol";
       this.aiT = 5 + Math.random() * 3;

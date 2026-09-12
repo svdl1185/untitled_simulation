@@ -90,7 +90,7 @@ h3 {
   left: 28px;
   transform: translateY(-50%);
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .stat span {

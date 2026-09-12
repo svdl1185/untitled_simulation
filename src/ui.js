@@ -38,7 +38,7 @@ export const MENU = [
       {
         id: "fish",
         kind: "slider",
-        label: "Fish",
+        label: "Fish cap",
         min: 2000,
         max: CONFIG.maxFish,
         step: 500,
@@ -310,7 +310,7 @@ export function createHUD() {
         ? "Click the water to capture the mouse · WASD turn/thrust · E/Q rise/dive · Shift boost · Space lunge · Esc release"
         : "M menu · V free roam · C camera · P pilot";
     },
-    tick(dt, school, shark, day) {
+    tick(dt, school, shark, day, plankton) {
       frames++;
       acc += dt;
       if (acc >= 0.4) {
@@ -321,6 +321,10 @@ export function createHUD() {
       document.getElementById("fish-count").textContent = school.count.toLocaleString();
       document.getElementById("school-count").textContent = String(school.occupied);
       document.getElementById("eaten-count").textContent = shark.eaten.toLocaleString();
+      const bloomEl = document.getElementById("bloom-count");
+      if (bloomEl && plankton) bloomEl.textContent = `${Math.round(plankton.mean * 100)}%`;
+      const hungerEl = document.getElementById("hunger-count");
+      if (hungerEl) hungerEl.textContent = `${Math.round(shark.energy * 100)}%`;
       document.getElementById("fps").textContent = String(fpsVal);
       if (!shark.controlled) {
         const modes = {

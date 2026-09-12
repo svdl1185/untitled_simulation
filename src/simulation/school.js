@@ -1,6 +1,7 @@
 import { CONFIG } from "../config.js";
 import { UniformGrid3D } from "./grid.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
+import { sampleFlow } from "./flow.js";
 
 const NEAR_K = 6;
 const NEIGHBOR_BUDGET = 40;
@@ -99,6 +100,9 @@ export class School {
     this.anchorT = 0;
     this.eatenThisFrame = 0;
     this.totalEaten = 0;
+    this.cap = count;
+    this._recruitAcc = 0;
+    this._plankton = null;
 
     for (let s = 0; s < this.maxSchools; s++) {
       this.centroids.push({
@@ -153,7 +157,9 @@ export class School {
   respawn(count) {
     const n = Math.max(0, Math.min(this.max, count | 0));
     this.count = n;
+    this.cap = n;
     this.totalEaten = 0;
+    this._recruitAcc = 0;
     this.schoolCount = this.initialSchools;
     this._splitLock.fill(0);
     for (let s = 0; s < this.maxSchools; s++) {
@@ -213,6 +219,7 @@ export class School {
 
   setCount(next) {
     const n = Math.max(32, Math.min(this.max, next | 0));
+    this.cap = n;
     if (n === this.count) return;
     if (n < this.count) {
       this.count = n;
@@ -244,6 +251,7 @@ export class School {
       this.scale[i] = 0.84 + Math.random() * 0.32;
     }
     this.count = n;
+    this.cap = n;
     this._refreshCentroids();
   }
 
@@ -286,13 +294,15 @@ export class School {
     return this.centroids[idx];
   }
 
-  update(dt, shark, look) {
+  update(dt, shark, look, plankton) {
     this.eatenThisFrame = 0;
+    this._plankton = plankton || null;
     this._wanderAnchors(dt, shark, look);
     this.grid.rebuild(this.pos, this.count);
     this._flock(dt, shark, look);
     this._reorganize(dt, shark, look);
     this._eat(shark);
+    if (plankton) this._recruit(dt, plankton);
   }
 
   _wanderAnchors(dt, shark, look) {
@@ -329,6 +339,18 @@ export class School {
       a.hz = hz / hLen;
       a.x += a.hx * a.cruise * dt;
       a.z += a.hz * a.cruise * dt;
+      const flowA = sampleFlow(a.x, a.y, a.z, look?.simTime ?? 0, look?.storm ?? 0);
+      a.x += flowA.x * dt;
+      a.z += flowA.z * dt;
+      const bloom = this._plankton;
+      if (bloom) {
+        const g = bloom.gradient(a.x, a.z);
+        a.hx += g.x * 0.55;
+        a.hz += g.z * 0.55;
+        const hn2 = Math.hypot(a.hx, a.hz) || 1;
+        a.hx /= hn2;
+        a.hz /= hn2;
+      }
       if (a.x > bound) a.hx = -Math.abs(a.hx);
       else if (a.x < -bound) a.hx = Math.abs(a.hx);
       if (a.z > bound) a.hz = -Math.abs(a.hz);
@@ -596,6 +618,13 @@ export class School {
           }
         }
         ay += (anchor.y - py) * cfg.depthWeight;
+        const bloom = this._plankton;
+        if (bloom) {
+          const g = bloom.gradient(px, pz);
+          ax += g.x * cfg.forageWeight;
+          az += g.z * cfg.forageWeight;
+          bloom.graze(px, pz, CONFIG.plankton.graze * dt);
+        }
       } else {
         const d = Math.sqrt(pd2);
         const falloff = 1 - d / fearR;
@@ -711,9 +740,10 @@ export class School {
         }
       }
 
-      let nxPos = px + nvx * dt + corrX;
-      let nyPos = py + nvy * dt + corrY;
-      let nzPos = pz + nvz * dt + corrZ;
+      const flow = sampleFlow(px, py, pz, look?.simTime ?? 0, look?.storm ?? 0);
+      let nxPos = px + (nvx + flow.x) * dt + corrX;
+      let nyPos = py + (nvy + flow.y) * dt + corrY;
+      let nzPos = pz + (nvz + flow.z) * dt + corrZ;
       const ground2 = seafloorHeight(nxPos, nzPos);
       const hardCeil = -0.7;
       const hardFloor = ground2 + 1.35;
@@ -1024,8 +1054,51 @@ export class School {
         const y = pos[i3 + 1];
         const z = pos[i3 + 2];
         this.remove(i);
+        if (shark.feed) shark.feed();
         shark.onEat(x, y, z);
       }
     }
+  }
+
+  _recruit(dt, plankton) {
+    const foodCap = plankton.carryingCapacity(this.cap);
+    const target = Math.min(this.cap, foodCap);
+    if (this.count >= target || this.count >= this.max) return;
+    if (plankton.mean < 0.05) return;
+    const deficit = target - this.count;
+    this._recruitAcc += Math.min(18, 4 + deficit * 0.02) * (0.35 + plankton.mean) * dt;
+    while (this._recruitAcc >= 1 && this.count < target && this.count < this.max) {
+      this._recruitAcc -= 1;
+      this._spawnOne(plankton);
+    }
+  }
+
+  _spawnOne(plankton) {
+    let sid = 0;
+    let best = -1;
+    for (let s = 0; s < this.maxSchools; s++) {
+      if (this.schoolN[s] < 8) continue;
+      const c = this.centroids[s];
+      const food = plankton.sample(c.x, c.z);
+      if (food > best) {
+        best = food;
+        sid = s;
+      }
+    }
+    const i = this.count;
+    const i3 = i * 3;
+    const c = this.centroids[sid];
+    const a = this.anchors[sid];
+    const rest = CONFIG.fish.restSpacing;
+    this.schoolId[i] = sid;
+    this.pos[i3] = c.x + (Math.random() - 0.5) * rest * 3;
+    this.pos[i3 + 1] = c.y + (Math.random() - 0.5) * rest * 1.4;
+    this.pos[i3 + 2] = c.z + (Math.random() - 0.5) * rest * 3;
+    this.vel[i3] = a.hx * a.cruise;
+    this.vel[i3 + 1] = 0;
+    this.vel[i3 + 2] = a.hz * a.cruise;
+    this.phase[i] = Math.random() * Math.PI * 2;
+    this.scale[i] = 0.84 + Math.random() * 0.32;
+    this.count = i + 1;
   }
 }
