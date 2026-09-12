@@ -1,6 +1,6 @@
 import { CONFIG } from "../config.js";
 import { UniformGrid3D } from "./grid.js";
-import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
+import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 
 const NEAR_K = 6;
@@ -63,9 +63,10 @@ const N27Z = new Int8Array(27);
  *
  * Spacing is nearest-neighbor packing (project + spring on the K closest
  * fish), not a crowd of cancelling forces. Alignment is same-school only
- * so each shoal stays polarized. A soft pancake envelope keeps the volume
- * flat without crushing the interior. Shark fear turns the school aside
- * instead of detonating it.
+ * so each shoal stays polarized. A thin pancake envelope, pinned just
+ * ahead of the live centroid, keeps the volume flat. Alarm spreads
+ * through neighbors as a turn wave; flee blends with hold so a strike
+ * opens a hole without detonating the shoal.
  */
 export class School {
   constructor(count) {
@@ -79,7 +80,11 @@ export class School {
     this.vel = new Float32Array(max * 3);
     this.phase = new Float32Array(max);
     this.scale = new Float32Array(max);
+    this.pref = new Float32Array(max);
+    this.alarm = new Float32Array(max);
+    this._alarm = new Float32Array(max);
     this.schoolId = new Uint8Array(max);
+    this._compact = new Float32Array(this.maxSchools);
 
     this.centroid = { x: 0, y: CONFIG.fish.preferredDepth, z: 0 };
     this.centroids = [];
@@ -120,6 +125,10 @@ export class School {
         hx: 1,
         hz: 0,
         cruise: 6.8,
+        baseCruise: 6.8,
+        mill: 0,
+        wantMill: 0,
+        modeT: 6 + s * 2.1,
       });
     }
 
@@ -172,15 +181,21 @@ export class School {
       a.hx = Math.sin(home.heading);
       a.hz = Math.cos(home.heading);
       a.cruise = 6.4 + (s % 3) * 0.45;
+      a.baseCruise = a.cruise;
+      a.mill = 0;
+      a.wantMill = 0;
+      a.modeT = 8 + s * 3.1;
       this.schoolN[s] = 0;
     }
 
     const rest = CONFIG.fish.restSpacing;
     const per = Math.ceil(n / Math.max(1, this.initialSchools));
-    const nY = 13;
-    const nSide = Math.max(6, Math.round(Math.sqrt(per / nY)));
-    const nAlong = Math.max(6, Math.ceil(per / (nY * nSide)));
+    const nY = 5;
+    const nSide = Math.max(5, Math.round(Math.sqrt(per / nY) * 0.62));
+    const nAlong = Math.max(8, Math.ceil(per / (nY * nSide)));
 
+    this.alarm.fill(0);
+    this._alarm.fill(0);
     for (let i = 0; i < n; i++) {
       const i3 = i * 3;
       const sid = i % this.initialSchools;
@@ -191,7 +206,7 @@ export class School {
       const plane = (k / nY) | 0;
       const sideI = plane % nSide;
       const alongI = (plane / nSide) | 0;
-      const jitter = rest * 0.07;
+      const jitter = rest * 0.42;
       const side =
         (sideI + (alongI & 1) * 0.5 - (nSide - 1) * 0.5) * rest +
         (Math.random() - 0.5) * jitter;
@@ -199,20 +214,21 @@ export class School {
         (alongI - (nAlong - 1) * 0.5) * rest * 0.92 +
         (Math.random() - 0.5) * jitter;
       const up =
-        (layer - (nY - 1) * 0.5) * rest * 1.18 +
-        (Math.random() - 0.5) * jitter * 0.55;
+        (layer - (nY - 1) * 0.5) * rest * 0.72 +
+        (Math.random() - 0.5) * jitter * 0.7;
       const hx = Math.sin(home.heading);
       const hz = Math.cos(home.heading);
       this.pos[i3] = home.x + hx * along - hz * side;
       this.pos[i3 + 1] = home.y + up;
       this.pos[i3 + 2] = home.z + hz * along + hx * side;
-      const heading = home.heading + (Math.random() - 0.5) * 0.05;
-      const spd = 7.2 + Math.random() * 0.6;
+      const heading = home.heading + (Math.random() - 0.5) * 0.22;
+      const spd = 6.2 + Math.random() * 1.8;
       this.vel[i3] = Math.sin(heading) * spd;
-      this.vel[i3 + 1] = (Math.random() - 0.5) * 0.12;
+      this.vel[i3 + 1] = (Math.random() - 0.5) * 0.08;
       this.vel[i3 + 2] = Math.cos(heading) * spd;
       this.phase[i] = Math.random() * Math.PI * 2;
       this.scale[i] = 0.84 + Math.random() * 0.32;
+      this.pref[i] = 0.86 + Math.random() * 0.28;
     }
     this._refreshCentroids();
   }
@@ -249,6 +265,8 @@ export class School {
       this.vel[i3 + 2] = a.hz * spd;
       this.phase[i] = Math.random() * Math.PI * 2;
       this.scale[i] = 0.84 + Math.random() * 0.32;
+      this.pref[i] = 0.86 + Math.random() * 0.28;
+      this.alarm[i] = 0;
     }
     this.count = n;
     this.cap = n;
@@ -268,6 +286,8 @@ export class School {
       this.vel[i3 + 2] = this.vel[l3 + 2];
       this.phase[i] = this.phase[last];
       this.scale[i] = this.scale[last];
+      this.pref[i] = this.pref[last];
+      this.alarm[i] = this.alarm[last];
       this.schoolId[i] = this.schoolId[last];
     }
     this.count = last;
@@ -310,65 +330,101 @@ export class School {
     const bound = CONFIG.halfX - 28;
     const depth = look?.preferredDepth ?? CONFIG.fish.preferredDepth;
     const fearR = shark.fearRadius;
+    const lead = CONFIG.fish.lead;
     for (let s = 0; s < this.maxSchools; s++) {
       this._splitLock[s] = Math.max(0, this._splitLock[s] - dt);
-      if (this.schoolN[s] === 0) continue;
+      if (this.schoolN[s] === 0) {
+        this.anchors[s].mill = 0;
+        this.anchors[s].wantMill = 0;
+        continue;
+      }
       const a = this.anchors[s];
       const c = this.centroids[s];
       a.t += dt;
+      a.modeT -= dt;
 
       let hx = a.hx;
       let hz = a.hz;
       const dx = c.x - shark.x;
+      const dy = c.y - shark.y;
       const dz = c.z - shark.z;
       const d2 = dx * dx + dz * dz;
       const avoidR = fearR + CONFIG.fish.schoolRadius;
-      if (d2 < avoidR * avoidR && d2 > 1) {
+      const sharkNear = d2 < avoidR * avoidR && d2 > 1;
+      if (sharkNear) {
         const d = Math.sqrt(d2);
         const w = (1 - d / avoidR) ** 2;
         hx += (dx / d) * w * 1.4;
         hz += (dz / d) * w * 1.4;
+        a.wantMill = 0;
+        a.modeT = 5 + Math.random() * 4;
       } else {
-        const turn = Math.sin(a.t * 0.11 + s * 1.3) * 0.2;
+        const turn = Math.sin(a.t * 0.11 + s * 1.3) * (a.mill > 0.45 ? 0.82 : 0.2);
         const ang = Math.atan2(hx, hz) + turn * dt;
         hx = Math.sin(ang);
         hz = Math.cos(ang);
+        if (a.modeT <= 0) {
+          const far = dx * dx + dy * dy + dz * dz > (fearR + 82) ** 2;
+          if (a.mill < 0.5 && far && Math.random() < 0.38) {
+            a.wantMill = 1;
+            a.modeT = 8 + Math.random() * 12;
+          } else {
+            a.wantMill = 0;
+            a.modeT = 14 + Math.random() * 22;
+          }
+        }
       }
       const hLen = Math.hypot(hx, hz) || 1;
       a.hx = hx / hLen;
       a.hz = hz / hLen;
-      a.x += a.hx * a.cruise * dt;
-      a.z += a.hz * a.cruise * dt;
-      const flowA = sampleFlow(a.x, a.y, a.z, look?.simTime ?? 0, look?.storm ?? 0);
-      a.x += flowA.x * dt;
-      a.z += flowA.z * dt;
+
+      const flowA = sampleFlow(c.x, c.y, c.z, look?.simTime ?? 0, look?.storm ?? 0);
+      a.hx += flowA.x * 0.07;
+      a.hz += flowA.z * 0.07;
       const bloom = this._plankton;
       if (bloom) {
-        const g = bloom.gradient(a.x, a.z);
-        a.hx += g.x * 0.55;
-        a.hz += g.z * 0.55;
-        const hn2 = Math.hypot(a.hx, a.hz) || 1;
-        a.hx /= hn2;
-        a.hz /= hn2;
+        const g = bloom.gradient(c.x, c.z);
+        a.hx += g.x * 0.4;
+        a.hz += g.z * 0.4;
       }
-      if (a.x > bound) a.hx = -Math.abs(a.hx);
-      else if (a.x < -bound) a.hx = Math.abs(a.hx);
-      if (a.z > bound) a.hz = -Math.abs(a.hz);
-      else if (a.z < -bound) a.hz = Math.abs(a.hz);
-      a.x = Math.max(-bound, Math.min(bound, a.x));
-      const groundA = seafloorHeight(a.x, a.z);
+      if (c.x > bound) a.hx = -Math.abs(a.hx);
+      else if (c.x < -bound) a.hx = Math.abs(a.hx);
+      if (c.z > bound) a.hz = -Math.abs(a.hz);
+      else if (c.z < -bound) a.hz = Math.abs(a.hz);
+      const groundA = seafloorHeight(c.x, c.z);
       if (groundA > depth - 10) {
-        const sl = seafloorSlope(a.x, a.z);
+        const sl = seafloorSlope(c.x, c.z);
         a.hx -= sl.x;
         a.hz -= sl.z;
-        const hn = Math.hypot(a.hx, a.hz) || 1;
-        a.hx /= hn;
-        a.hz /= hn;
       }
-      if (a.z > CONFIG.beach.shoreZ - 58) {
-        a.hz = -Math.abs(a.hz);
-        a.z = Math.min(a.z, CONFIG.beach.shoreZ - 58);
+      const shore = lookAheadShore(c.x, c.z, a.hx, a.hz, CONFIG.fish.beachLook);
+      if (shore.urgency > 0) {
+        const turned = steerOffShore(
+          a.hx,
+          a.hz,
+          shore.urgency,
+          shore.gx,
+          shore.gz,
+          dt * (3.6 + shore.urgency * 8)
+        );
+        a.hx = turned.hx;
+        a.hz = turned.hz;
+        a.wantMill = 0;
+        a.modeT = Math.max(a.modeT, 6);
       }
+      if (c.z > CONFIG.beach.shoreZ - 50) a.hz = -Math.abs(a.hz);
+      const hn = Math.hypot(a.hx, a.hz) || 1;
+      a.hx /= hn;
+      a.hz /= hn;
+
+      const wantMill = shore.urgency > 0.12 ? 0 : a.wantMill ? 1 : 0;
+      a.mill += (wantMill - a.mill) * Math.min(1, dt * 0.65);
+      if (a.mill < 0.02) a.mill = 0;
+      a.cruise = a.baseCruise || a.cruise;
+
+      const leadD = lead * (1 - shore.urgency * 0.75);
+      a.x = c.x + a.hx * leadD;
+      a.z = c.z + a.hz * leadD;
       a.y += (depth + (s % 2 === 0 ? -2 : 2.5) - a.y) * Math.min(1, dt * 0.35);
       const waterTop = -3.2;
       const waterBot = groundA + 8;
@@ -392,14 +448,14 @@ export class School {
     const aliCap = 14;
     const cohCap = 12;
     const { heads, next, keyOf, nx, ny, nz, mask, inv, minX, minY, minZ } = this.grid;
-    const holdR = cfg.schoolRadius * (look?.schoolRadiusScale ?? 1);
-    const holdH = cfg.schoolHeight * (0.9 + (look?.tight ?? 0) * 0.12);
     const tight = look?.tight ?? 0;
+    const holdR0 = cfg.schoolRadius * (look?.schoolRadiusScale ?? 1);
     const cohW = cfg.cohWeight * (1 + tight * 0.6);
     const colliders = this.colliders;
     const colliderCount = this.colliderCount;
     const nj = this._nj;
     const nd = this._nd;
+    const simT = look?.simTime ?? 0;
 
     const sx = shark.x;
     const sy = shark.y;
@@ -411,6 +467,22 @@ export class School {
     const sfx = shark.vx / sLen;
     const sfy = shark.vy / sLen;
     const sfz = shark.vz / sLen;
+
+    const compact = this._compact;
+    for (let s = 0; s < this.maxSchools; s++) {
+      if (this.schoolN[s] === 0) {
+        compact[s] = 0;
+        continue;
+      }
+      const c = this.centroids[s];
+      const d = Math.hypot(c.x - sx, c.y - sy, c.z - sz);
+      const inner = fearR + 10;
+      const outer = fearR + holdR0 + 30;
+      let u = 0;
+      if (d < inner) u = 1;
+      else if (d < outer) u = (outer - d) / (outer - inner);
+      compact[s] = u * u;
+    }
 
     const halfX = CONFIG.halfX;
     const sumX = this._sx;
@@ -448,6 +520,7 @@ export class School {
       let cohY = 0;
       let cohZ = 0;
       let cohN = 0;
+      let neighAlarm = 0;
 
       let ix0 = (px - minX) * inv | 0;
       let iy0 = (py - minY) * inv | 0;
@@ -493,6 +566,7 @@ export class School {
             }
           }
 
+          if (d2 < aliR2 && this.alarm[j] > neighAlarm) neighAlarm = this.alarm[j];
           if (schoolId[j] === sid) {
             if (aliN < aliCap && d2 < aliR2) {
               aliX += vel[j3];
@@ -535,7 +609,7 @@ export class School {
         const gap = rest - d;
         const inv = 1 / d;
         if (gap > 0) {
-          const push = gap * 0.5;
+          const push = gap * 0.38;
           corrX += dx * inv * push;
           corrY += dy * inv * push * 0.55;
           corrZ += dz * inv * push;
@@ -553,7 +627,7 @@ export class School {
       if (aliN > 0) {
         const invN = 1 / aliN;
         ax += (aliX * invN - vx) * cfg.aliWeight;
-        ay += (aliY * invN - vy) * cfg.aliWeight;
+        ay += (aliY * invN - vy) * cfg.aliWeight * 0.32;
         az += (aliZ * invN - vz) * cfg.aliWeight;
       }
 
@@ -564,7 +638,7 @@ export class School {
         const cz = cohZ * invN - pz;
         const cLen = Math.hypot(cx, cy, cz);
         if (cLen > 1e-4) {
-          const w = cohW / cLen;
+          const w = (cohW * (1 + this._compact[sid] * 0.7)) / cLen;
           ax += cx * w * cfg.maxSpeed;
           ay += cy * w * cfg.maxSpeed * 0.82;
           az += cz * w * cfg.maxSpeed;
@@ -575,86 +649,150 @@ export class School {
       const pdy = py - sy;
       const pdz = pz - sz;
       const pd2 = pdx * pdx + pdy * pdy + pdz * pdz;
-      const inPanic = pd2 < fearR2 && pd2 > 1e-5;
-      let maxSpd = cfg.maxSpeed;
+      let nextAlarm = this.alarm[i] * Math.exp(-dt * 3.1);
+      if (pd2 < fearR2 && pd2 > 1e-5) nextAlarm = 1;
+      else if (neighAlarm > 0.22) {
+        const spread = neighAlarm * 0.58;
+        if (spread > nextAlarm) {
+          nextAlarm += (spread - nextAlarm) * Math.min(1, dt * 7);
+        }
+      }
+      if (nextAlarm < 0.02) nextAlarm = 0;
+      else if (nextAlarm > 1) nextAlarm = 1;
+      this._alarm[i] = nextAlarm;
+      const alarm = nextAlarm;
+      const mill = anchor.mill;
+      const packed = this._compact[sid];
+      const holdR =
+        holdR0 * (1 - tight * 0.1) * (1 - packed * 0.24) * (1 - mill * 0.1);
+      const holdH = cfg.schoolHeight * (1 - tight * 0.34) * (1 - packed * 0.16);
+      const alongR = holdR * 1.36;
+      const sideR = holdR * 0.68;
+      let maxSpd = cfg.maxSpeed * (0.82 + this.pref[i] * 0.22);
       let maxAcc = cfg.maxAccel;
 
-      if (!inPanic) {
-        ax += (anchor.hx * anchor.cruise - vx) * cfg.cruiseWeight;
-        ay += -vy * 0.06;
-        az += (anchor.hz * anchor.cruise - vz) * cfg.cruiseWeight;
-
-        const groundHold = seafloorHeight(px, pz);
-        const ceilY = -cfg.surfaceClearance;
-        const sandPad = groundHold + cfg.floorClearance + 0.6;
-        const room = Math.max(2.8, (ceilY - sandPad) * 0.5);
-        const localH = Math.min(holdH, room);
-        let holdY = hold.y;
-        if (holdY < sandPad + localH) holdY = sandPad + localH;
-        if (holdY > ceilY - localH) holdY = ceilY - localH;
-
-        const hdx = px - hold.x;
-        const hdy = py - holdY;
-        const hdz = pz - hold.z;
-        const along = hdx * anchor.hx + hdz * anchor.hz;
-        const side = hdx * -anchor.hz + hdz * anchor.hx;
-        const nx = along / holdR;
-        const ny = hdy / localH;
-        const nz = side / (holdR * 0.86);
-        const e2 = nx * nx + ny * ny + nz * nz;
-        if (e2 > 1) {
-          const e = Math.sqrt(e2);
-          const extra = (e - 1) * cfg.holdWeight;
-          ax -= extra * (nx * anchor.hx) / holdR - extra * (nz * anchor.hz) / (holdR * 0.86);
-          ay -= extra * ny / localH;
-          az -= extra * (nx * anchor.hz) / holdR + extra * (nz * anchor.hx) / (holdR * 0.86);
-        } else {
-          const flat = Math.hypot(along, side) / holdR;
-          const vert = Math.abs(hdy) / localH;
-          const want = flat * 0.62;
-          if (flat > 0.12 && vert < want) {
-            const puff = (want - vert) * 7.5;
-            ay += (hdy > 0.05 ? 1 : hdy < -0.05 ? -1 : (i & 1) * 2 - 1) * puff;
-          }
+      let dhx = anchor.hx;
+      let dhz = anchor.hz;
+      const wantSpd = anchor.cruise * this.pref[i] * (1 - mill * 0.55);
+      if (mill > 0.04) {
+        const rx = px - hold.x;
+        const rz = pz - hold.z;
+        const r = Math.hypot(rx, rz);
+        let tx = -rz;
+        let tz = rx;
+        const tlen = Math.hypot(tx, tz);
+        if (tlen > 1e-4) {
+          tx /= tlen;
+          tz /= tlen;
+          const invR = 1 / (r > 0.2 ? r : 0.2);
+          const inward = (r - holdR * 0.5) * 0.14;
+          dhx = dhx * (1 - mill) + (tx - rx * invR * inward) * mill;
+          dhz = dhz * (1 - mill) + (tz - rz * invR * inward) * mill;
+          const hl = Math.hypot(dhx, dhz) || 1;
+          dhx /= hl;
+          dhz /= hl;
         }
-        ay += (anchor.y - py) * cfg.depthWeight;
+      }
+      const shore = lookAheadShore(px, pz, dhx, dhz, 36);
+      if (shore.urgency > 0) {
+        const turned = steerOffShore(dhx, dhz, shore.urgency, shore.gx, shore.gz, 0.2 + shore.urgency * 0.35);
+        dhx = turned.hx;
+        dhz = turned.hz;
+      }
+
+      let cruiseX = (dhx * wantSpd - vx) * cfg.cruiseWeight;
+      let cruiseY = -vy * cfg.pitchDamp;
+      let cruiseZ = (dhz * wantSpd - vz) * cfg.cruiseWeight;
+      const nse = Math.sin(simT * 1.25 + this.phase[i] * 2.7);
+      cruiseX += -anchor.hz * nse * cfg.noiseWeight;
+      cruiseZ += anchor.hx * nse * cfg.noiseWeight;
+
+      const groundHold = seafloorHeight(px, pz);
+      const ceilHold = -cfg.surfaceClearance;
+      const sandPad = groundHold + cfg.floorClearance + 0.6;
+      const room = Math.max(2.2, (ceilHold - sandPad) * 0.5);
+      const localH = Math.min(holdH, room);
+      let holdY = hold.y;
+      if (holdY < sandPad + localH) holdY = sandPad + localH;
+      if (holdY > ceilHold - localH) holdY = ceilHold - localH;
+      const hdx = px - hold.x;
+      const hdy = py - holdY;
+      const hdz = pz - hold.z;
+      const along = hdx * anchor.hx + hdz * anchor.hz;
+      const side = hdx * -anchor.hz + hdz * anchor.hx;
+      const nxh = along / alongR;
+      const nyh = hdy / localH;
+      const nzh = side / sideR;
+      const e2 = nxh * nxh + nyh * nyh + nzh * nzh;
+      if (e2 > 1) {
+        const e = Math.sqrt(e2);
+        const extra = (e - 1) * cfg.holdWeight * (1 + (e - 1) * 0.65);
+        cruiseX -= extra * (nxh * anchor.hx) / alongR - extra * (nzh * anchor.hz) / sideR;
+        cruiseY -= extra * nyh / localH;
+        cruiseZ -= extra * (nxh * anchor.hz) / alongR + extra * (nzh * anchor.hx) / sideR;
+      } else if (along < 0) {
+        const catchUp = (-along / alongR) * 2.6;
+        cruiseX += dhx * catchUp;
+        cruiseZ += dhz * catchUp;
+      }
+      const sideAbs = Math.abs(side);
+      if (mill < 0.25 && sideAbs > alongR * 0.4) {
+        const cut = (sideAbs / sideR - 0.5) * 3.1;
+        if (cut > 0) {
+          const sgn = side > 0 ? 1 : -1;
+          cruiseX += anchor.hz * sgn * cut;
+          cruiseZ -= anchor.hx * sgn * cut;
+        }
+      }
+      cruiseY += (anchor.y - py) * cfg.depthWeight;
+      if (alarm < 0.55 && shore.urgency < 0.4) {
         const bloom = this._plankton;
         if (bloom) {
           const g = bloom.gradient(px, pz);
-          ax += g.x * cfg.forageWeight;
-          az += g.z * cfg.forageWeight;
+          cruiseX += g.x * cfg.forageWeight * (1 - alarm);
+          cruiseZ += g.z * cfg.forageWeight * (1 - alarm);
           bloom.graze(px, pz, CONFIG.plankton.graze * dt);
         }
-      } else {
-        const d = Math.sqrt(pd2);
-        const falloff = 1 - d / fearR;
+      }
+
+      let fleeX = 0;
+      let fleeY = 0;
+      let fleeZ = 0;
+      if (alarm > 0.08) {
+        const d = Math.sqrt(pd2 > 1e-5 ? pd2 : 1e-5);
+        const falloff = Math.max(0, 1 - d / Math.max(fearR, d));
         const ahead = (pdx * sfx + pdy * sfy + pdz * sfz) / d;
-        const panic = falloff * falloff * (0.75 + 0.5 * Math.max(0, ahead));
+        const panic = Math.max(alarm, falloff * falloff * (0.75 + 0.5 * Math.max(0, ahead)));
         let fx = pdx / d + anchor.hx * 0.55;
-        let fy = pdy / d * 0.35 - 0.08;
+        let fy = pdy / d * 0.22;
         let fz = pdz / d + anchor.hz * 0.55;
-        const along = pdx * sfx + pdy * sfy + pdz * sfz;
-        let lx = pdx - along * sfx;
-        let ly = pdy - along * sfy;
-        let lz = pdz - along * sfz;
+        const alongS = pdx * sfx + pdy * sfy + pdz * sfz;
+        let lx = pdx - alongS * sfx;
+        let ly = pdy - alongS * sfy;
+        let lz = pdz - alongS * sfz;
         const lLen = Math.hypot(lx, ly, lz);
         if (lLen > 1e-4) {
           fx += (lx / lLen) * 0.7;
-          fy += (ly / lLen) * 0.25;
+          fy += (ly / lLen) * 0.18;
           fz += (lz / lLen) * 0.7;
         }
         const fLen = Math.hypot(fx, fy, fz) || 1;
         fx /= fLen;
         fy /= fLen;
         fz /= fLen;
-        const want = cfg.fleeSpeed * (0.58 + 0.42 * panic);
-        const match = 3.2 * (0.5 + panic);
-        ax += (fx * want - vx) * match;
-        ay += (fy * want - vy) * match;
-        az += (fz * want - vz) * match;
-        maxSpd = cfg.fleeSpeed;
-        maxAcc = cfg.maxAccel * 2.2;
+        const want = cfg.fleeSpeed * (0.5 + 0.5 * panic);
+        const match = 2.5 * (0.4 + panic);
+        fleeX = (fx * want - vx) * match;
+        fleeY = (fy * want - vy) * match;
+        fleeZ = (fz * want - vz) * match;
+        maxSpd = cfg.maxSpeed + (cfg.fleeSpeed - cfg.maxSpeed) * alarm;
+        maxAcc = cfg.maxAccel * (1 + alarm * 1.2);
       }
+
+      const fleeMix = alarm * alarm * (3 - 2 * alarm);
+      ax += cruiseX * (1 - fleeMix * 0.85) + fleeX * fleeMix;
+      ay += cruiseY * (1 - fleeMix * 0.65) + fleeY * fleeMix;
+      az += cruiseZ * (1 - fleeMix * 0.85) + fleeZ * fleeMix;
 
       const rock = steerFromColliders(px, py, pz, colliders, colliderCount, 1.8, 22);
       ax += rock.ax;
@@ -668,19 +806,25 @@ export class School {
       const ground = seafloorHeight(px, pz);
       const ceilY = -cfg.surfaceClearance;
       if (py > ceilY) ay -= (py - ceilY) * 5.2;
-      const floorKeep = ground + cfg.floorClearance + 1.4;
-      if (py < floorKeep) ay += (floorKeep - py) * 5.5;
       const column = ceilY - (ground + cfg.floorClearance);
-      if (column < cfg.beachTurnWater) {
-        const slope = seafloorSlope(px, pz);
-        const span = Math.max(1, cfg.beachTurnWater - cfg.minWater);
-        const u = Math.min(1, (cfg.beachTurnWater - column) / span);
-        const w = 16 + u * u * 38;
+      const shoreU = Math.max(shore.urgency, column < cfg.beachTurnWater
+        ? Math.min(1, (cfg.beachTurnWater - column) / Math.max(8, cfg.beachTurnWater - cfg.minWater))
+        : 0);
+      const floorKeep = ground + cfg.floorClearance + 1.4 + shoreU * 2.6;
+      if (py < floorKeep) ay += (floorKeep - py) * (5.5 + shoreU * 9);
+      if (shoreU > 0.02) {
+        const slope = shore.urgency > 0
+          ? { x: shore.gx, z: shore.gz }
+          : seafloorSlope(px, pz);
+        const into = Math.max(0, vx * slope.x + vz * slope.z);
+        const w = 28 + shoreU * shoreU * 70 + into * 22;
         ax -= slope.x * w;
         az -= slope.z * w;
+        if (vz > 0) az -= vz * (2.5 + shoreU * 10);
+        maxAcc = Math.max(maxAcc, cfg.maxAccel * (1.15 + shoreU * 0.9));
       }
-      if (pz > CONFIG.beach.shoreZ - 12) {
-        az -= (pz - (CONFIG.beach.shoreZ - 12)) * cfg.boundsWeight * 2.4;
+      if (pz > CONFIG.beach.shoreZ - 28) {
+        az -= (pz - (CONFIG.beach.shoreZ - 28)) * cfg.boundsWeight * 3.2;
       }
 
       const aLen = Math.hypot(ax, ay, az);
@@ -699,7 +843,7 @@ export class School {
         nvx = 1;
         spd = 1;
       }
-      const minSpd = inPanic ? cfg.maxSpeed : cfg.minSpeed;
+      const minSpd = cfg.minSpeed * (0.45 + 0.55 * (1 - mill)) * (alarm > 0.5 ? 1.6 : 1);
       if (spd > maxSpd) {
         const s = maxSpd / spd;
         nvx *= s;
@@ -707,15 +851,15 @@ export class School {
         nvz *= s;
         spd = maxSpd;
       } else if (spd < minSpd) {
-        const s = minSpd / spd;
+        const s = 1 + (minSpd / spd - 1) * 0.32;
         nvx *= s;
         nvy *= s;
         nvz *= s;
-        spd = minSpd;
+        spd *= s;
       }
 
       const oldSpd = Math.hypot(vx, vy, vz);
-      if (oldSpd > 0.4 && !inPanic) {
+      if (oldSpd > 0.4) {
         const ox = vx / oldSpd;
         const oy = vy / oldSpd;
         const oz = vz / oldSpd;
@@ -726,19 +870,27 @@ export class School {
         if (dot > 1) dot = 1;
         else if (dot < -1) dot = -1;
         const ang = Math.acos(dot);
-        const maxAng = cfg.maxTurn * dt;
+        const maxAng = cfg.maxTurn * (1 + alarm * 1.05 + shoreU * 1.6) * dt;
         if (ang > maxAng && ang > 1e-4) {
           const t = maxAng / ang;
           let dx = ox + (nxv - ox) * t;
           let dy = oy + (nyv - oy) * t;
           let dz = oz + (nzv - oz) * t;
           const dLen = Math.hypot(dx, dy, dz) || 1;
-          const blend = oldSpd + (spd - oldSpd) * 0.4;
+          const blend = oldSpd + (spd - oldSpd) * (alarm > 0.4 ? 0.7 : 0.4);
           nvx = (dx / dLen) * blend;
           nvy = (dy / dLen) * blend;
           nvz = (dz / dLen) * blend;
+          spd = blend;
         }
       }
+
+      const maxPitch = alarm > 0.45 ? cfg.pitchLimit * 2.1 : shoreU > 0.2 ? cfg.pitchLimit * 1.55 : cfg.pitchLimit;
+      const horiz = Math.hypot(nvx, nvz);
+      const pitchCap = horiz * Math.tan(maxPitch) + 0.04;
+      if (nvy > pitchCap) nvy = pitchCap;
+      else if (nvy < -pitchCap) nvy = -pitchCap;
+      if (shoreU > 0.28 && nvz > 0) nvz *= 1 - Math.min(0.9, shoreU * 0.95);
 
       const flow = sampleFlow(px, py, pz, look?.simTime ?? 0, look?.storm ?? 0);
       let nxPos = px + (nvx + flow.x) * dt + corrX;
@@ -754,9 +906,10 @@ export class School {
       if (nyPos < hardFloor) {
         nyPos = hardFloor;
         nvy = Math.max(nvy, 0);
+        if (nvz > 0) nvz *= 0.32;
       }
-      if (nzPos > CONFIG.beach.shoreZ - 8) {
-        nzPos = CONFIG.beach.shoreZ - 8;
+      if (nzPos > CONFIG.beach.shoreZ - 22) {
+        nzPos = CONFIG.beach.shoreZ - 22;
         nvz = Math.min(nvz, 0);
       }
       const resolved = resolveColliders(nxPos, nyPos, nzPos, colliders, colliderCount, 1.4);
@@ -778,6 +931,10 @@ export class School {
       svz[sid] += nvz;
       this.schoolN[sid]++;
     }
+
+    const swap = this.alarm;
+    this.alarm = this._alarm;
+    this._alarm = swap;
 
     let bestN = 0;
     let occupied = 0;
@@ -915,6 +1072,30 @@ export class School {
       const nA = n - nB;
       if (nB < minS || nA < minS) continue;
 
+      let avx = 0;
+      let avz = 0;
+      let bvx0 = 0;
+      let bvz0 = 0;
+      for (let i = 0; i < count; i++) {
+        if (schoolId[i] !== s) continue;
+        const i3 = i * 3;
+        if (this._mark[i]) {
+          bvx0 += this.vel[i3];
+          bvz0 += this.vel[i3 + 2];
+        } else {
+          avx += this.vel[i3];
+          avz += this.vel[i3 + 2];
+        }
+      }
+      const ah = Math.hypot(avx, avz) || 1;
+      const bh = Math.hypot(bvx0, bvz0) || 1;
+      const headingDot = (avx * bvx0 + avz * bvz0) / (ah * bh);
+      const sdx = c.x - shark.x;
+      const sdy = c.y - shark.y;
+      const sdz = c.z - shark.z;
+      const sharkNear = sdx * sdx + sdy * sdy + sdz * sdz < (shark.fearRadius + 55) ** 2;
+      if (headingDot > 0.6 && !sharkNear) continue;
+
       let bx = 0;
       let by = 0;
       let bz = 0;
@@ -944,9 +1125,13 @@ export class School {
       a.hx = bvx / hLen;
       a.hz = bvz / hLen;
       a.cruise = this.anchors[s].cruise;
+      a.baseCruise = this.anchors[s].baseCruise || a.cruise;
+      a.mill = 0;
+      a.wantMill = 0;
+      a.modeT = 10;
       a.t = this.anchors[s].t + 0.7;
-      this._splitLock[s] = 6;
-      this._splitLock[nid] = 6;
+      this._splitLock[s] = 8;
+      this._splitLock[nid] = 8;
     }
   }
 
@@ -1099,6 +1284,8 @@ export class School {
     this.vel[i3 + 2] = a.hz * a.cruise;
     this.phase[i] = Math.random() * Math.PI * 2;
     this.scale[i] = 0.84 + Math.random() * 0.32;
+    this.pref[i] = 0.86 + Math.random() * 0.28;
+    this.alarm[i] = 0;
     this.count = i + 1;
   }
 }
