@@ -294,7 +294,8 @@ export class Plankton {
   carryingCapacity(cap, layer = TROPHIC.Z) {
     const mean =
       layer === TROPHIC.D ? this.meanD : layer === TROPHIC.P ? this.meanP : this.meanZ;
-    const forage = mean < 0.06 ? 0.5 + mean * 4 : 0.78 + 0.22 * Math.min(1, mean / 0.32);
+    const forage =
+      mean < 0.05 ? 0.42 + mean * 9 : 0.86 + 0.14 * Math.min(1, mean / 0.28);
     return Math.max(48, (cap * forage) | 0);
   }
 

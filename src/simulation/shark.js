@@ -63,6 +63,7 @@ export class Shark {
     this.speedCap = CONFIG.shark.cruiseSpeed;
     this.eatEvents = [];
     this.eaten = 0;
+    this.biteT = 0;
     this.energy = 0.55 + Math.random() * 0.28;
     this.fearRadius = CONFIG.shark.fearRadius;
     this.fearStrength = CONFIG.fish.fearWeight;
@@ -98,10 +99,11 @@ export class Shark {
 
   startLunge() {
     if (this.lunging && this.lungeT > 0.35) return;
+    const lungeT = CONFIG.shark.lungeTime;
     this.lunging = true;
-    this.lungeT = 0.85;
+    this.lungeT = lungeT;
     this.bursting = true;
-    this.burstT = 0.85;
+    this.burstT = lungeT;
     const boost = 10 * this.cruiseMul;
     this.vx += this.fwdX * boost;
     this.vy += this.fwdY * boost * 0.28;
@@ -115,11 +117,13 @@ export class Shark {
 
     this.lungeT -= dt;
     if (this.lungeT <= 0) this.lunging = false;
+    this.biteT = Math.max(0, (this.biteT ?? 0) - dt);
 
     const fearMul = look?.fearScale ?? 1;
-    this.fearRadius = (this.lunging ? cfg.lungeFearRadius : cfg.fearRadius) * fearMul * this.scale;
-    this.fearStrength = this.lunging ? CONFIG.fish.fearWeight * 1.55 : CONFIG.fish.fearWeight;
-    this.biteRadius = (this.lunging ? cfg.lungeBiteRadius : cfg.biteRadius) * this.scale;
+    const striking = this.lunging || this.aiMode === "strike";
+    this.fearRadius = (striking ? cfg.lungeFearRadius : cfg.fearRadius) * fearMul * this.scale;
+    this.fearStrength = striking ? CONFIG.fish.fearWeight * 1.55 : CONFIG.fish.fearWeight;
+    this.biteRadius = (striking ? cfg.lungeBiteRadius : cfg.biteRadius) * this.scale;
 
     const colliders = school.colliders;
     const nCol = school.colliderCount;
@@ -303,7 +307,6 @@ export class Shark {
     const fz = hx;
     const dist = Math.hypot(cx - this.x, cy - this.y, cz - this.z);
     const holdR = CONFIG.fish.schoolRadius;
-    const flank = holdR + 16;
 
     if (this.aiT <= 0) this._nextMode(school, dist, holdR, pack);
 
@@ -320,11 +323,20 @@ export class Shark {
     let force;
     let arriveR = 14;
     if (this.aiMode === "strike") {
-      const lookAhead = Math.min(16, dist * 0.42);
-      tx = cx + hx * lookAhead + fx * this.flankSign * holdR * 0.18;
-      tz = cz + hz * lookAhead + fz * this.flankSign * holdR * 0.18;
-      const rise = Math.min(6.5, 2.2 + dist * 0.07);
-      ty = cy - rise;
+      const prey =
+        school.nearestFish(this.mouthX, this.mouthY, this.mouthZ, 7.2) ||
+        school.nearestFish(this.x, this.y, this.z, 7.2);
+      if (prey) {
+        const lead = 0.16;
+        tx = prey.x + prey.vx * lead;
+        ty = prey.y + prey.vy * lead;
+        tz = prey.z + prey.vz * lead;
+      } else {
+        const ahead = Math.min(8, 2.5 + dist * 0.1);
+        tx = cx + hx * ahead - fx * this.flankSign * holdR * 0.22;
+        tz = cz + hz * ahead - fz * this.flankSign * holdR * 0.22;
+        ty = cy - Math.min(1.5, 0.55 + dist * 0.018);
+      }
       ty = Math.max(ty, seafloorHeight(tx, tz) + cfg.floorClearance + 1.5);
       maxSpd = cfg.lungeSpeed * this.cruiseMul;
       force = cfg.lungeForce;
@@ -332,26 +344,31 @@ export class Shark {
       this.thrust = 1.2;
       this.bursting = true;
     } else if (this.aiMode === "recover") {
-      tx = cx - hx * 42 + fx * this.flankSign * 26;
-      ty = Math.min(cy + 2.2, cfg.minDepth - 2);
-      tz = cz - hz * 42 + fz * this.flankSign * 26;
-      maxSpd = cfg.cruiseSpeed * 0.72 * this.cruiseMul;
-      force = cfg.maxForce * 0.42;
-      arriveR = 18;
-      this.thrust = 0.32;
+      const back = hungry ? 34 : 48;
+      const side = hungry ? 18 : 28;
+      tx = cx - hx * back + fx * this.flankSign * side;
+      ty = hungry ? cy - 1.4 : Math.min(cy + 2.2, cfg.minDepth - 2);
+      tz = cz - hz * back + fz * this.flankSign * side;
+      maxSpd = cfg.cruiseSpeed * (hungry ? 0.88 : 0.72) * this.cruiseMul;
+      force = cfg.maxForce * (hungry ? 0.65 : 0.42);
+      arriveR = hungry ? 12 : 18;
+      this.thrust = hungry ? 0.48 : 0.32;
       this.bursting = false;
     } else if (this.aiMode === "stalk") {
-      const r = flank + 4 * Math.sin(this.circleA * 0.7) - (hungry ? 8 : 0);
-      const weave = Math.sin(this.circleA * 1.15) * 7;
-      tx = cx - hx * (hungry ? 1 : 7) + fx * this.flankSign * r + hx * weave * 0.2;
-      ty = cy - (hungry ? 5.8 : 4.2);
-      tz = cz - hz * (hungry ? 1 : 7) + fz * this.flankSign * r + hz * weave * 0.2;
-      const closing = dist > flank + (hungry ? 2 : 8);
-      maxSpd = cfg.cruiseSpeed * this.cruiseMul * (closing ? (hungry ? 1.08 : 0.92) : 0.55);
-      force = cfg.maxForce * (closing ? 1 : 0.62);
-      arriveR = hungry ? 7 : 12;
-      this.thrust = closing ? 0.68 : 0.38;
-    } else if (satiated || dist > 118) {
+      const r = (hungry ? holdR * 0.86 : holdR + 8) + 3 * Math.sin(this.circleA * 0.7);
+      const weave = Math.sin(this.circleA * 1.15) * 6;
+      tx = cx + hx * (hungry ? 6 : 4) + fx * this.flankSign * r + hx * weave * 0.2;
+      ty = cy - (hungry ? 2.1 : 2.8);
+      tz = cz + hz * (hungry ? 6 : 4) + fz * this.flankSign * r + hz * weave * 0.2;
+      const closing = dist > r + 2;
+      maxSpd =
+        (closing && hungry ? cfg.boostSpeed : cfg.cruiseSpeed) *
+        this.cruiseMul *
+        (closing ? (hungry ? 1.08 : 0.92) : 0.55);
+      force = cfg.maxForce * (closing ? (hungry ? 1.25 : 1) : 0.62);
+      arriveR = hungry ? 5 : 12;
+      this.thrust = closing ? (hungry ? 0.92 : 0.68) : 0.38;
+    } else if (satiated && !hungry) {
       const rdx = this.roamX - this.x;
       const rdz = this.roamZ - this.z;
       if (rdx * rdx + rdz * rdz < 22 * 22) this._pickRoam();
@@ -437,7 +454,7 @@ export class Shark {
     if (this.aiMode === "recover") {
       if (hungry && school.count > 8) {
         this.aiMode = "stalk";
-        this.aiT = 3.5 + Math.random() * 2.4;
+        this.aiT = 1.5 + Math.random() * 1.4;
       } else {
         this.aiMode = "patrol";
         this.aiT = 6 + Math.random() * 5;
@@ -446,9 +463,11 @@ export class Shark {
       this._nextHunt(school, pack);
       this.flankSign *= -1;
     } else if (this.aiMode === "patrol") {
-      if (!satiated && dist < (hungry ? 98 : 68) && school.count > 8) {
+      if (satiated) {
+        this.aiT = 3 + Math.random() * 3.5;
+      } else if (school.count > 8 && (hungry || dist < 72)) {
         this.aiMode = "stalk";
-        this.aiT = hungry ? 3.6 + Math.random() * 2.8 : 6.5 + Math.random() * 4;
+        this.aiT = hungry ? 2.8 + Math.random() * 2.2 : 6.5 + Math.random() * 4;
       } else {
         this.aiT = 3 + Math.random() * 3.5;
       }
@@ -457,16 +476,16 @@ export class Shark {
         this.aiMode = "patrol";
         this.aiT = 7 + Math.random() * 5;
         this._pickRoam();
-      } else if (dist < holdR + (hungry ? 34 : 22) && school.count > 8) {
+      } else if (dist < holdR * (hungry ? 1.18 : 1.05) && school.count > 8) {
         this.aiMode = "strike";
-        this.aiT = hungry ? 1.35 : 1.05;
+        this.aiT = hungry ? 2.35 : 1.9;
         this.startLunge();
       } else {
-        this.aiT = hungry ? 1.2 : 2.2;
+        this.aiT = hungry ? 0.65 : 1.8;
       }
     } else if (this.aiMode === "strike") {
       this.aiMode = "recover";
-      this.aiT = hungry ? 2.6 + Math.random() * 1.8 : 5.5 + Math.random() * 3;
+      this.aiT = hungry ? 1.7 + Math.random() * 0.9 : 5.5 + Math.random() * 3;
     } else {
       this.aiMode = "patrol";
       this.aiT = 5 + Math.random() * 3;
@@ -595,6 +614,7 @@ export function resetSharks(pack, school) {
     const s = pack[i];
     s.eaten = 0;
     s.energy = 0.55 + Math.random() * 0.25;
+    s.biteT = 0;
     s.lunging = false;
     s.lungeT = 0;
     s.aiMode = "patrol";

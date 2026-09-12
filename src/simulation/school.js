@@ -299,7 +299,7 @@ export class School {
     this._refreshCentroids();
   }
 
-  remove(i) {
+  remove(i, harvested = true) {
     const last = this.count - 1;
     if (i !== last) {
       const i3 = i * 3;
@@ -318,8 +318,66 @@ export class School {
       this.schoolId[i] = this.schoolId[last];
     }
     this.count = last;
-    this.totalEaten++;
-    this.eatenThisFrame++;
+    if (harvested) {
+      this.totalEaten++;
+      this.eatenThisFrame++;
+    }
+  }
+
+  nearestFish(x, y, z, radius) {
+    const grid = this.grid;
+    if (!grid || this.count <= 0) return null;
+    const { heads, next, keyOf, nx, ny, nz, mask, inv, minX, minY, minZ } = grid;
+    const pos = this.pos;
+    const vel = this.vel;
+    const r2 = radius * radius;
+    let ix0 = (x - minX) * inv | 0;
+    let iy0 = (y - minY) * inv | 0;
+    let iz0 = (z - minZ) * inv | 0;
+    if (ix0 < 0) ix0 = 0;
+    else if (ix0 >= nx) ix0 = nx - 1;
+    if (iy0 < 0) iy0 = 0;
+    else if (iy0 >= ny) iy0 = ny - 1;
+    if (iz0 < 0) iz0 = 0;
+    else if (iz0 >= nz) iz0 = nz - 1;
+    let best = -1;
+    let bestD = r2;
+    let inspected = 0;
+    outer: for (let o = 0; o < 27; o++) {
+      const ix = ix0 + N27X[o];
+      if (ix < 0 || ix >= nx) continue;
+      const iy = iy0 + N27Y[o];
+      if (iy < 0 || iy >= ny) continue;
+      const iz = iz0 + N27Z[o];
+      if (iz < 0 || iz >= nz) continue;
+      const want = ix + 1 + (iy + 1) * 512 + (iz + 1) * 32768;
+      const h = (Math.imul(ix, 73856093) ^ Math.imul(iy, 19349663) ^ Math.imul(iz, 83492791)) & mask;
+      for (let j = heads[h]; j >= 0; j = next[j]) {
+        if (keyOf[j] !== want) continue;
+        inspected++;
+        if (inspected > NEIGHBOR_BUDGET) break outer;
+        const j3 = j * 3;
+        const dx = pos[j3] - x;
+        const dy = pos[j3 + 1] - y;
+        const dz = pos[j3 + 2] - z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < bestD) {
+          bestD = d2;
+          best = j;
+        }
+      }
+    }
+    if (best < 0) return null;
+    const i3 = best * 3;
+    return {
+      i: best,
+      x: pos[i3],
+      y: pos[i3 + 1],
+      z: pos[i3 + 2],
+      vx: vel[i3],
+      vy: vel[i3 + 1],
+      vz: vel[i3 + 2],
+    };
   }
 
   targetFor(shark) {
@@ -347,9 +405,9 @@ export class School {
     const pack = packOf(sharks);
     this._wanderAnchors(dt, pack, look);
     this.grid.rebuild(this.pos, this.count);
+    this._eat(pack, plankton);
     this._flock(dt, pack, look);
     this._reorganize(dt, pack, look);
-    this._eat(pack, plankton);
     if (plankton) {
       this._recruit(dt, plankton);
       this._starve(dt, plankton);
@@ -1354,6 +1412,7 @@ export class School {
   _eat(pack, plankton) {
     const { pos, count } = this;
     const carcass = CONFIG.plankton.carcass;
+    const cfg = CONFIG.shark;
     for (let i = count - 1; i >= 0; i--) {
       const i3 = i * 3;
       const x = pos[i3];
@@ -1361,14 +1420,19 @@ export class School {
       const z = pos[i3 + 2];
       for (let p = 0; p < pack.length; p++) {
         const shark = pack[p];
+        if ((shark.biteT ?? 0) > 0) continue;
         const r = shark.biteRadius;
         const dx = x - shark.mouthX;
         const dy = y - shark.mouthY;
         const dz = z - shark.mouthZ;
         if (dx * dx + dy * dy + dz * dz < r * r) {
           if (plankton) plankton.recycle(x, z, carcass);
-          this.remove(i);
+          this.remove(i, true);
           if (shark.feed) shark.feed();
+          shark.biteT =
+            shark.lunging || shark.aiMode === "strike"
+              ? cfg.lungeBiteCooldown
+              : cfg.biteCooldown;
           shark.onEat(x, y, z);
           break;
         }
@@ -1380,7 +1444,7 @@ export class School {
     const foodCap = plankton.carryingCapacity(this.cap);
     const target = Math.min(this.cap, foodCap);
     if (this.count >= target || this.count >= this.max) return;
-    if (plankton.meanZ < 0.07 || this.meanEnergy < CONFIG.fish.recruitEnergy * 0.72) return;
+    if (plankton.meanZ < 0.05 || this.meanEnergy < CONFIG.fish.recruitEnergy * 0.62) return;
     const deficit = target - this.count;
     const fed = 0.2 + plankton.meanZ * 0.55 + this.meanEnergy * 0.4;
     this._recruitAcc += Math.min(16, 3 + deficit * 0.018) * fed * dt;
@@ -1447,7 +1511,7 @@ export class School {
       if (i < 0) break;
       const i3 = i * 3;
       plankton.recycle(this.pos[i3], this.pos[i3 + 2], CONFIG.plankton.carcass * 0.7);
-      this.remove(i);
+      this.remove(i, false);
     }
   }
 
