@@ -18,7 +18,7 @@ export function cameraHint(mode, piloting) {
     return "Drag to look · WASD fly · Scroll dolly · Shift+drag or right-drag pan";
   }
   if (mode === CAM.FOLLOW) {
-    return "N next shark · Drag to orbit · Scroll zoom · Right-drag pan";
+    return "N next shark · Click to inspect · Drag to orbit · Scroll zoom · Right-drag pan";
   }
   if (mode === CAM.SURFACE) {
     return "N next school · Drag to spin · Scroll zoom · Right-drag pan";
@@ -156,7 +156,7 @@ export function createCameraRig(camera) {
     if (next === CAM.FOLLOW && follow) {
       captureAround(follow.x, follow.y + 1.4, follow.z);
       theta = behindHeading(follow);
-      radiusWant = radius = 28;
+      radiusWant = radius = follow.camRadius || 28;
       phi = 1.28;
       return;
     }

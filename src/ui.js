@@ -86,6 +86,7 @@ export const MENU = [
 
 const KEY_HELP = [
   ["M / Tab", "Open or close this menu"],
+  ["Click", "Inspect a shark, herring, or school"],
   ["Drag", "Orbit the view"],
   ["Scroll", "Zoom in and out"],
   ["Right-drag", "Pan · Shift-drag also pans"],
@@ -129,6 +130,14 @@ export function createHUD() {
   const btnMenu = document.getElementById("btn-menu");
   const btnClose = document.getElementById("btn-menu-close");
   const hint = document.getElementById("pilot-hint");
+  const generalBody = document.getElementById("hud-general-body");
+  const subjectPanel = document.getElementById("hud-subject");
+  const subjectKind = document.getElementById("hud-subject-kind");
+  const subjectTitle = document.getElementById("hud-subject-title");
+  const subjectBody = document.getElementById("hud-subject-body");
+  const btnFollow = document.getElementById("hud-follow");
+  const generalRows = bindStats(generalBody);
+  const subjectRows = bindStats(subjectBody);
 
   const fields = new Map();
   const handlers = new Map();
@@ -261,6 +270,7 @@ export function createHUD() {
   btnMenu.addEventListener("click", () => setOpen(!open));
   btnClose.addEventListener("click", () => setOpen(false));
   backdrop.addEventListener("click", () => setOpen(false));
+  btnFollow.addEventListener("click", () => emit("followSubject", true));
 
   window.addEventListener("keydown", (e) => {
     if (e.code === "Tab" || e.code === "KeyM") {
@@ -313,19 +323,17 @@ export function createHUD() {
     on(id, fn) {
       handlers.set(id, fn);
     },
-    setCamera(name, detail) {
+    setCamera(name) {
       const i = CAMERA_MODES.indexOf(name);
       if (i >= 0) set("camera", i);
-      document.getElementById("cam-mode").textContent = detail ? `${name} ${detail}` : name;
     },
     setControl(on) {
       set("pilot", on);
-      document.getElementById("control-state").textContent = on ? "Pilot" : "AI patrol";
     },
     setHint(text) {
       hint.textContent = text;
     },
-    tick(dt, school, sharks, day, plankton, shownShark, camDetail) {
+    tick(dt, view = {}) {
       frames++;
       acc += dt;
       if (acc >= 0.4) {
@@ -333,38 +341,58 @@ export function createHUD() {
         frames = 0;
         acc = 0;
       }
-      const pack = Array.isArray(sharks) ? sharks : [sharks];
-      const player = pack[0];
-      const shown = shownShark || player;
-      let eaten = 0;
-      for (let i = 0; i < pack.length; i++) eaten += pack[i].eaten;
-      document.getElementById("fish-count").textContent = school.count.toLocaleString();
-      document.getElementById("school-count").textContent = String(school.occupied);
-      document.getElementById("eaten-count").textContent = eaten.toLocaleString();
-      const bloomEl = document.getElementById("bloom-count");
-      if (bloomEl && plankton) {
-        bloomEl.textContent = `${Math.round((plankton.meanP ?? plankton.mean) * 100)} · ${Math.round((plankton.meanZ ?? plankton.mean) * 100)}`;
+      generalRows.set((view.general || []).concat({
+        id: "fps",
+        label: "FPS",
+        value: String(fpsVal),
+      }));
+      const subject = view.subject;
+      if (!subject) {
+        subjectPanel.hidden = true;
+      } else {
+        subjectPanel.hidden = false;
+        subjectKind.textContent = subject.kindLabel || "Subject";
+        subjectTitle.textContent = subject.title || "";
+        subjectTitle.hidden = !subject.title;
+        subjectRows.set(subject.stats || []);
+        const following = !!subject.following;
+        btnFollow.disabled = following;
+        btnFollow.textContent = following ? "Following" : "Follow";
+        btnFollow.hidden = subject.followable === false;
       }
-      const hungerEl = document.getElementById("hunger-count");
-      if (hungerEl) hungerEl.textContent = `${Math.round(shown.energy * 100)}%`;
-      document.getElementById("fps").textContent = String(fpsVal);
-      if (camDetail != null) {
-        const name = CAMERA_MODES[values.camera] || "";
-        document.getElementById("cam-mode").textContent = camDetail ? `${name} ${camDetail}` : name;
-      }
-      if (!player.controlled) {
-        const modes = {
-          patrol: "AI patrol",
-          stalk: "AI stalk",
-          strike: "AI strike",
-          recover: "AI recover",
-        };
-        document.getElementById("control-state").textContent = modes[shown.aiMode] || "AI";
-      }
-      if (day) {
-        document.getElementById("tod-label").textContent = day.look.name;
-        if (values.liveClock) set("hour", Number(day.hour.toFixed(2)));
+      if (view.day) {
+        if (values.liveClock) set("hour", Number(view.day.hour.toFixed(2)));
         else render("hour");
+      }
+    },
+  };
+}
+
+function bindStats(root) {
+  const rows = new Map();
+  return {
+    set(list) {
+      const seen = new Set();
+      for (const item of list) {
+        if (!item?.id) continue;
+        seen.add(item.id);
+        let row = rows.get(item.id);
+        if (!row) {
+          const label = el("span");
+          const value = el("strong");
+          const node = el("div", { class: "stat", "data-stat": item.id }, [label, value]);
+          row = { node, label, value };
+          rows.set(item.id, row);
+        }
+        if (row.label.textContent !== item.label) row.label.textContent = item.label;
+        const next = item.value == null ? "—" : String(item.value);
+        if (row.value.textContent !== next) row.value.textContent = next;
+        root.append(row.node);
+      }
+      for (const [id, row] of rows) {
+        if (seen.has(id)) continue;
+        row.node.remove();
+        rows.delete(id);
       }
     },
   };

@@ -122,6 +122,7 @@ function applySharkCount(n) {
     addSharkMesh(s);
   }
   if (followSharkIndex >= sharks.length) followSharkIndex = sharks.length - 1;
+  if (inspect?.kind === "shark" && inspect.id >= sharks.length) inspect = null;
   syncCamHud();
 }
 
@@ -162,8 +163,14 @@ function syncFish() {
 
 const CAM_NAME = CAMERA_MODES;
 let camMode = CAM.CINEMATIC;
+let followKind = "school";
 let followSharkIndex = 0;
 let followSchoolId = 0;
+let followHerringIndex = 0;
+let inspect = null;
+const herringCam = { x: 0, y: 0, z: 0, fwdX: -1, fwdY: 0, fwdZ: 0, camRadius: 16 };
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
 const rig = createCameraRig(camera);
 
 const { input, consumePointer } = createInput(canvas);
@@ -196,8 +203,13 @@ hud.on("reset", () => {
 hud.on("pilot", (on) => {
   if (on !== shark.controlled) togglePilot(on);
 });
-hud.on("camera", (mode) => applyCamera(mode));
+hud.on("camera", (mode) => {
+  if (mode === CAM.FOLLOW) followKind = "shark";
+  else if (mode !== CAM.FREE) followKind = "school";
+  applyCamera(mode);
+});
 hud.on("nextTarget", () => cycleTarget());
+hud.on("followSubject", () => followShown());
 
 function occupiedSchoolIds() {
   const ids = [];
@@ -228,23 +240,264 @@ function pinnedSchool() {
   return school.centroids[followSchoolId] || school.centroid;
 }
 
+function pinnedFollow() {
+  if (shark.controlled) return shark;
+  if (camMode === CAM.FOLLOW && followKind === "herring") {
+    const i = followHerringIndex;
+    if (i < school.count) {
+      const i3 = i * 3;
+      herringCam.x = school.pos[i3];
+      herringCam.y = school.pos[i3 + 1];
+      herringCam.z = school.pos[i3 + 2];
+      const vx = school.vel[i3];
+      const vy = school.vel[i3 + 1];
+      const vz = school.vel[i3 + 2];
+      const len = Math.hypot(vx, vy, vz) || 1;
+      herringCam.fwdX = vx / len;
+      herringCam.fwdY = vy / len;
+      herringCam.fwdZ = vz / len;
+      return herringCam;
+    }
+  }
+  return pinnedShark();
+}
+
+function sameSubject(a, b) {
+  return !!(a && b && a.kind === b.kind && a.id === b.id);
+}
+
+function cameraSubject() {
+  if (shark.controlled) return { kind: "shark", id: 0 };
+  if (camMode === CAM.FREE) return null;
+  if (camMode === CAM.FOLLOW) {
+    if (followKind === "herring" && followHerringIndex < school.count) {
+      return { kind: "herring", id: followHerringIndex };
+    }
+    return { kind: "shark", id: followSharkIndex };
+  }
+  resolveSchoolId();
+  if (!school.schoolN[followSchoolId]) return null;
+  return { kind: "school", id: followSchoolId };
+}
+
+function shownSubject() {
+  if (inspect) {
+    if (inspect.kind === "shark" && inspect.id < sharks.length) return inspect;
+    if (inspect.kind === "school" && school.schoolN[inspect.id] > 0) return inspect;
+    if (inspect.kind === "herring" && inspect.id < school.count) return inspect;
+    inspect = null;
+  }
+  return cameraSubject();
+}
+
 function subjectDetail() {
   if (camMode === CAM.FREE) return "";
-  if (camMode === CAM.FOLLOW) return `${followSharkIndex + 1}/${sharks.length}`;
+  if (camMode === CAM.FOLLOW) {
+    if (followKind === "herring") return "";
+    return `${followSharkIndex + 1}/${sharks.length}`;
+  }
   const ids = resolveSchoolId();
   if (!ids.length) return "";
   return `${ids.indexOf(followSchoolId) + 1}/${ids.length}`;
 }
 
+function cameraLabel() {
+  if (shark.controlled) return "Pilot shark";
+  if (camMode === CAM.FOLLOW && followKind === "herring") return "Follow herring";
+  const name = CAM_NAME[camMode] || "";
+  const detail = subjectDetail();
+  return detail ? `${name} ${detail}` : name;
+}
+
+function clockText(hour) {
+  const h = Math.floor(((Number(hour) % 24) + 24) % 24);
+  const m = Math.floor((Number(hour) % 1) * 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function depthText(y) {
+  return `${Math.max(0, -Number(y)).toFixed(0)} m`;
+}
+
+function weatherText() {
+  if (day.storm > 0.2 || day.stormTarget > 0.5) return "Storm";
+  return "Calm";
+}
+
+function sharkState(s) {
+  if (s.controlled) return "Pilot";
+  const modes = {
+    patrol: "AI patrol",
+    stalk: "AI stalk",
+    strike: "AI strike",
+    recover: "AI recover",
+  };
+  return modes[s.aiMode] || "AI";
+}
+
+function sharkSize(s) {
+  if (s.scale > 1.12) return "Large";
+  if (s.scale < 0.88) return "Small";
+  return "Adult";
+}
+
+function hudView() {
+  // Append another { id, label, value } when a new world or species
+  // readout exists. bindStats reuses DOM nodes by id.
+  const general = [
+    { id: "sky", label: "Sky", value: day.look.name },
+    { id: "time", label: "Time", value: clockText(day.hour) },
+    { id: "weather", label: "Weather", value: weatherText() },
+    { id: "fish", label: "Fish", value: school.count.toLocaleString() },
+    { id: "bloom", label: "P / Z", value: `${Math.round((plankton.meanP ?? 0) * 100)} · ${Math.round((plankton.meanZ ?? 0) * 100)}` },
+    { id: "schools", label: "Schools", value: String(school.occupied) },
+    { id: "camera", label: "Camera", value: cameraLabel() },
+  ];
+  const sub = shownSubject();
+  let subject = null;
+  if (sub?.kind === "shark") {
+    const s = sharks[sub.id];
+    if (s) {
+      subject = {
+        kindLabel: "Shark",
+        title: `${sub.id + 1} of ${sharks.length}`,
+        following: sameSubject(sub, cameraSubject()),
+        stats: [
+          { id: "size", label: "Size", value: sharkSize(s) },
+          { id: "hunger", label: "Hunger", value: `${Math.round(s.energy * 100)}%` },
+          { id: "eaten", label: "Eaten", value: s.eaten.toLocaleString() },
+          { id: "state", label: "State", value: sharkState(s) },
+          { id: "depth", label: "Depth", value: depthText(s.y) },
+          { id: "speed", label: "Speed", value: `${Math.hypot(s.vx, s.vy, s.vz).toFixed(1)} m/s` },
+        ],
+      };
+    }
+  } else if (sub?.kind === "school") {
+    const ids = occupiedSchoolIds();
+    const n = school.schoolN[sub.id] || 0;
+    const c = school.centroids[sub.id];
+    const mill = school.anchors[sub.id]?.mill ?? 0;
+    subject = {
+      kindLabel: "School",
+      title: `${Math.max(1, ids.indexOf(sub.id) + 1)} of ${Math.max(1, ids.length)}`,
+      following: sameSubject(sub, cameraSubject()),
+      stats: [
+        { id: "members", label: "Herring", value: n.toLocaleString() },
+        { id: "energy", label: "Energy", value: `${Math.round((1 - (school.schoolHunger[sub.id] ?? 0.5)) * 100)}%` },
+        { id: "depth", label: "Depth", value: depthText(c?.y ?? 0) },
+        { id: "mode", label: "Mode", value: mill > 0.45 ? "Milling" : "Foraging" },
+      ],
+    };
+  } else if (sub?.kind === "herring") {
+    const i = sub.id;
+    const i3 = i * 3;
+    const sid = school.schoolId[i];
+    const ids = occupiedSchoolIds();
+    const vx = school.vel[i3];
+    const vy = school.vel[i3 + 1];
+    const vz = school.vel[i3 + 2];
+    subject = {
+      kindLabel: "Herring",
+      title: `School ${Math.max(1, ids.indexOf(sid) + 1)} of ${Math.max(1, ids.length)}`,
+      following: sameSubject(sub, cameraSubject()),
+      stats: [
+        { id: "energy", label: "Energy", value: `${Math.round(school.energy[i] * 100)}%` },
+        { id: "depth", label: "Depth", value: depthText(school.pos[i3 + 1]) },
+        { id: "speed", label: "Speed", value: `${Math.hypot(vx, vy, vz).toFixed(1)} m/s` },
+        { id: "state", label: "State", value: school.alarm[i] > 0.28 ? "Fleeing" : "Schooling" },
+      ],
+    };
+  }
+  return { general, subject, day };
+}
+
+function pickSubject(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  const origin = raycaster.ray.origin;
+  const dir = raycaster.ray.direction;
+
+  let bestShark = -1;
+  let bestSharkD = Infinity;
+  for (let i = 0; i < sharks.length; i++) {
+    const s = sharks[i];
+    const vx = s.x - origin.x;
+    const vy = s.y - origin.y;
+    const vz = s.z - origin.z;
+    const t = vx * dir.x + vy * dir.y + vz * dir.z;
+    if (t < 1 || t > 320) continue;
+    const dx = origin.x + dir.x * t - s.x;
+    const dy = origin.y + dir.y * t - s.y;
+    const dz = origin.z + dir.z * t - s.z;
+    const rad = 3.4 * s.scale + t * 0.02;
+    if (dx * dx + dy * dy + dz * dz < rad * rad && t < bestSharkD) {
+      bestSharkD = t;
+      bestShark = i;
+    }
+  }
+
+  const pos = school.pos;
+  const scale = school.scale;
+  let bestFish = -1;
+  let bestFishD = Infinity;
+  for (let i = 0; i < school.count; i++) {
+    const i3 = i * 3;
+    const vx = pos[i3] - origin.x;
+    const vy = pos[i3 + 1] - origin.y;
+    const vz = pos[i3 + 2] - origin.z;
+    const t = vx * dir.x + vy * dir.y + vz * dir.z;
+    if (t < 1.5 || t > 260) continue;
+    const dx = origin.x + dir.x * t - pos[i3];
+    const dy = origin.y + dir.y * t - pos[i3 + 1];
+    const dz = origin.z + dir.z * t - pos[i3 + 2];
+    const rad = 0.85 * scale[i] + t * 0.028;
+    if (dx * dx + dy * dy + dz * dz < rad * rad && t < bestFishD) {
+      bestFishD = t;
+      bestFish = i;
+    }
+  }
+
+  if (bestShark >= 0 && (bestFish < 0 || bestSharkD <= bestFishD * 1.35 + 10)) {
+    return { kind: "shark", id: bestShark };
+  }
+  if (bestFish >= 0) return { kind: "herring", id: bestFish };
+
+  let bestSchool = -1;
+  let bestSchoolD = Infinity;
+  for (let s = 0; s < school.maxSchools; s++) {
+    const n = school.schoolN[s];
+    if (!n) continue;
+    const c = school.centroids[s];
+    const vx = c.x - origin.x;
+    const vy = c.y - origin.y;
+    const vz = c.z - origin.z;
+    const t = vx * dir.x + vy * dir.y + vz * dir.z;
+    if (t < 4 || t > 360) continue;
+    const dx = origin.x + dir.x * t - c.x;
+    const dy = origin.y + dir.y * t - c.y;
+    const dz = origin.z + dir.z * t - c.z;
+    const r = 16 + Math.sqrt(n) * 0.42;
+    if (dx * dx + dy * dy + dz * dz < r * r && t < bestSchoolD) {
+      bestSchoolD = t;
+      bestSchool = s;
+    }
+  }
+  if (bestSchool >= 0) return { kind: "school", id: bestSchool };
+  return null;
+}
+
 function syncCamHud() {
-  hud.setCamera(CAM_NAME[camMode], subjectDetail());
+  hud.setCamera(CAM_NAME[camMode]);
   if (!shark.controlled) hud.setHint(cameraHint(camMode, false));
 }
 
 function camCtx() {
   return {
     school,
-    follow: pinnedShark(),
+    follow: pinnedFollow(),
     schoolTarget: pinnedSchool(),
     day,
     outcrops,
@@ -256,14 +509,23 @@ function camCtx() {
 function applyCamera(mode) {
   if (shark.controlled && mode !== CAM.FOLLOW) togglePilot(false);
   camMode = mode;
+  inspect = null;
   rig.setMode(camMode, camCtx());
   syncCamHud();
 }
 
 function cycleTarget() {
+  inspect = null;
   if (camMode === CAM.FREE) return;
   if (camMode === CAM.FOLLOW) {
-    if (shark.controlled || sharks.length < 2) return;
+    if (followKind === "herring") {
+      followKind = "shark";
+      rig.setMode(CAM.FOLLOW, camCtx());
+    }
+    if (shark.controlled || sharks.length < 2) {
+      syncCamHud();
+      return;
+    }
     followSharkIndex = (followSharkIndex + 1) % sharks.length;
   } else {
     const ids = resolveSchoolId();
@@ -273,18 +535,44 @@ function cycleTarget() {
   syncCamHud();
 }
 
+function followShown() {
+  const s = shownSubject();
+  if (!s) return;
+  inspect = null;
+  if (shark.controlled && (s.kind !== "shark" || s.id !== 0)) togglePilot(false);
+  if (s.kind === "shark") {
+    followKind = "shark";
+    followSharkIndex = s.id;
+    applyCamera(CAM.FOLLOW);
+    return;
+  }
+  if (s.kind === "school") {
+    followKind = "school";
+    followSchoolId = s.id;
+    const schoolCam = camMode === CAM.FOLLOW || camMode === CAM.FREE ? CAM.ORBIT : camMode;
+    applyCamera(schoolCam);
+    return;
+  }
+  followKind = "herring";
+  followHerringIndex = s.id;
+  followSchoolId = school.schoolId[s.id];
+  applyCamera(CAM.FOLLOW);
+}
+
 function togglePilot(force) {
   const next = force === undefined ? !shark.controlled : force;
   shark.setControlled(next);
   hud.setControl(next);
   if (next) {
     hud.setOpen(false);
+    inspect = null;
+    followKind = "shark";
     followSharkIndex = 0;
     camMode = CAM.FOLLOW;
     rig.setMode(CAM.FOLLOW, camCtx());
   }
   hud.setHint(cameraHint(camMode, next));
-  hud.setCamera(CAM_NAME[camMode], subjectDetail());
+  hud.setCamera(CAM_NAME[camMode]);
 }
 
 window.addEventListener("keydown", (e) => {
@@ -312,6 +600,7 @@ window.addEventListener("resize", () => {
 window.__sim.meshes = sharkMeshes;
 window.__sim.input = input;
 window.__sim.rig = rig;
+window.__sim.pick = pickSubject;
 
 let last = performance.now();
 syncFish();
@@ -326,6 +615,13 @@ function frame(now) {
     const t = now * 0.001;
 
     const pointer = consumePointer();
+    if (pointer.click && !hud.isOpen()) {
+      inspect = pickSubject(pointer.click.x, pointer.click.y);
+    }
+    if (followKind === "herring" && followHerringIndex >= school.count) {
+      followKind = "school";
+      if (camMode === CAM.FOLLOW && !shark.controlled) applyCamera(CAM.ORBIT);
+    }
     if (shark.controlled && (pointer.ox || pointer.oy) && !pointer.panning) {
       input.mouseDx = pointer.ox * 0.0012;
       input.mouseDy = pointer.oy * 0.0012;
@@ -355,7 +651,7 @@ function frame(now) {
     outcrops.update(dt, tod);
     updateCamera(dt, pointer);
     env.update(t, camera, tod);
-    hud.tick(dt, school, sharks, day, plankton, pinnedShark(), subjectDetail());
+    hud.tick(dt, hudView());
 
     renderer.render(scene, camera);
   } catch (err) {

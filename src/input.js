@@ -37,6 +37,11 @@ export function createInput(canvas) {
   let lastX = 0;
   let lastY = 0;
   let dragPointer = null;
+  let pendingPan = false;
+  let downButton = 0;
+  let moved = 0;
+  let click = null;
+  const CLICK_SLOP = 14;
 
   function isPan(e) {
     return e.button === 1 || e.button === 2 || (e.button === 0 && e.shiftKey);
@@ -71,15 +76,9 @@ export function createInput(canvas) {
     dragPointer = e.pointerId;
     lastX = e.clientX;
     lastY = e.clientY;
-    if (isPan(e)) {
-      input.panning = true;
-      input.dragging = false;
-      canvas.classList.add("is-panning");
-    } else {
-      input.dragging = true;
-      input.panning = false;
-      canvas.classList.add("is-dragging");
-    }
+    pendingPan = isPan(e);
+    downButton = e.button;
+    moved = 0;
     try {
       canvas.setPointerCapture(e.pointerId);
     } catch {
@@ -95,6 +94,19 @@ export function createInput(canvas) {
     lastX = e.clientX;
     lastY = e.clientY;
     if (!dx && !dy) return;
+    moved += Math.hypot(dx, dy);
+    if (!input.dragging && !input.panning) {
+      if (moved < CLICK_SLOP) return;
+      if (pendingPan) {
+        input.panning = true;
+        input.dragging = false;
+        canvas.classList.add("is-panning");
+      } else {
+        input.dragging = true;
+        input.panning = false;
+        canvas.classList.add("is-dragging");
+      }
+    }
     if (input.panning) {
       input.panDx += dx;
       input.panDy += dy;
@@ -105,7 +117,11 @@ export function createInput(canvas) {
   });
 
   canvas.addEventListener("pointerup", (e) => {
-    if (dragPointer === e.pointerId) endDrag();
+    if (dragPointer !== e.pointerId) return;
+    if (downButton === 0 && moved < CLICK_SLOP) {
+      click = { x: e.clientX, y: e.clientY };
+    }
+    endDrag();
   });
   canvas.addEventListener("pointercancel", (e) => {
     if (dragPointer === e.pointerId) endDrag();
@@ -134,11 +150,13 @@ export function createInput(canvas) {
       const px = input.panDx;
       const py = input.panDy;
       const wheel = input.wheel;
+      const picked = click;
       input.orbitDx = 0;
       input.orbitDy = 0;
       input.panDx = 0;
       input.panDy = 0;
       input.wheel = 0;
+      click = null;
       return {
         ox,
         oy,
@@ -147,6 +165,7 @@ export function createInput(canvas) {
         wheel,
         dragging: input.dragging,
         panning: input.panning,
+        click: picked,
       };
     },
   };

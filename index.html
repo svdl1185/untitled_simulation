@@ -3,59 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Surface &amp; School</title>
+    <title>untitled_ocean_simulation</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <canvas id="c"></canvas>
     <div id="vignette"></div>
     <header class="hud-top">
-      <div>
-        <p class="kicker">Open-ocean simulation</p>
-        <h1>Surface &amp; School</h1>
-      </div>
+      <h1 class="brand">untitled_ocean_simulation</h1>
       <button type="button" id="btn-menu" aria-expanded="false" aria-controls="menu">
         Menu
         <kbd>M</kbd>
       </button>
     </header>
     <aside class="hud-left">
-      <div class="stat">
-        <span>Fish</span>
-        <strong id="fish-count">0</strong>
-      </div>
-      <div class="stat">
-        <span>P / Z</span>
-        <strong id="bloom-count">—</strong>
-      </div>
-      <div class="stat">
-        <span>Schools</span>
-        <strong id="school-count">2</strong>
-      </div>
-      <div class="stat">
-        <span>Hunger</span>
-        <strong id="hunger-count">—</strong>
-      </div>
-      <div class="stat">
-        <span>Eaten</span>
-        <strong id="eaten-count">0</strong>
-      </div>
-      <div class="stat">
-        <span>FPS</span>
-        <strong id="fps">—</strong>
-      </div>
-      <div class="stat">
-        <span>Camera</span>
-        <strong id="cam-mode">Cinematic</strong>
-      </div>
-      <div class="stat">
-        <span>Shark</span>
-        <strong id="control-state">AI patrol</strong>
-      </div>
-      <div class="stat">
-        <span>Sky</span>
-        <strong id="tod-label">Morning</strong>
-      </div>
+      <section class="hud-panel" id="hud-general">
+        <h3>General</h3>
+        <div class="hud-stats" id="hud-general-body"></div>
+      </section>
+      <section class="hud-panel" id="hud-subject" hidden>
+        <h3 id="hud-subject-kind">Subject</h3>
+        <p class="hud-subject-title" id="hud-subject-title"></p>
+        <div class="hud-stats" id="hud-subject-body"></div>
+        <button type="button" id="hud-follow">Follow</button>
+      </section>
     </aside>
     <div id="menu-backdrop" hidden></div>
     <aside id="menu" hidden>
@@ -65,7 +36,7 @@
       </div>
       <div id="menu-body"></div>
     </aside>
-    <p id="pilot-hint">N next target · Drag to look around · Scroll zoom · V free roam · C camera · P pilot</p>
+    <p id="pilot-hint">N next target · Click an animal to inspect · Drag to look around · Scroll zoom · V free roam · C camera · P pilot</p>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
