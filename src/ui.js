@@ -3,7 +3,7 @@ import { CONFIG } from "./config.js";
 /**
  * Add a control: push an item into MENU, then hud.on(id, handler) in main.js.
  * Or at runtime: hud.addSection(...) / hud.addItem(...).
- * Toggles default to off. Sliders/selects keep the value you set here.
+ * Toggles default to off unless `value` is true. Sliders/selects keep the value you set here.
  */
 export const CAMERA_MODES = [
   "Cinematic",
@@ -24,6 +24,7 @@ export const MENU = [
         label: "Live clock",
         hint: "Advance time of day",
         key: "L",
+        value: true,
       },
       {
         id: "hour",
@@ -115,7 +116,7 @@ function el(tag, attrs = {}, children = []) {
 }
 
 function defaultValue(item) {
-  if (item.kind === "toggle") return false;
+  if (item.kind === "toggle") return item.value === true;
   if (item.kind === "slider") return Number(item.value ?? item.min ?? 0);
   if (item.kind === "select") return Number(item.value ?? 0);
   return null;
@@ -144,6 +145,7 @@ export function createHUD() {
       const field = buildItem(item, values);
       fields.set(item.id, field);
       bindField(item, field);
+      render(item.id);
       block.append(field.row);
     }
     body.append(block);

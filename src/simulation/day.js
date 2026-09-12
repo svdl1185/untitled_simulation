@@ -256,7 +256,7 @@ function lerpHex(a, b, t, target) {
 export class DayCycle {
   constructor() {
     this.hour = 10.4;
-    this.auto = false;
+    this.auto = true;
     this.dayLength = 96;
     this.storm = 0;
     this.stormTarget = 0;

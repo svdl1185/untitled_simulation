@@ -4,9 +4,7 @@ import { School } from "./simulation/school.js";
 import { spawnSharks, resetSharks, createShark } from "./simulation/shark.js";
 import { DayCycle } from "./simulation/day.js";
 import { Plankton } from "./simulation/plankton.js";
-import { Rays } from "./simulation/rays.js";
 import { createFishGeometry, createFishMaterial } from "./render/fish.js";
-import { createRayGeometry, createRayMaterial } from "./render/rays.js";
 import { createSharkMesh, syncSharkMesh } from "./render/sharkMesh.js";
 import { createWaterSurface, createSeafloor, createSandDetail, createThermocline } from "./render/water.js";
 import { createOutcrops } from "./render/outcrops.js";
@@ -56,9 +54,6 @@ school.colliderCount = outcrops.colliderCount;
 const plankton = new Plankton();
 const bloom = createPlanktonMesh(plankton, uniforms);
 scene.add(bloom.mesh);
-const rays = new Rays(CONFIG.rays.count);
-rays.colliders = outcrops.colliders;
-rays.colliderCount = outcrops.colliderCount;
 const sharks = spawnSharks(CONFIG.shark.count, school);
 const shark = sharks[0];
 
@@ -80,18 +75,7 @@ fishMesh.geometry.setAttribute(
 );
 scene.add(fishMesh);
 
-const rayGeo = createRayGeometry();
-const rayMat = createRayMaterial(uniforms);
-const rayMesh = new THREE.InstancedMesh(rayGeo, rayMat, CONFIG.rays.max);
-rayMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-rayMesh.frustumCulled = false;
-rayMesh.geometry.setAttribute(
-  "aPhase",
-  new THREE.InstancedBufferAttribute(rays.phase, 1)
-);
-scene.add(rayMesh);
-
-window.__sim = { school, shark, sharks, plankton, rays, camera, fishMesh, rayMesh, day, outcrops, renderer, getCam: () => camMode, setCam: (m) => applyCamera(m) };
+window.__sim = { school, shark, sharks, plankton, camera, fishMesh, day, outcrops, renderer, getCam: () => camMode, setCam: (m) => applyCamera(m) };
 
 const sharkMeshes = [];
 let fearVisible = false;
@@ -176,27 +160,6 @@ function syncFish() {
   fishMesh.geometry.attributes.aPhase.needsUpdate = true;
 }
 
-function syncRays() {
-  const { pos, vel, scale, count } = rays;
-  for (let i = 0; i < count; i++) {
-    const i3 = i * 3;
-    _dir.set(vel[i3], vel[i3 + 1], vel[i3 + 2]);
-    const len = _dir.length();
-    if (len < 1e-4) _dir.set(0, 0, 1);
-    else _dir.multiplyScalar(1 / len);
-    if (_dir.dot(_z) < -0.999) _q.set(0, 1, 0, 0);
-    else _q.setFromUnitVectors(_z, _dir);
-    _p.set(pos[i3], pos[i3 + 1], pos[i3 + 2]);
-    const sc = scale[i] * CONFIG.rays.length;
-    _s.set(sc, sc, sc);
-    _m.compose(_p, _q, _s);
-    rayMesh.setMatrixAt(i, _m);
-  }
-  rayMesh.count = count;
-  rayMesh.instanceMatrix.needsUpdate = true;
-  rayMesh.geometry.attributes.aPhase.needsUpdate = true;
-}
-
 const CAM_NAME = CAMERA_MODES;
 let camMode = CAM.CINEMATIC;
 let followSharkIndex = 0;
@@ -228,7 +191,6 @@ hud.on("fear", (on) => {
 hud.on("reset", () => {
   school.respawn(Number(hud.get("fish")));
   plankton.seed();
-  rays.respawn(CONFIG.rays.count);
   resetSharks(sharks, school);
 });
 hud.on("pilot", (on) => {
@@ -353,7 +315,6 @@ window.__sim.rig = rig;
 
 let last = performance.now();
 syncFish();
-syncRays();
 let raf = 0;
 let alive = true;
 
@@ -386,11 +347,9 @@ function frame(now) {
     renderer.toneMappingExposure = tod.exposure;
 
     school.update(dt, sharks, tod, plankton);
-    rays.update(dt, sharks, tod, plankton);
     plankton.update(dt, tod, t);
     bloom.update(tod);
     syncFish();
-    syncRays();
     for (let i = 0; i < sharks.length; i++) syncSharkMesh(sharkMeshes[i], sharks[i]);
     eatFX.update(dt);
     outcrops.update(dt, tod);

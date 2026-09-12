@@ -30,8 +30,7 @@ A few hundred metres of shelf: about 480 m alongshore and 540 m from beach to ba
 | **Plankton** | 128×128 NPZD field (nutrients, phytoplankton, zooplankton, detritus). Advected by flow, grazed by herring, recycled from excretion and carcasses. Mean zooplankton caps how many fish the patch can hold. |
 | **Herring** | Up to 20k Reynolds boids on a hashed 3D grid. They forage up the plankton gradient, peel off the beach before they strand, recruit when the bloom can feed them. |
 | **Sharks** | A small pack (1–8) with burst-and-glide swimming, hunger, satiation, size/aggression variants. Satiated sharks roam instead of farming the school. |
-| **Rays** | A benthic guild on their own grid. They hug the sand, ride weaker flow, and flee sharks. |
-| **Light & weather** | Day cycle, storm, caustics, depth fog, a haze sheet at the thermocline. |
+| **Light & weather** | Day cycle (on by default), storm, caustics, depth fog, a haze sheet at the thermocline. |
 | **Place** | Rocks, a wreck, Gerstner surface, sloping seafloor. |
 
 Controls live in the **Menu** (`M` / `Tab`). Toggles start off. New systems should appear there.
@@ -50,7 +49,7 @@ Then open the URL Vite prints (usually `http://localhost:5173`).
 Three kinds of state, always:
 
 1. **Fields** — continuous quantities on a grid or analytic field (flow, plankton, later temperature, nutrients, light). Cheap to sample everywhere.
-2. **Agents** — individuals with heading and metabolism, only where resolution is worth it (herring near camera, sharks, rays).
+2. **Agents** — individuals with heading and metabolism, only where resolution is worth it (herring near camera, sharks).
 3. **Budgets** — counts and energies that fields and agents must agree on (bloom → fish cap → shark hunger).
 
 Adding a species means giving it a guild (pelagic school, benthic, predator), a food, a flow coupling, and a reason it cannot occupy every cell. Do not clone the herring loop and retint the mesh.
@@ -77,7 +76,7 @@ Ordered by what actually unlocks the next scale. Each step should ship as a coup
 A handful of *jobs*, then more skins later:
 
 - A second pelagic (mackerel / sand eel) that partitions depth and speed with herring.
-- Benthos beyond rays: flatfish, crabs, a seagrass or kelp carbon store on the slope.
+- Benthos: skates/rays, flatfish, crabs, a seagrass or kelp carbon store on the slope.
 - A surface hunter that only exists in the top metres (gannet, seal) so the school has a reason to go deep by day.
 - Microbial / detrital loop so dead fish do not vanish.
 

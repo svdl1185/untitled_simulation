@@ -124,18 +124,4 @@ export const CONFIG = {
     excrete: 0.36,
     detritus: 0.24,
   },
-
-  rays: {
-    count: 36,
-    max: 48,
-    cruise: 2.15,
-    maxSpeed: 5.4,
-    fleeSpeed: 8.2,
-    maxAccel: 7.5,
-    floorClearance: 0.72,
-    sepRadius: 5.4,
-    fearRadius: 26,
-    length: 3.6,
-    graze: 0.0024,
-  },
 };

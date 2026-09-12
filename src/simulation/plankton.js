@@ -11,13 +11,13 @@ const _grad = { x: 0, z: 0 };
  *   n  dissolved nutrients
  *   p  phytoplankton (light × nutrients)
  *   z  zooplankton   (herring forage)
- *   d  detritus      (benthos forage)
+ *   d  detritus      (awaiting a benthic grazer)
  *
  * Future guilds should only touch this class:
  *   sampleLayer / grazeLayer / depositLayer / recycle / overlap / forageDepth
- * Herring graze `z`, rays graze `d`, carcasses and excretion return mass
- * to `n` and `d`. Keep new species on that API so the NPZD budget stays
- * closed as the ecosystem grows.
+ * Herring graze `z`, carcasses and excretion return mass to `n` and `d`.
+ * Keep new species on that API so the NPZD budget stays closed as the
+ * ecosystem grows.
  */
 export const TROPHIC = { N: "n", P: "p", Z: "z", D: "d" };
 
