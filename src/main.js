@@ -14,6 +14,7 @@ import { createPlanktonMesh } from "./render/plankton.js";
 import { createInput } from "./input.js";
 import { CAM, cameraHint, createCameraRig } from "./camera.js";
 import { createHUD, CAMERA_MODES } from "./ui.js";
+import { sharkCard, herringCard, schoolCard } from "./species.js";
 
 if (window.__schoolTeardown) window.__schoolTeardown();
 
@@ -197,8 +198,6 @@ let followSchoolId = 0;
 let followHerringIndex = 0;
 let inspect = null;
 const herringCam = { x: 0, y: 0, z: 0, fwdX: -1, fwdY: 0, fwdZ: 0, camRadius: 16 };
-const raycaster = new THREE.Raycaster();
-const ndc = new THREE.Vector2();
 const rig = createCameraRig(camera);
 
 const { input, consumePointer } = createInput(canvas);
@@ -354,37 +353,9 @@ function clockText(hour) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-function depthText(y) {
-  return `${Math.max(0, -Number(y)).toFixed(0)} m`;
-}
-
 function weatherText() {
   if (day.storm > 0.2 || day.stormTarget > 0.5) return "Storm";
   return "Calm";
-}
-
-function sharkState(s) {
-  if (s.controlled) return "Pilot";
-  if (s.energy < CONFIG.shark.starveAt) return "Starving";
-  if (s.sex === 0 && s.mateT <= 0 && s.energy >= CONFIG.shark.mateEnergy) return "Courting";
-  const modes = {
-    patrol: "AI patrol",
-    stalk: "AI stalk",
-    strike: "AI strike",
-    recover: "AI recover",
-  };
-  return modes[s.aiMode] || "AI";
-}
-
-function sharkSize(s) {
-  if (s.scale < 0.72) return "Juvenile";
-  if (s.scale > 1.12) return "Large";
-  if (s.scale < 0.88) return "Small";
-  return "Adult";
-}
-
-function sexLabel(sex) {
-  return sex === 0 ? "Female" : "Male";
 }
 
 function hudView() {
@@ -405,62 +376,23 @@ function hudView() {
   ];
   const sub = shownSubject();
   let subject = null;
+  const following = sameSubject(sub, cameraSubject());
   if (sub?.kind === "shark") {
     const s = sharks[sub.id];
-    if (s) {
-      subject = {
-        kindLabel: "Shark",
-        title: `${sub.id + 1} of ${sharks.length}`,
-        following: sameSubject(sub, cameraSubject()),
-        stats: [
-          { id: "sex", label: "Sex", value: sexLabel(s.sex) },
-          { id: "size", label: "Size", value: sharkSize(s) },
-          { id: "hunger", label: "Hunger", value: `${Math.round(s.energy * 100)}%` },
-          { id: "eaten", label: "Eaten", value: s.eaten.toLocaleString() },
-          { id: "pups", label: "Pups", value: String(s.pups || 0) },
-          { id: "state", label: "State", value: sharkState(s) },
-          { id: "depth", label: "Depth", value: depthText(s.y) },
-          { id: "speed", label: "Speed", value: `${Math.hypot(s.vx, s.vy, s.vz).toFixed(1)} m/s` },
-        ],
-      };
-    }
+    if (s) subject = sharkCard(s, { index: sub.id, total: sharks.length, following });
   } else if (sub?.kind === "school") {
     const ids = occupiedSchoolIds();
-    const n = school.schoolN[sub.id] || 0;
-    const c = school.centroids[sub.id];
-    const mill = school.anchors[sub.id]?.mill ?? 0;
-    subject = {
-      kindLabel: "School",
-      title: `${Math.max(1, ids.indexOf(sub.id) + 1)} of ${Math.max(1, ids.length)}`,
-      following: sameSubject(sub, cameraSubject()),
-      stats: [
-        { id: "members", label: "Herring", value: n.toLocaleString() },
-        { id: "sexes", label: "F / M", value: `${school.schoolFem[sub.id] || 0} / ${school.schoolMal[sub.id] || 0}` },
-        { id: "energy", label: "Energy", value: `${Math.round((1 - (school.schoolHunger[sub.id] ?? 0.5)) * 100)}%` },
-        { id: "depth", label: "Depth", value: depthText(c?.y ?? 0) },
-        { id: "mode", label: "Mode", value: mill > 0.45 ? "Milling" : "Foraging" },
-      ],
-    };
+    subject = schoolCard(school, sub.id, {
+      following,
+      schoolLabel: `${Math.max(1, ids.indexOf(sub.id) + 1)} of ${Math.max(1, ids.length)}`,
+    });
   } else if (sub?.kind === "herring") {
-    const i = sub.id;
-    const i3 = i * 3;
-    const sid = school.schoolId[i];
     const ids = occupiedSchoolIds();
-    const vx = school.vel[i3];
-    const vy = school.vel[i3 + 1];
-    const vz = school.vel[i3 + 2];
-    subject = {
-      kindLabel: "Herring",
-      title: `School ${Math.max(1, ids.indexOf(sid) + 1)} of ${Math.max(1, ids.length)}`,
-      following: sameSubject(sub, cameraSubject()),
-      stats: [
-        { id: "sex", label: "Sex", value: sexLabel(school.sex[i]) },
-        { id: "energy", label: "Energy", value: `${Math.round(school.energy[i] * 100)}%` },
-        { id: "depth", label: "Depth", value: depthText(school.pos[i3 + 1]) },
-        { id: "speed", label: "Speed", value: `${Math.hypot(vx, vy, vz).toFixed(1)} m/s` },
-        { id: "state", label: "State", value: school.alarm[i] > 0.28 ? "Fleeing" : "Schooling" },
-      ],
-    };
+    const sid = school.schoolId[sub.id];
+    subject = herringCard(school, sub.id, {
+      following,
+      schoolLabel: `${Math.max(1, ids.indexOf(sid) + 1)} of ${Math.max(1, ids.length)}`,
+    });
   }
   return { general, subject, day };
 }
@@ -468,27 +400,29 @@ function hudView() {
 function pickSubject(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   if (!rect.width || !rect.height) return null;
-  ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-  ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(ndc, camera);
-  const origin = raycaster.ray.origin;
-  const dir = raycaster.ray.direction;
+  camera.updateMatrixWorld();
+  const mx = clientX - rect.left;
+  const my = clientY - rect.top;
+  const w = rect.width;
+  const h = rect.height;
+
+  function screenHit(x, y, z, px) {
+    _p.set(x, y, z).project(camera);
+    if (_p.z < -1 || _p.z > 1) return Infinity;
+    if (_p.x < -1.2 || _p.x > 1.2 || _p.y < -1.2 || _p.y > 1.2) return Infinity;
+    const sx = (_p.x * 0.5 + 0.5) * w;
+    const sy = (-_p.y * 0.5 + 0.5) * h;
+    const d = Math.hypot(sx - mx, sy - my);
+    return d <= px ? d : Infinity;
+  }
 
   let bestShark = -1;
   let bestSharkD = Infinity;
   for (let i = 0; i < sharks.length; i++) {
     const s = sharks[i];
-    const vx = s.x - origin.x;
-    const vy = s.y - origin.y;
-    const vz = s.z - origin.z;
-    const t = vx * dir.x + vy * dir.y + vz * dir.z;
-    if (t < 1 || t > 320) continue;
-    const dx = origin.x + dir.x * t - s.x;
-    const dy = origin.y + dir.y * t - s.y;
-    const dz = origin.z + dir.z * t - s.z;
-    const rad = 3.4 * s.scale + t * 0.02;
-    if (dx * dx + dy * dy + dz * dz < rad * rad && t < bestSharkD) {
-      bestSharkD = t;
+    const d = screenHit(s.x, s.y, s.z, 58 * Math.max(0.65, s.scale));
+    if (d < bestSharkD) {
+      bestSharkD = d;
       bestShark = i;
     }
   }
@@ -499,22 +433,14 @@ function pickSubject(clientX, clientY) {
   let bestFishD = Infinity;
   for (let i = 0; i < school.count; i++) {
     const i3 = i * 3;
-    const vx = pos[i3] - origin.x;
-    const vy = pos[i3 + 1] - origin.y;
-    const vz = pos[i3 + 2] - origin.z;
-    const t = vx * dir.x + vy * dir.y + vz * dir.z;
-    if (t < 1.5 || t > 260) continue;
-    const dx = origin.x + dir.x * t - pos[i3];
-    const dy = origin.y + dir.y * t - pos[i3 + 1];
-    const dz = origin.z + dir.z * t - pos[i3 + 2];
-    const rad = 0.85 * scale[i] + t * 0.028;
-    if (dx * dx + dy * dy + dz * dz < rad * rad && t < bestFishD) {
-      bestFishD = t;
+    const d = screenHit(pos[i3], pos[i3 + 1], pos[i3 + 2], 20 + scale[i] * 10);
+    if (d < bestFishD) {
+      bestFishD = d;
       bestFish = i;
     }
   }
 
-  if (bestShark >= 0 && (bestFish < 0 || bestSharkD <= bestFishD * 1.35 + 10)) {
+  if (bestShark >= 0 && (bestFish < 0 || bestSharkD <= bestFishD + 12)) {
     return { kind: "shark", id: bestShark };
   }
   if (bestFish >= 0) return { kind: "herring", id: bestFish };
@@ -525,17 +451,9 @@ function pickSubject(clientX, clientY) {
     const n = school.schoolN[s];
     if (!n) continue;
     const c = school.centroids[s];
-    const vx = c.x - origin.x;
-    const vy = c.y - origin.y;
-    const vz = c.z - origin.z;
-    const t = vx * dir.x + vy * dir.y + vz * dir.z;
-    if (t < 4 || t > 360) continue;
-    const dx = origin.x + dir.x * t - c.x;
-    const dy = origin.y + dir.y * t - c.y;
-    const dz = origin.z + dir.z * t - c.z;
-    const r = 16 + Math.sqrt(n) * 0.42;
-    if (dx * dx + dy * dy + dz * dz < r * r && t < bestSchoolD) {
-      bestSchoolD = t;
+    const d = screenHit(c.x, c.y, c.z, 70 + Math.sqrt(n) * 1.1);
+    if (d < bestSchoolD) {
+      bestSchoolD = d;
       bestSchool = s;
     }
   }
@@ -656,6 +574,7 @@ window.__sim.meshes = sharkMeshes;
 window.__sim.input = input;
 window.__sim.rig = rig;
 window.__sim.pick = pickSubject;
+window.__sim.getInspect = () => inspect;
 
 let last = performance.now();
 syncFish();

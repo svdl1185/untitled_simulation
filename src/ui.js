@@ -134,10 +134,13 @@ export function createHUD() {
   const subjectPanel = document.getElementById("hud-subject");
   const subjectKind = document.getElementById("hud-subject-kind");
   const subjectTitle = document.getElementById("hud-subject-title");
+  const subjectSub = document.getElementById("hud-subject-sub");
   const subjectBody = document.getElementById("hud-subject-body");
+  const subjectNotes = document.getElementById("hud-subject-notes");
   const btnFollow = document.getElementById("hud-follow");
   const generalRows = bindStats(generalBody);
   const subjectRows = bindStats(subjectBody);
+  const noteRows = bindNotes(subjectNotes);
 
   const fields = new Map();
   const handlers = new Map();
@@ -354,7 +357,11 @@ export function createHUD() {
         subjectKind.textContent = subject.kindLabel || "Subject";
         subjectTitle.textContent = subject.title || "";
         subjectTitle.hidden = !subject.title;
+        const sub = subject.subtitle || "";
+        subjectSub.textContent = sub;
+        subjectSub.hidden = !sub;
         subjectRows.set(subject.stats || []);
+        noteRows.set(subject.notes || []);
         const following = !!subject.following;
         btnFollow.disabled = following;
         btnFollow.textContent = following ? "Following" : "Follow";
@@ -363,6 +370,36 @@ export function createHUD() {
       if (view.day) {
         if (values.liveClock) set("hour", Number(view.day.hour.toFixed(2)));
         else render("hour");
+      }
+    },
+  };
+}
+
+function bindNotes(root) {
+  const rows = new Map();
+  return {
+    set(list) {
+      const seen = new Set();
+      for (const item of list) {
+        if (!item?.id) continue;
+        seen.add(item.id);
+        let row = rows.get(item.id);
+        if (!row) {
+          const label = el("h4");
+          const text = el("p");
+          const node = el("div", { class: "hud-note", "data-note": item.id }, [label, text]);
+          row = { node, label, text };
+          rows.set(item.id, row);
+        }
+        if (row.label.textContent !== item.label) row.label.textContent = item.label;
+        const next = item.text == null ? "" : String(item.text);
+        if (row.text.textContent !== next) row.text.textContent = next;
+        root.append(row.node);
+      }
+      for (const [id, row] of rows) {
+        if (seen.has(id)) continue;
+        row.node.remove();
+        rows.delete(id);
       }
     },
   };
