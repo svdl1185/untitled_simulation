@@ -1,0 +1,28 @@
+---
+description: Mission and architecture for untitled_simulation — a coupled ocean, not a fish game.
+alwaysApply: true
+---
+
+# untitled_simulation
+
+This repo is a **scientific ocean simulation**. The camera is a window. Do not add arcade scoring, collectibles, or set dressing that does not change a budget, a habitat, or a sensory cue.
+
+## Layers (keep them coupled)
+
+1. **Fields** — flow, plankton, later temperature, nutrients, light. Cheap to sample everywhere (`src/simulation/flow.js`, `plankton.js`).
+2. **Agents** — herring, sharks, rays. Nearby resolution only (`school.js`, `shark.js`, `rays.js`).
+3. **Budgets** — bloom mean caps fish; grazing depletes bloom; eating restores shark energy. New life must eat something and be limited by something.
+
+A new species needs a guild, a food, a flow coupling, and a niche. Do not clone herring and retint the mesh. Two species that eat the same thing at the same depth are one species too many.
+
+## Scale
+
+Do not simulate the global ocean as more boids. Near the camera: agents. Kilometres out: super-individuals or density. Basin: Eulerian fields and statistical biomass. Stream chunks; do not enlarge `halfX` until streaming exists.
+
+## UI and config
+
+Knobs go in `src/config.js`. Toggles/sliders go in `MENU` (`src/ui.js`) and start **off**. Wire with `hud.on` in `src/main.js`. Prefer a physical control (turbidity, nutrient, temperature) over a cosmetic one.
+
+## Code
+
+Keep the hashed-grid neighbour cap. Fields stay typed arrays. `sampleFlow` is the shared current — animals and plankton advection should keep using it. Match existing module style; no new frameworks.
