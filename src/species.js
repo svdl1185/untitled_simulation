@@ -252,7 +252,7 @@ function livePredator(s) {
   if (s.controlled) return `This ${sex} is piloted. Energy still drains and eating still restores it.`;
   if (s.energy < cfg.starveAt) return `This ${sex} is starving. Without a meal it will die and recycle into the water column.`;
   if (cfg.breathes && s.surfacing) {
-    return `This ${sex} is at the surface to breathe. Next dive goes toward prey or typical forage ${forage}, clamped by ${cap} in this cell (floor ${floor}; biological max ${depthText(cfg.maxDepth)}).`;
+    return `This ${sex} is at the surface to breathe — a blow when the blowhole clears, then a hang. Next dive goes toward prey or typical forage ${forage}, clamped by ${cap} in this cell (floor ${floor}; biological max ${depthText(cfg.maxDepth)}).`;
   }
   if (cfg.breathes && !s.surfacing) {
     return `This ${sex} is on a foraging dive toward prey or typical forage ${forage}. ${cap} is the clamp in this cell (floor ${floor}; biological max ${depthText(cfg.maxDepth)}), not the resting depth. Time is compressed so a deep chase can finish in one breath-hold.`;

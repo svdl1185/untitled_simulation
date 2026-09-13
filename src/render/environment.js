@@ -186,3 +186,88 @@ export function createEatParticles() {
     },
   };
 }
+
+export function createBlowParticles() {
+  const n = 1400;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(n * 3);
+  const vel = new Float32Array(n * 3);
+  const life = new Float32Array(n);
+  for (let i = 0; i < n; i++) pos[i * 3 + 1] = -800;
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 2.4,
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+    sizeAttenuation: true,
+    fog: false,
+  });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  points.renderOrder = 6;
+  let cursor = 0;
+
+  function emit(x, y, z, count, vx0, vy0, vz0, spread, life0) {
+    for (let k = 0; k < count; k++) {
+      const i = cursor++ % n;
+      pos[i * 3] = x + (Math.random() - 0.5) * 0.45;
+      pos[i * 3 + 1] = y;
+      pos[i * 3 + 2] = z + (Math.random() - 0.5) * 0.45;
+      vel[i * 3] = vx0 + (Math.random() - 0.5) * spread;
+      vel[i * 3 + 1] = vy0 * (0.65 + Math.random() * 0.7);
+      vel[i * 3 + 2] = vz0 + (Math.random() - 0.5) * spread;
+      life[i] = life0 * (0.75 + Math.random() * 0.5);
+    }
+  }
+
+  return {
+    points,
+    puff(x, y, z, kind = "", scale = 1, dir = {}) {
+      const s = Math.max(0.55, scale);
+      const fx = dir.fx ?? 0;
+      const fz = dir.fz ?? 1;
+      const lx = dir.lx ?? 0;
+      const lz = dir.lz ?? 0;
+      const sperm = kind === "spermwhale";
+      const small = kind === "commondolphin" || kind === "orca";
+      const mysticete = kind === "humpback" || kind === "minke";
+      const count = Math.round((small ? 22 : sperm ? 70 : 36) * s);
+      const up = (small ? 8 : sperm ? 14 : 11) * s;
+      const fwd = sperm ? 8 * s : small ? 1.8 * s : 0.8 * s;
+      const left = sperm ? 4.5 * s : 0;
+      const spread = (small ? 1.8 : sperm ? 3.2 : 2.2) * s;
+      const life0 = small ? 0.85 : sperm ? 1.6 : 1.2;
+      const vx0 = fx * fwd + lx * left;
+      const vz0 = fz * fwd + lz * left;
+      if (mysticete) {
+        const off = 0.55 * s;
+        emit(x + lx * off, y, z + lz * off, count, vx0 * 0.15, up, vz0 * 0.15, spread, life0);
+        emit(x - lx * off, y, z - lz * off, count, vx0 * 0.15, up, vz0 * 0.15, spread, life0);
+      } else {
+        emit(x, y, z, count, vx0, up, vz0, spread, life0);
+      }
+      emit(x, y, z, Math.round(14 * s), 0, 5.5 * s, 0, 7.2 * s, 0.42);
+    },
+    update(dt) {
+      const drag = Math.exp(-dt * 1.05);
+      for (let i = 0; i < n; i++) {
+        if (life[i] <= 0) continue;
+        life[i] -= dt;
+        pos[i * 3] += vel[i * 3] * dt;
+        pos[i * 3 + 1] += vel[i * 3 + 1] * dt;
+        pos[i * 3 + 2] += vel[i * 3 + 2] * dt;
+        vel[i * 3] *= drag;
+        vel[i * 3 + 2] *= drag;
+        vel[i * 3 + 1] -= 2.4 * dt;
+        vel[i * 3 + 1] *= 0.99;
+        if (pos[i * 3 + 1] < -2.8) {
+          life[i] = 0;
+          pos[i * 3 + 1] = -800;
+        } else if (life[i] <= 0) pos[i * 3 + 1] = -800;
+      }
+      geo.attributes.position.needsUpdate = true;
+    },
+  };
+}

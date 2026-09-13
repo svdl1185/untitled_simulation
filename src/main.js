@@ -10,7 +10,7 @@ import { createSharkMesh, syncSharkMesh } from "./render/sharkMesh.js";
 import { createWaterSurface, createSeafloor, createSandDetail, createThermocline } from "./render/water.js";
 import { createOutcrops } from "./render/outcrops.js";
 import { createWorldUniforms, syncWorldUniforms } from "./render/caustics.js";
-import { createEnvironment, createEatParticles } from "./render/environment.js";
+import { createEnvironment, createEatParticles, createBlowParticles } from "./render/environment.js";
 import { createPlanktonMesh } from "./render/plankton.js";
 import { samplePAR } from "./simulation/light.js";
 import { bindCellTemperature, sampleTemp } from "./simulation/temperature.js";
@@ -109,6 +109,7 @@ function bindShark(s) {
     s.eatEvents.push({ x, y, z, t: 0 });
     eatFX.burst(x, y, z);
   };
+  s.onBlow = (x, y, z, kind, scale, dir) => blowFX.puff(x, y, z, kind, scale, dir);
 }
 
 function disposeObject(obj) {
@@ -283,6 +284,8 @@ function applySharkCount(n) {
 
 const eatFX = createEatParticles();
 scene.add(eatFX.points);
+const blowFX = createBlowParticles();
+scene.add(blowFX.points);
 for (const s of sharks) {
   bindShark(s);
   addSharkMesh(s);
@@ -1055,6 +1058,7 @@ function frame(now) {
       syncFish();
       for (let i = 0; i < sharks.length; i++) syncSharkMesh(sharkMeshes[i], sharks[i]);
       eatFX.update(dt);
+      blowFX.update(dt);
       outcrops.update(dt, tod);
       updateCamera(dt, pointer);
       env.update(t, camera, tod);

@@ -1262,7 +1262,7 @@ export const SPECIES = {
       huntTaxa: ["marketsquid", "illex", "lanternfish"],
       huntKinds: ["humboldtsquid", "giantsquid"],
       eatVehicleEnergy: 0.38,
-      tints: [{ scale: 1.05, aggression: 0.8, tint: { r: 0.55, g: 0.52, b: 0.48 } }],
+      tints: [{ scale: 1.05, aggression: 0.8, tint: { r: 0.52, g: 0.51, b: 0.5 } }],
     },
   },
   orca: {

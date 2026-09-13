@@ -92,6 +92,11 @@ export class Shark {
     this.glideT = 0;
     this.surfacing = !!this.cfg.breathes && Math.random() < 0.28;
     this.breathT = Math.random() * (this.cfg.diveTime ?? 20);
+    this.blew = false;
+    this.blowWait = 0;
+    this.blowX = this.x;
+    this.blowY = this.y;
+    this.blowZ = this.z;
     this.roamX = 0;
     this.roamY = CONFIG.fish.preferredDepth;
     this.roamZ = 0;
@@ -100,6 +105,7 @@ export class Shark {
       this.eaten++;
       this.eatEvents.push({ x, y, z, t: 0 });
     };
+    this.onBlow = null;
   }
 
   get camRadius() {
@@ -201,6 +207,16 @@ export class Shark {
     }
 
     this._limitSpeed(this.speedCap);
+    if (cfg.breathes && this.surfacing && this.y > (cfg.minDepth ?? -2) - 2.4) {
+      const hang = Math.hypot(this.vx, this.vy, this.vz);
+      const cap = (cfg.cruiseSpeed ?? 6) * 0.4 * this.cruiseMul;
+      if (hang > cap) {
+        const s = cap / hang;
+        this.vx *= s;
+        this.vy *= s;
+        this.vz *= s;
+      }
+    }
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.z += this.vz * dt;
@@ -241,6 +257,9 @@ export class Shark {
     if (cfg.breathes && this.surfacing && this.y > (cfg.minDepth ?? -2) - 10) {
       this.pitch += (0 - this.pitch) * Math.min(1, dt * 2.8);
       this.roll += (0 - this.roll) * Math.min(1, dt * 2.4);
+    } else if (cfg.breathes && !this.surfacing && this.y > (cfg.minDepth ?? -2) - 28) {
+      this.pitch += (0.58 - this.pitch) * Math.min(1, dt * 1.7);
+      this.roll += (0 - this.roll) * Math.min(1, dt * 2.2);
     } else if (this.y > cfg.minDepth - 2.2 && this.pitch < 0.05) {
       this.pitch += (0.08 - this.pitch) * Math.min(1, dt * 2.2);
     }
@@ -256,6 +275,7 @@ export class Shark {
     this.mouthX = this.x + this.fwdX * mouth;
     this.mouthY = this.y + this.fwdY * mouth;
     this.mouthZ = this.z + this.fwdZ * mouth;
+    this._tickBlow(dt, cfg);
 
     const spd = Math.hypot(this.vx, this.vy, this.vz);
     const len = cfg.length ?? 11;
@@ -362,6 +382,46 @@ export class Shark {
     this.breathT = this.surfacing
       ? cfg.surfaceTime ?? 6
       : cfg.diveTime ?? 28;
+  }
+
+  _tickBlow(dt, cfg) {
+    if (!cfg.breathes) return;
+    const sperm = this.kind === "spermwhale";
+    const along = (cfg.mouthOffset ?? 2.2) * (sperm ? 0.98 : 0.62) * this.scale;
+    const leftAmt = sperm ? 0.52 * this.scale : 0;
+    const lx = -this.fwdZ;
+    const lz = this.fwdX;
+    const up = Math.max(0.45, (sperm ? 0.085 : 0.05) * (cfg.length ?? 11) * this.scale);
+    const atAir = this.y > (cfg.minDepth ?? -2) - 0.55;
+    this.blowX = this.x + this.fwdX * along + lx * leftAmt;
+    this.blowY = atAir ? Math.max(this.y + up, 0.25) : this.y + up;
+    this.blowZ = this.z + this.fwdZ * along + lz * leftAmt;
+    if (this.surfacing && atAir) {
+      if (!this.blew) {
+        this.blew = true;
+        this.blowWait = 0;
+        this._emitBlow(1, lx, lz);
+      } else {
+        this.blowWait += dt;
+        const gap = sperm ? 2.8 : 2.15;
+        if (this.blowWait >= gap) {
+          this.blowWait = 0;
+          this._emitBlow(0.62, lx, lz);
+        }
+      }
+    } else if (!this.surfacing) {
+      this.blew = false;
+      this.blowWait = 0;
+    }
+  }
+
+  _emitBlow(strength, lx, lz) {
+    this.onBlow?.(this.blowX, this.blowY, this.blowZ, this.kind, this.scale * strength, {
+      fx: this.fwdX,
+      fz: this.fwdZ,
+      lx,
+      lz,
+    });
   }
 
   _columnFloor(x, z, cfg) {
@@ -882,13 +942,16 @@ export class Shark {
       this.vy *= s;
       this.vz *= s;
     } else if (!this.controlled && spd < (this.cfg.minSpeed ?? 4.4)) {
+      const hanging =
+        this.cfg.breathes && this.surfacing && this.y > (this.cfg.minDepth ?? -2) - 2.4;
       const coast =
-        !this.bursting &&
-        !this.lunging &&
-        (this.cfg.gait === "jet" ||
-          this.cfg.swim === "jet" ||
-          this.cfg.gait === "benthic" ||
-          (this.cfg.gait === "burst" && this.cfg.swim === "body"));
+        hanging ||
+        (!this.bursting &&
+          !this.lunging &&
+          (this.cfg.gait === "jet" ||
+            this.cfg.swim === "jet" ||
+            this.cfg.gait === "benthic" ||
+            (this.cfg.gait === "burst" && this.cfg.swim === "body")));
       if (!coast) {
         const s = (this.cfg.minSpeed ?? 4.4) / (spd || 1);
         this.vx *= s;

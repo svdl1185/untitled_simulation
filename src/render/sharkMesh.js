@@ -25,7 +25,7 @@ const EYES = {
   tuna: { x: 0.28, y: 0.12, z: 3.35, r: 0.07 },
   cod: { x: 0.34, y: 0.16, z: 3.28, r: 0.08 },
   whale: { x: 0.48, y: 0.22, z: 3.85, r: 0.07 },
-  spermwhale: { x: 0.58, y: 0.12, z: 2.15, r: 0.06 },
+  spermwhale: { x: 0.88, y: -0.38, z: 2.55, r: 0.06 },
   dolphin: { x: 0.3, y: 0.16, z: 3.72, r: 0.07 },
   orca: { x: 0.36, y: 0.22, z: 3.42, r: 0.08 },
   squid: { x: 0.52, y: 0.1, z: -0.62, r: 0.2 },
@@ -51,7 +51,7 @@ export function createSharkMesh(uniforms, opts = {}) {
 
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: form === "squid" ? 0.42 : 0.72,
+    roughness: form === "squid" ? 0.42 : form === "spermwhale" ? 0.88 : 0.72,
     metalness: form === "tuna" || form === "billfish" || form === "mahi" ? 0.12 : 0.04,
     side: THREE.DoubleSide,
     envMapIntensity: 0.15,
@@ -82,7 +82,7 @@ export function createSharkMesh(uniforms, opts = {}) {
         swimNormal(swim)
       );
     };
-    mat.customProgramCacheKey = () => `vehicle-swim-${form}-${swim}-${kind}-v3`;
+    mat.customProgramCacheKey = () => `vehicle-swim-${form}-${swim}-${kind}-v5`;
     attachWorldShading(mat, uniforms);
   }
   const mesh = new THREE.Mesh(geo, mat);
@@ -146,7 +146,8 @@ function swimVertex(swim, form, kind) {
           }`
       : "";
   if (swim === "fluke") {
-    const bodyK = form === "dolphin" || form === "orca" ? "0.58" : "0.38";
+    const bodyK = form === "dolphin" || form === "orca" ? "0.58" : form === "spermwhale" ? "0.74" : "0.38";
+    const headK = form === "spermwhale" ? "0.04" : "0.14";
     return `
           vec3 transformed = vec3(position);
           float along = position.z;
@@ -156,7 +157,7 @@ function swimVertex(swim, form, kind) {
           float wave = sin(uSharkPhase - along * 0.42);
           float amp = uSharkAmp;
           transformed.y += wave * amp * (0.03 + pow(tail, 1.35) * 2.55);
-          transformed.y -= sin(uSharkPhase) * amp * 0.14 * head;
+          transformed.y -= sin(uSharkPhase) * amp * ${headK} * head;
           ${pecBeat}
           `;
   }
@@ -435,56 +436,107 @@ function _codParts(tint) {
 
 function _whaleParts(tint, kind) {
   const hump = kind === "humpback";
-  const pecSpan = hump ? 2.55 : 1.15;
+  const pecSpan = hump ? 2.55 : 1.05;
+  const paint = (x, y, z, t) => {
+    let [r, g, b] = _counter(t, tint, 0.22, 0.24, 0.28, 0.55, 0.56, 0.58);
+    if (hump && y < -0.12 && z > 0.4 && z < 4.2 && Math.abs(Math.sin(x * 9.5)) > 0.72) {
+      r *= 0.72;
+      g *= 0.72;
+      b *= 0.75;
+    }
+    return [r, g, b];
+  };
   return [
     _body(
       tint,
-      1.55,
-      1.08,
-      [
-        [0.04, -5.15],
-        [0.32, -4.5],
-        [1.02, -2.5],
-        [1.38, 0.15],
-        [1.12, 2.5],
-        [0.58, 4.25],
-        [0.16, 5.05],
-      ],
-      (x, y, z, t) => _counter(t, tint, 0.22, 0.24, 0.28, 0.55, 0.56, 0.58)
+      hump ? 1.55 : 1.22,
+      hump ? 1.08 : 0.92,
+      hump
+        ? [
+            [0.04, -5.15],
+            [0.32, -4.5],
+            [1.02, -2.5],
+            [1.38, 0.15],
+            [1.12, 2.5],
+            [0.58, 4.25],
+            [0.16, 5.05],
+          ]
+        : [
+            [0.03, -5.05],
+            [0.22, -4.45],
+            [0.72, -2.6],
+            [0.98, 0.05],
+            [0.82, 2.35],
+            [0.42, 4.15],
+            [0.12, 4.95],
+          ],
+      paint
     ),
-    _triFin(0, 0.72, hump ? -1.15 : -0.55, hump ? 0.38 : 0.52, 0.85, 0.2, tint),
-    _flukes(-4.85, hump ? 2.45 : 2.2, 1.75, tint),
-    _pec(1, tint, pecSpan, { y: -0.32, reach: hump ? 3.15 : 1.85, z: 1.35 }),
-    _pec(-1, tint, pecSpan, { y: -0.32, reach: hump ? 3.15 : 1.85, z: 1.35 }),
+    _triFin(0, hump ? 0.72 : 0.58, hump ? -1.15 : -0.35, hump ? 0.38 : 0.48, hump ? 0.85 : 0.72, 0.18, tint),
+    _flukes(-4.85, hump ? 2.45 : 1.85, hump ? 1.75 : 1.45, tint),
+    _pec(1, tint, pecSpan, { y: -0.32, reach: hump ? 3.15 : 1.55, z: 1.35 }),
+    _pec(-1, tint, pecSpan, { y: -0.32, reach: hump ? 3.15 : 1.55, z: 1.35 }),
   ];
 }
 
 function _spermParts(tint) {
-  return [
-    _body(
-      tint,
-      1.62,
-      1.18,
-      [
-        [0.05, -5.2],
-        [0.42, -4.55],
-        [1.12, -2.4],
-        [1.42, 0.1],
-        [1.58, 2.4],
-        [1.55, 4.15],
-        [1.22, 5.05],
-        [0.18, 5.28],
-      ],
-      (x, y, z, t) => {
-        const wrinkle = 1 - Math.max(0, Math.sin(z * 7.5)) * 0.12 * (z > 1.5 ? 1 : 0);
-        const [r, g, b] = _counter(t, tint, 0.42, 0.38, 0.32, 0.62, 0.58, 0.5);
-        return [r * wrinkle, g * wrinkle, b * wrinkle];
-      }
-    ),
-    _flukes(-4.95, 2.25, 1.7, tint),
-    _pec(1, tint, 0.72, { z: 0.6 }),
-    _pec(-1, tint, 0.72, { z: 0.6 }),
+  const trunk = _body(
+    tint,
+    0.92,
+    1.08,
+    [
+      [0.05, -5.42],
+      [0.28, -4.72],
+      [0.62, -3.35],
+      [0.8, -1.65],
+      [0.86, -0.05],
+      [0.9, 1.25],
+      [0.88, 2.15],
+    ],
+    (x, y, z, t) => {
+      const wrinkle = 1 - Math.max(0, Math.sin(z * 10.5 + x * 4.2)) * 0.22;
+      const [r, g, b] = _counter(t, tint, 0.2, 0.2, 0.2, 0.32, 0.31, 0.3);
+      return [r * wrinkle, g * wrinkle, b * wrinkle];
+    }
+  );
+  const head = new THREE.SphereGeometry(1, 18, 14);
+  head.scale(0.92, 1.38, 2.08);
+  {
+    const pos = head.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const z = pos.getZ(i);
+      if (z > 1.52) pos.setZ(i, 1.52 + (z - 1.52) * 0.18);
+    }
+  }
+  head.translate(0, 0.2, 3.22);
+  _paintSolid(head, tint, 0.3, 0.29, 0.28);
+  const brow = new THREE.SphereGeometry(0.82, 12, 10);
+  brow.scale(0.88, 1.12, 0.42);
+  brow.translate(0, 0.38, 5.02);
+  _paintSolid(brow, tint, 0.32, 0.31, 0.3);
+  const jaw = new THREE.CylinderGeometry(0.16, 0.2, 2.55, 8, 1, false);
+  jaw.rotateX(Math.PI / 2);
+  jaw.translate(0, -1.12, 4.08);
+  _paintSolid(jaw, tint, 0.34, 0.32, 0.3);
+  const hole = new THREE.SphereGeometry(0.15, 8, 6);
+  hole.scale(1.2, 0.42, 1.15);
+  hole.translate(-0.4, 1.38, 4.95);
+  _paintSolid(hole, tint, 0.06, 0.06, 0.07);
+  const parts = [
+    trunk,
+    head,
+    brow,
+    jaw,
+    hole,
+    _triFin(0, 0.62, -0.85, 0.32, 0.75, 0.22, tint),
+    _flukes(-5.28, 2.55, 1.72, tint, true),
+    _pec(1, tint, 0.48, { z: 0.85, y: -0.52, reach: 1.15 }),
+    _pec(-1, tint, 0.48, { z: 0.85, y: -0.52, reach: 1.15 }),
   ];
+  for (let i = 0; i < 4; i++) {
+    parts.push(_triFin(0, 0.48, -1.55 - i * 0.72, 0.16 + i * 0.03, 0.34, 0.14, tint));
+  }
+  return parts;
 }
 
 function _dolphinParts(tint) {
@@ -726,17 +778,26 @@ function _sideFin(side, tint) {
   return g;
 }
 
-function _flukes(z, span, length, tint) {
+function _flukes(z, span, length, tint, triangular = false) {
   const g = new THREE.BufferGeometry();
   const t = 0.07;
-  const verts = new Float32Array([
-    0, t, z,
-    span, 0, z - length * 0.18,
-    span * 0.18, 0, z - length,
-    0, -t, z,
-    -span, 0, z - length * 0.18,
-    -span * 0.18, 0, z - length,
-  ]);
+  const verts = triangular
+    ? new Float32Array([
+        0, t, z,
+        span, 0, z - length,
+        span * 0.06, 0, z - length * 0.72,
+        0, -t, z,
+        -span, 0, z - length,
+        -span * 0.06, 0, z - length * 0.72,
+      ])
+    : new Float32Array([
+        0, t, z,
+        span, 0, z - length * 0.18,
+        span * 0.18, 0, z - length,
+        0, -t, z,
+        -span, 0, z - length * 0.18,
+        -span * 0.18, 0, z - length,
+      ]);
   g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
   g.setIndex([0, 1, 2, 0, 2, 3, 3, 2, 1, 0, 4, 5, 0, 5, 3, 3, 5, 4]);
   const col = new Float32Array(6 * 3);
@@ -801,9 +862,11 @@ export function syncSharkMesh(group, shark) {
   const jet = swim === "jet";
   const coast = !shark.bursting && !shark.lunging && shark.thrust < 0.5;
   const len = shark.cfg?.length ?? CONFIG.shark.length;
+  const logging =
+    shark.cfg?.breathes && shark.surfacing && shark.y > (shark.cfg.minDepth ?? -2) - 3.2;
   const amp =
     (0.26 + Math.min(spd, 28) * 0.02) *
-    (shark.lunging ? 1.55 : coast ? (jet ? 0.28 : 0.52) : 1);
+    (shark.lunging ? 1.55 : logging ? 0.16 : coast ? (jet ? 0.28 : 0.52) : 1);
   if (group.userData.uSharkAmp) group.userData.uSharkAmp.value = amp;
   if (group.userData.uSharkPhase) group.userData.uSharkPhase.value = shark.swimT;
   if (group.userData.uCoast) {
