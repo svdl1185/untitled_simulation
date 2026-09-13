@@ -92,7 +92,7 @@ function rebuildFishLayers() {
     const phaseAttr = new THREE.InstancedBufferAttribute(phase, 1);
     mesh.geometry.setAttribute("aPhase", phaseAttr);
     scene.add(mesh);
-    fishLayers.push({ id: t.id, mesh, phase, phaseAttr });
+    fishLayers.push({ id: t.id, mesh, phase, phaseAttr, shape: SPECIES[t.id]?.look?.shape || "fish" });
   }
 }
 
@@ -215,6 +215,7 @@ function addSharkMesh(s) {
     tint: s.tint,
     form: spec.mesh || "shark",
     kind: s.kind,
+    sex: s.sex,
     swim: spec.swim || "tail",
   });
   mesh.userData.fear.visible = fearVisible;
@@ -289,7 +290,9 @@ for (const s of sharks) {
 
 const _dir = new THREE.Vector3();
 const _z = new THREE.Vector3(0, 0, 1);
+const _xAxis = new THREE.Vector3(1, 0, 0);
 const _q = new THREE.Quaternion();
+const _hang = new THREE.Quaternion();
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3(1, 1, 1);
 const _m = new THREE.Matrix4();
@@ -310,6 +313,10 @@ function syncFish() {
     else _dir.multiplyScalar(1 / len);
     if (_dir.dot(_z) < -0.999) _q.set(0, 1, 0, 0);
     else _q.setFromUnitVectors(_z, _dir);
+    if (layer.shape === "krill") {
+      _hang.setFromAxisAngle(_xAxis, -0.38);
+      _q.multiply(_hang);
+    }
     _p.set(pos[i3], pos[i3 + 1], pos[i3 + 2]);
     const sc = scale[i] * (0.9 + 0.1 * school.energy[i]);
     _s.set(sc, sc, sc);

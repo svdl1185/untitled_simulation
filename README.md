@@ -33,7 +33,7 @@ How to add an animal: [`.cursor/rules/species.mdc`](.cursor/rules/species.mdc). 
 
 **NPZD + benthos** — 128×128 nutrients, phytoplankton, zooplankton, detritus, plus a vertical column so P lives in the photic and Z follows DVM. Detritus sinks onto a seafloor carbon field. Cod graze that field on the bed (`src/simulation/plankton.js`).
 
-**Agents** — hashed-grid forage schools (one 20k budget, split by catalog `share`) and Reynolds vehicles (sharks, tunas, whales, squid, cod). Only near the camera. Silhouettes are guild stand-ins (`src/render/fish.js`, `src/render/sharkMesh.js`) with matching swim: lateral tail, body wave, thunniform, vertical fluke, jet pulse. Replace later with authored models.
+**Agents** — hashed-grid forage schools (one 20k budget, split by catalog `share`) and Reynolds vehicles (sharks, tunas, whales, squid, cod). Only near the camera. Silhouettes are guild stand-ins (`src/render/fish.js`, `src/render/sharkMesh.js`) with matching swim: lateral tail, body wave, thunniform, vertical fluke, jet pulse–coast. School squid pulse–coast on the grid, then hang on the current. Surface forage rise when fleeing; lanternfish and sand lance go down. Sharks actually glide between tail bursts. Replace later with authored models.
 
 **Budgets** — bloom mean × photic production caps the school; Type II graze depletes `p`/`z`; bites restore predator energy; carcasses recycle; Q10 scales the rates. Named prey missing is a programmed starve, not a cheat.
 

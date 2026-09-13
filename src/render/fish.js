@@ -45,9 +45,11 @@ function createFlyingGeometry(look) {
   const body = _latheBody(look);
   const dorsal = _fin(0.0, 0.1, -0.05, -0.12, 0.1, look);
   const tail = _tail(look);
-  const wing = _wing(look, 1);
-  const wing2 = _wing(look, -1);
-  const geo = mergeGeometries([body, dorsal, tail, wing, wing2].map(prepare), false);
+  const wing = _wing(look, 1, look.pec ?? 3.4);
+  const wing2 = _wing(look, -1, look.pec ?? 3.4);
+  const pelvic = _wing(look, 1, 1.35, -0.22);
+  const pelvic2 = _wing(look, -1, 1.35, -0.22);
+  const geo = mergeGeometries([body, dorsal, tail, wing, wing2, pelvic, pelvic2].map(prepare), false);
   geo.computeVertexNormals();
   return geo;
 }
@@ -82,9 +84,13 @@ function createKrillGeometry(look) {
   body.scale(bs[0], bs[1], bs[2]);
   _paintLook(body, look);
   const fan = _tailFan(look);
-  const leg1 = _fin(0.04, -0.04, 0.08, 0.08, -0.07, look);
-  const leg2 = _fin(-0.04, -0.04, 0.08, 0.08, -0.07, look);
-  const geo = mergeGeometries([body, fan, leg1, leg2].map(prepare), false);
+  const parts = [body, fan];
+  for (let i = 0; i < 3; i++) {
+    const z = 0.16 - i * 0.11;
+    parts.push(_fin(0.045, -0.035, z, 0.07, -0.08, look));
+    parts.push(_fin(-0.045, -0.035, z, 0.07, -0.08, look));
+  }
+  const geo = mergeGeometries(parts.map(prepare), false);
   geo.computeVertexNormals();
   return geo;
 }
@@ -103,8 +109,8 @@ function createSquidGeometry(look) {
   const bs = look.body || [0.38, 0.85, 1.35];
   mantle.scale(bs[0], bs[1], bs[2]);
   _paintLook(mantle, look);
-  const fin = _fin(0.12, 0.0, 0.18, 0.16, 0.02, look);
-  const fin2 = _fin(-0.12, 0.0, 0.18, 0.16, 0.02, look);
+  const fin = _fin(0.16, 0.0, 0.22, 0.22, 0.035, look);
+  const fin2 = _fin(-0.16, 0.0, 0.22, 0.22, 0.035, look);
   const arms = _tentacles(look);
   const geo = mergeGeometries([mantle, fin, fin2, arms].map(prepare), false);
   geo.computeVertexNormals();
@@ -133,11 +139,11 @@ function _tentacles(look) {
     const x = Math.cos(a) * 0.05;
     const y = Math.sin(a) * 0.04;
     const b = verts.length / 3;
-    verts.push(x, y, -0.42, x * 0.4, y * 0.4, -0.82, x + 0.012, y, -0.42);
+    verts.push(x, y, -0.42, x * 0.4, y * 0.4, -0.92, x + 0.012, y, -0.42);
     idx.push(b, b + 1, b + 2);
   }
-  verts.push(0.04, -0.01, -0.42, 0.03, -0.02, -1.05, 0.055, 0.0, -0.42);
-  verts.push(-0.04, -0.01, -0.42, -0.03, -0.02, -1.05, -0.055, 0.0, -0.42);
+  verts.push(0.04, -0.01, -0.42, 0.03, -0.02, -1.18, 0.055, 0.0, -0.42);
+  verts.push(-0.04, -0.01, -0.42, -0.03, -0.02, -1.18, -0.055, 0.0, -0.42);
   const last = verts.length / 3;
   idx.push(last - 6, last - 5, last - 4, last - 3, last - 2, last - 1);
   g.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
@@ -171,7 +177,7 @@ function _paintLook(g, look) {
   const belly = look.belly || [0.82, 0.88, 0.84];
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i);
-    const t = THREE.MathUtils.clamp((y + 0.12) / 0.28, 0, 1);
+    const t = 1 - THREE.MathUtils.smoothstep(y, -0.1, 0.1);
     col[i * 3] = back[0] * (1 - t) + belly[0] * t;
     col[i * 3 + 1] = back[1] * (1 - t) + belly[1] * t;
     col[i * 3 + 2] = back[2] * (1 - t) + belly[2] * t;
@@ -205,13 +211,14 @@ function _fin(x, y, z, w, h, look) {
   return g;
 }
 
-function _wing(look, side) {
+function _wing(look, side, span = 3.4, zOff = 0) {
   const g = new THREE.BufferGeometry();
   const s = side;
+  const w = 0.16 * span;
   const verts = new Float32Array([
-    0.04 * s, 0.02, 0.12,
-    0.38 * s, 0.04, -0.02,
-    0.06 * s, -0.01, -0.16,
+    0.04 * s, 0.02, 0.14 + zOff,
+    w * s, 0.05, -0.02 + zOff,
+    0.07 * s, -0.02, -0.18 + zOff,
   ]);
   g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
   g.setIndex([0, 1, 2]);
@@ -297,21 +304,23 @@ function fishVertex(swim) {
   if (swim === "jet") {
     return `
       vec3 transformed = vec3(position);
-      float pulse = sin(uTime * 9.0 + aPhase);
+      float cycle = uTime * 5.4 + aPhase;
+      float pulse = pow(max(0.0, sin(cycle)), 2.4);
       float mantle = smoothstep(-0.22, 0.12, position.z);
-      float radial = 1.0 + pulse * 0.09 * uTail * mantle;
+      float radial = 1.0 + pulse * 0.14 * uTail * mantle;
       transformed.x *= radial;
       transformed.y *= radial;
       float arm = 1.0 - mantle;
-      transformed.x += sin(uTime * 9.0 + aPhase - 1.15) * arm * arm * uTail * 0.95;
-      transformed.y += cos(uTime * 7.0 + aPhase) * arm * arm * uTail * 0.38;
+      float trail = 1.0 - pulse;
+      transformed.x += sin(cycle - 1.15) * arm * arm * uTail * (0.28 + trail * 0.7);
+      transformed.y += cos(cycle * 0.7) * arm * arm * uTail * 0.28;
       `;
   }
   if (swim === "paddle") {
     return `
       vec3 transformed = vec3(position);
       float tail = smoothstep(0.05, -0.45, position.z);
-      transformed.y += sin(uTime * 22.0 + aPhase) * tail * uTail;
+      transformed.y += sin(uTime * 22.0 + aPhase + position.z * 10.0) * tail * uTail;
       transformed.x += sin(uTime * 14.0 + aPhase * 1.7) * 0.02 * uTail;
       `;
   }
@@ -367,7 +376,7 @@ export function createFishMaterial(uniforms, speciesId = "herring") {
       fishVertex(swim)
     );
   };
-  mat.customProgramCacheKey = () => `fish-${speciesId}-${swim}-v2`;
+  mat.customProgramCacheKey = () => `fish-${speciesId}-${swim}-v3`;
   attachWorldShading(mat, uniforms);
   return mat;
 }

@@ -63,6 +63,7 @@ export const FISH_DEFAULTS = {
   anchorTop: -3.2,
   social: "polarized",
   groups: 2,
+  swim: "tail",
 };
 
 /** Reynolds vehicles (sharks, tuna, whales). School knobs stay on FISH_DEFAULTS. */
@@ -453,6 +454,9 @@ export const SPECIES = {
       minSpeed: 4.2,
       maxSpeed: 14.5,
       fleeSpeed: 26,
+      pitchLimit: 0.22,
+      pitchDamp: 3.4,
+      maxTurn: 1.55,
       metabolism: 0.016,
       grazeMul: 0.55,
       anchorTop: -1.05,
@@ -628,6 +632,9 @@ export const SPECIES = {
       minSpeed: 3.6,
       maxSpeed: 13.2,
       fleeSpeed: 24,
+      pitchLimit: 0.28,
+      pitchDamp: 2.8,
+      maxTurn: 1.5,
       metabolism: 0.015,
       grazeMul: 0.7,
       anchorTop: -1.2,
@@ -661,6 +668,9 @@ export const SPECIES = {
       minSpeed: 1.6,
       maxSpeed: 8.4,
       fleeSpeed: 18,
+      pitchLimit: 0.95,
+      pitchDamp: 0.85,
+      maxTurn: 2.15,
       metabolism: 0.018,
       grazeMul: 0.9,
       minSchoolSize: 8,
@@ -694,6 +704,8 @@ export const SPECIES = {
       minSpeed: 1.2,
       maxSpeed: 6.4,
       fleeSpeed: 12,
+      pitchLimit: 0.7,
+      pitchDamp: 1.4,
       metabolism: 0.014,
       grazeMul: 0.55,
       minSchoolSize: 12,
@@ -728,6 +740,9 @@ export const SPECIES = {
       minSpeed: 0.7,
       maxSpeed: 3.8,
       fleeSpeed: 7,
+      pitchLimit: 0.82,
+      pitchDamp: 1.1,
+      maxTurn: 1.85,
       metabolism: 0.02,
       grazeMul: 1.35,
       grazeOn: "p",
@@ -799,6 +814,9 @@ export const SPECIES = {
       minSpeed: 1.8,
       maxSpeed: 9.2,
       fleeSpeed: 20,
+      pitchLimit: 0.95,
+      pitchDamp: 0.85,
+      maxTurn: 2.2,
       metabolism: 0.019,
       grazeMul: 0.85,
       minSchoolSize: 8,
@@ -1114,7 +1132,9 @@ export const SPECIES = {
       starveDays: 6,
       gait: "ram",
       minSpeed: 1.8,
+      turnSmooth: 2.2,
       mesh: "whaleshark",
+      swim: "tail",
       diet: "filter",
       filterGraze: 0.14,
       filterGain: 0.55,
@@ -1150,6 +1170,7 @@ export const SPECIES = {
       starveDays: 5,
       gait: "ram",
       minSpeed: 2.4,
+      turnSmooth: 3.2,
       mesh: "whale",
       swim: "fluke",
       diet: "both",
@@ -1193,6 +1214,7 @@ export const SPECIES = {
       starveDays: 6,
       gait: "burst",
       minSpeed: 2.0,
+      turnSmooth: 2.6,
       mesh: "whale",
       swim: "fluke",
       diet: "bite",
@@ -1229,6 +1251,7 @@ export const SPECIES = {
       starveDays: 7,
       gait: "burst",
       minSpeed: 2.2,
+      turnSmooth: 2.4,
       mesh: "spermwhale",
       swim: "fluke",
       diet: "bite",
@@ -1315,7 +1338,8 @@ export const SPECIES = {
       eatEnergy: 0.07,
       starveDays: 2.2,
       gait: "jet",
-      minSpeed: 3.2,
+      minSpeed: 1.6,
+      turnSmooth: 6.2,
       mesh: "squid",
       swim: "jet",
       diet: "bite",
@@ -1357,7 +1381,8 @@ export const SPECIES = {
       eatEnergy: 0.12,
       starveDays: 5.5,
       gait: "jet",
-      minSpeed: 1.8,
+      minSpeed: 1.1,
+      turnSmooth: 2.2,
       mesh: "squid",
       swim: "jet",
       diet: "bite",
@@ -1471,7 +1496,7 @@ export const SPECIES = {
       energyDrain: 0.002,
       eatEnergy: 0.08,
       gait: "burst",
-      minSpeed: 3.6,
+      minSpeed: 1.6,
       mesh: "barracuda",
       swim: "body",
       diet: "bite",
@@ -1604,11 +1629,25 @@ export const FIELD_IDS = Object.keys(SPECIES).filter((id) => SPECIES[id].agent =
 export const FORAGE_IDS = Object.keys(SPECIES).filter((id) => SPECIES[id].guild === "forage");
 export const PRESENCE_IDS = Object.keys(SPECIES);
 
+function swimFromLook(look = {}) {
+  if (look.swim) return look.swim;
+  if (look.shape === "squid") return "jet";
+  if (look.shape === "krill") return "paddle";
+  if (look.shape === "flying") return "fly";
+  if (look.shape === "needle") return "eel";
+  return "tail";
+}
+
 export function knobsFor(id) {
   const spec = SPECIES[id];
   const social = spec?.social || "polarized";
   const mode = SOCIAL[social] || SOCIAL.polarized;
-  return { ...FISH_DEFAULTS, ...mode, ...(spec?.fish || {}) };
+  return {
+    ...FISH_DEFAULTS,
+    ...mode,
+    swim: swimFromLook(spec?.look),
+    ...(spec?.fish || {}),
+  };
 }
 
 export function vehicleCfg(id) {

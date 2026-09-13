@@ -1186,6 +1186,9 @@ export class School {
         let fx = pdx / d + anchor.hx * 0.55;
         let fy = pdy / d * 0.22;
         let fz = pdz / d + anchor.hz * 0.55;
+        if ((cfg.maxDepth ?? -400) > -55) fy += 0.95;
+        else if ((cfg.dayDepth ?? 0) < -200) fy -= 0.7;
+        else if ((cfg.floorClearance ?? 2.2) < 1.5) fy -= 0.45;
         const alongS = pdx * sfx + pdy * sfy + pdz * sfz;
         let lx = pdx - alongS * sfx;
         let ly = pdy - alongS * sfy;
@@ -1267,14 +1270,19 @@ export class School {
         nvx = 1;
         spd = 1;
       }
-      const minSpd = cfg.minSpeed * (0.45 + 0.55 * (1 - mill)) * (alarm > 0.5 ? 1.6 : 1);
+      const swim = cfg.swim || "tail";
+      const minSpd =
+        cfg.minSpeed *
+        (swim === "paddle" ? 0.4 : 1) *
+        (0.45 + 0.55 * (1 - mill)) *
+        (alarm > 0.5 ? 1.6 : 1);
       if (spd > maxSpd) {
         const s = maxSpd / spd;
         nvx *= s;
         nvy *= s;
         nvz *= s;
         spd = maxSpd;
-      } else if (spd < minSpd) {
+      } else if (spd < minSpd && !(swim === "jet" && alarm < 0.4)) {
         const s = 1 + (minSpd / spd - 1) * 0.32;
         nvx *= s;
         nvy *= s;
@@ -1310,6 +1318,22 @@ export class School {
       }
 
       const depthErr = Math.abs((anchor.y ?? py) - py);
+      if (swim === "jet" && alarm < 0.45) {
+        const pulse = Math.pow(Math.max(0, Math.sin(simT * 5.4 + this.phase[i])), 2.2);
+        if (pulse < 0.18) {
+          const drag = Math.exp(-dt * 2.2);
+          nvx *= drag;
+          nvy *= drag;
+          nvz *= drag;
+          spd = Math.hypot(nvx, nvy, nvz);
+        } else {
+          const boost = 1 + pulse * 0.7;
+          nvx *= boost;
+          nvy *= boost;
+          nvz *= boost;
+          spd *= boost;
+        }
+      }
       const maxPitch =
         alarm > 0.45
           ? cfg.pitchLimit * 2.1
@@ -1325,9 +1349,10 @@ export class School {
       if (hasBeach() && shoreU > 0.28 && nvz > 0) nvz *= 1 - Math.min(0.9, shoreU * 0.95);
 
       const flow = sampleFlow(px, py, pz, look?.simTime ?? 0, look?.storm ?? 0);
-      let nxPos = px + (nvx + flow.x) * dt + corrX;
-      let nyPos = py + (nvy + flow.y) * dt + corrY;
-      let nzPos = pz + (nvz + flow.z) * dt + corrZ;
+      const flowMul = swim === "jet" || swim === "paddle" ? 1.4 : 1;
+      let nxPos = px + (nvx + flow.x * flowMul) * dt + corrX;
+      let nyPos = py + (nvy + flow.y * (swim === "jet" || swim === "paddle" ? 0.85 : 1)) * dt + corrY;
+      let nzPos = pz + (nvz + flow.z * flowMul) * dt + corrZ;
       const ground2 = seafloorHeight(nxPos, nzPos);
       const hardCeil = -0.7;
       const hardFloor = ground2 + 1.35;

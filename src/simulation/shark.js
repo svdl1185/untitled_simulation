@@ -169,20 +169,36 @@ export class Shark {
     if (pack) this._avoidPack(pack, dt);
 
     const swim = cfg.swim || "tail";
+    const gliding = !this.bursting && !this.lunging;
+    const coastKick =
+      swim === "fluke" || swim === "thunniform" || cfg.gait === "ram"
+        ? 1
+        : gliding
+          ? cfg.gait === "benthic"
+            ? 0.06
+            : 0.14
+          : 1;
     let kickForce;
     if (cfg.gait === "jet" || swim === "jet") {
-      const pulse = this.bursting ? 0.85 + Math.max(0, Math.sin(this.swimT)) * 0.4 : 0.06;
-      kickForce = pulse * (this.lunging ? 14 : 6.4) * this.thrust * this.cruiseMul;
-    } else if (swim === "fluke") {
+      const pulse = this.bursting ? 0.85 + Math.max(0, Math.sin(this.swimT)) * 0.4 : 0.04;
+      kickForce = pulse * (this.lunging ? 16 : 6.4) * this.thrust * this.cruiseMul;
+    } else if (swim === "fluke" || swim === "thunniform") {
       const kick = Math.sin(this.swimT);
       kickForce = kick * kick * (this.lunging ? 10 : 3.4) * this.thrust * this.cruiseMul;
     } else {
       const kick = Math.max(0, Math.sin(this.swimT));
-      kickForce = kick * kick * (this.lunging ? 9 : 3.1) * this.thrust * this.cruiseMul;
+      kickForce = kick * kick * (this.lunging ? 9 : 3.1) * this.thrust * this.cruiseMul * coastKick;
     }
     this.vx += this.fwdX * kickForce * dt;
-    this.vy += this.fwdY * kickForce * dt * 0.25;
+    const kickY = swim === "jet" ? 1 : swim === "fluke" ? 0.55 : 0.25;
+    this.vy += this.fwdY * kickForce * dt * kickY;
     this.vz += this.fwdZ * kickForce * dt;
+    if (gliding && (cfg.gait === "jet" || swim === "jet" || cfg.gait === "benthic")) {
+      const drag = Math.exp(-dt * (cfg.gait === "benthic" ? 1.6 : 2.4));
+      this.vx *= drag;
+      this.vy *= drag;
+      this.vz *= drag;
+    }
 
     this._limitSpeed(this.speedCap);
     this.x += this.vx * dt;
@@ -190,9 +206,11 @@ export class Shark {
     this.z += this.vz * dt;
 
     const flow = sampleFlow(this.x, this.y, this.z, look?.simTime ?? 0, look?.storm ?? 0);
-    this.x += flow.x * dt;
-    this.y += flow.y * dt * 0.45;
-    this.z += flow.z * dt;
+    const coasting = (cfg.gait === "jet" || swim === "jet") && !this.bursting && !this.lunging;
+    const flowMul = coasting ? 1.45 : 1;
+    this.x += flow.x * dt * flowMul;
+    this.y += flow.y * dt * (coasting ? 0.85 : 0.45);
+    this.z += flow.z * dt * flowMul;
 
     const drain = cfg.energyDrain * (this.lunging ? 2.4 : this.aiMode === "strike" ? 1.6 : 1) * columnQ10();
     this.energy = Math.max(0, this.energy - drain * dt);
@@ -220,7 +238,10 @@ export class Shark {
 
     this._orientFromVelocity(dt, cfg);
 
-    if (this.y > cfg.minDepth - 2.2 && this.pitch < 0.05) {
+    if (cfg.breathes && this.surfacing && this.y > (cfg.minDepth ?? -2) - 10) {
+      this.pitch += (0 - this.pitch) * Math.min(1, dt * 2.8);
+      this.roll += (0 - this.roll) * Math.min(1, dt * 2.4);
+    } else if (this.y > cfg.minDepth - 2.2 && this.pitch < 0.05) {
       this.pitch += (0.08 - this.pitch) * Math.min(1, dt * 2.2);
     }
     if (this.y < ground + cfg.floorClearance * this.scale + 4 && this.pitch > 0) {
@@ -237,13 +258,14 @@ export class Shark {
     this.mouthZ = this.z + this.fwdZ * mouth;
 
     const spd = Math.hypot(this.vx, this.vy, this.vz);
+    const len = cfg.length ?? 11;
     let freq;
     if (swim === "jet") freq = (0.42 + spd * 0.028) / Math.sqrt(this.scale);
-    else if (swim === "fluke") freq = (0.16 + spd * 0.016) / Math.sqrt(this.scale);
+    else if (swim === "fluke") freq = ((0.16 + spd * 0.016) / Math.sqrt(this.scale)) * (len > 8 ? 0.68 : 1);
     else if (swim === "thunniform") freq = (0.55 + spd * 0.05) / Math.sqrt(this.scale);
     else if (swim === "body") freq = (0.28 + spd * 0.03) / Math.sqrt(this.scale);
     else freq = (0.32 + spd * 0.042) / Math.sqrt(this.scale);
-    this.swimT += dt * Math.PI * 2 * freq;
+    this.swimT += dt * Math.PI * 2 * freq * Math.sqrt(columnQ10());
 
     for (let i = this.eatEvents.length - 1; i >= 0; i--) {
       this.eatEvents[i].t += dt;
@@ -291,9 +313,13 @@ export class Shark {
       const d = Math.hypot(dx, dy, dz);
       if (d < 0.4 || d > 85) continue;
       const w = ((1 - d / 85) ** 2) * 26;
+      const vert = this.cfg.gait === "jet" || this.cfg.swim === "jet" ? 1.15 : 0.4;
       this.vx += (dx / d) * w * dt;
-      this.vy += (dy / d) * w * dt * 0.4;
+      this.vy += (dy / d) * w * dt * vert;
       this.vz += (dz / d) * w * dt;
+      if ((this.cfg.gait === "jet" || this.cfg.swim === "jet") && o.y > this.y - 6) {
+        this.vy -= w * dt * 0.9;
+      }
     }
   }
 
@@ -431,7 +457,7 @@ export class Shark {
     if (input.back) thrust -= 0.48;
     if (input.boost) thrust += 0.38;
     this.thrust = thrust;
-    this.bursting = thrust > 0.5;
+    if (cfg.gait !== "jet" && cfg.swim !== "jet") this.bursting = thrust > 0.5;
 
     if (input.lunge) {
       this.startLunge();
@@ -469,7 +495,7 @@ export class Shark {
     const maxSpd = cfg.cruiseSpeed * 0.62 * this.cruiseMul;
     const force = cfg.maxForce * 0.42;
     this.thrust = 0.34;
-    this.bursting = cfg.gait === "ram";
+    if (cfg.gait !== "jet" && cfg.swim !== "jet") this.bursting = cfg.gait === "ram";
     this.speedCap = maxSpd;
 
     const tGround = seafloorHeight(tx, tz);
@@ -569,7 +595,7 @@ export class Shark {
       force = cfg.maxForce * (hungry ? 0.65 : 0.42);
       arriveR = hungry ? 12 : 18;
       this.thrust = hungry ? 0.48 : 0.32;
-      this.bursting = false;
+      if (cfg.gait !== "jet" && cfg.swim !== "jet") this.bursting = false;
     } else if (this.aiMode === "stalk") {
       const r = (hungry ? holdR * 0.86 : holdR + 8) + 3 * Math.sin(this.circleA * 0.7);
       const weave = Math.sin(this.circleA * 1.15) * 6;
@@ -594,7 +620,7 @@ export class Shark {
         force = cfg.maxForce * 0.58;
         arriveR = 7;
         this.thrust = 0.44;
-        this.bursting = false;
+        if (cfg.gait !== "jet" && cfg.swim !== "jet") this.bursting = false;
       } else {
         const rdx = this.roamX - this.x;
         const rdz = this.roamZ - this.z;
@@ -689,13 +715,15 @@ export class Shark {
       this.burstT -= dt;
       if (this.burstT <= 0) {
         this.bursting = false;
-        this.glideT = striking || driven ? 0.16 + Math.random() * 0.18 : 0.5 + Math.random() * 0.85;
+        const hang = Math.sqrt((this.cfg.length ?? 2) / 2);
+        this.glideT = striking || driven ? 0.16 + Math.random() * 0.18 : (0.5 + Math.random() * 0.85) * hang;
       }
     } else {
       this.glideT -= dt;
       if (this.glideT <= 0) {
         this.bursting = true;
-        this.burstT = striking || driven ? 0.08 + Math.random() * 0.08 : 0.12 + Math.random() * 0.16;
+        const hang = Math.sqrt((this.cfg.length ?? 2) / 2);
+        this.burstT = striking || driven ? 0.08 + Math.random() * 0.08 : (0.12 + Math.random() * 0.16) * hang;
       }
     }
   }
@@ -714,13 +742,19 @@ export class Shark {
       this.burstT -= dt;
       if (this.burstT <= 0) {
         this.bursting = false;
-        this.glideT = 0.7 + Math.random() * 1.5;
+        this.glideT =
+          this.cfg.gait === "burst" && this.cfg.swim === "body"
+            ? 1.8 + Math.random() * 2.6
+            : 0.7 + Math.random() * 1.5;
       }
     } else {
       this.glideT -= dt;
       if (this.glideT <= 0) {
         this.bursting = true;
-        this.burstT = 1.1 + Math.random() * 1.9;
+        this.burstT =
+          this.cfg.gait === "burst" && this.cfg.swim === "body"
+            ? 0.28 + Math.random() * 0.42
+            : 1.1 + Math.random() * 1.9;
       }
     }
   }
@@ -848,15 +882,25 @@ export class Shark {
       this.vy *= s;
       this.vz *= s;
     } else if (!this.controlled && spd < (this.cfg.minSpeed ?? 4.4)) {
-      const s = (this.cfg.minSpeed ?? 4.4) / (spd || 1);
-      this.vx *= s;
-      this.vy *= s * 0.4;
-      this.vz *= s;
+      const coast =
+        !this.bursting &&
+        !this.lunging &&
+        (this.cfg.gait === "jet" ||
+          this.cfg.swim === "jet" ||
+          this.cfg.gait === "benthic" ||
+          (this.cfg.gait === "burst" && this.cfg.swim === "body"));
+      if (!coast) {
+        const s = (this.cfg.minSpeed ?? 4.4) / (spd || 1);
+        this.vx *= s;
+        this.vy *= s * 0.4;
+        this.vz *= s;
+      }
     }
   }
 
   _orientFromVelocity(dt, cfg) {
     const spd = Math.hypot(this.vx, this.vy, this.vz);
+    const swim = cfg.swim || "tail";
     if (spd < 0.35) {
       this.yawRate *= Math.max(0, 1 - dt * 4);
       this.roll += (0 - this.roll) * Math.min(1, dt * 3);
@@ -864,7 +908,12 @@ export class Shark {
     }
     const desiredYaw = Math.atan2(this.vx, this.vz);
     const horiz = Math.hypot(this.vx, this.vz);
-    const desiredPitch = Math.max(-0.55, Math.min(0.58, -Math.atan2(this.vy, horiz)));
+    let desiredPitch = Math.max(-0.55, Math.min(0.58, -Math.atan2(this.vy, horiz)));
+    if (cfg.gait === "benthic") desiredPitch *= 0.12;
+    if (this.kind === "barracuda") desiredPitch *= 0.22;
+    if (cfg.breathes && this.surfacing) desiredPitch *= 0.12;
+    else if (cfg.breathes) desiredPitch = Math.max(-0.75, Math.min(0.45, desiredPitch * 1.25));
+    if (swim === "jet") desiredPitch = Math.max(-0.85, Math.min(0.85, desiredPitch * 1.35));
     let dyaw = desiredYaw - this.yaw;
     while (dyaw > Math.PI) dyaw -= Math.PI * 2;
     while (dyaw < -Math.PI) dyaw += Math.PI * 2;
@@ -872,9 +921,44 @@ export class Shark {
     const k = 1 - Math.exp(-dt * turn);
     this.yaw += dyaw * k;
     this.yawRate = dyaw / Math.max(dt, 1 / 120);
-    this.pitch += (desiredPitch - this.pitch) * (1 - Math.exp(-dt * 3.1));
-    const bank = Math.max(-0.58, Math.min(0.58, -this.yawRate * 0.24));
-    this.roll += (bank - this.roll) * (1 - Math.exp(-dt * 3.4));
+    const pitchK =
+      cfg.gait === "benthic"
+        ? 5.8
+        : swim === "jet"
+          ? 6.2
+          : cfg.breathes && !this.surfacing
+            ? 2.6
+            : swim === "fluke" && (cfg.length ?? 11) > 8
+              ? 1.55
+              : 3.1;
+    this.pitch += (desiredPitch - this.pitch) * (1 - Math.exp(-dt * pitchK));
+    const len = cfg.length ?? 11;
+    const bankMul =
+      cfg.gait === "benthic"
+        ? 0.05
+        : swim === "jet"
+          ? 0.1
+          : swim === "fluke" && len > 8
+            ? 0.07
+            : swim === "fluke"
+              ? 0.42
+              : len > 8
+                ? 0.08
+                : 0.24;
+    const bankCap =
+      cfg.gait === "benthic"
+        ? 0.12
+        : swim === "jet"
+          ? 0.2
+          : swim === "fluke" && len > 8
+            ? 0.14
+            : swim === "fluke"
+              ? 0.55
+              : len > 8
+                ? 0.16
+                : 0.58;
+    const bank = Math.max(-bankCap, Math.min(bankCap, -this.yawRate * bankMul));
+    this.roll += (bank - this.roll) * (1 - Math.exp(-dt * (swim === "fluke" ? 2.4 : 3.4)));
   }
 }
 
