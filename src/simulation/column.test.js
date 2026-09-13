@@ -5,6 +5,10 @@ import { Plankton, TROPHIC } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
 import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
 import { faunaPresent } from "../config.js";
+import { School } from "./school.js";
+import { spawnPredators } from "./shark.js";
+import { seafloorHeight } from "./obstacles.js";
+import { vehicleCfg } from "../world/fauna.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -85,6 +89,47 @@ function assert(cond, msg) {
 }
 
 {
+  applyPatch(makeTestPatch());
+  const hour = 12;
+  const school = new School(480, { hour });
+  let buried = 0;
+  let airborne = 0;
+  for (let i = 0; i < school.count; i++) {
+    const i3 = i * 3;
+    const x = school.pos[i3];
+    const y = school.pos[i3 + 1];
+    const z = school.pos[i3 + 2];
+    const ground = seafloorHeight(x, z);
+    if (y < ground + 0.4) buried++;
+    if (y > 0.2) airborne++;
+  }
+  assert(!buried, `${buried} school fish spawned below the local seafloor`);
+  assert(!airborne, `${airborne} school fish spawned above the surface`);
+  const pack = spawnPredators(school);
+  for (const s of pack) {
+    const ground = seafloorHeight(s.x, s.z);
+    assert(s.y > ground + 0.3, `${s.kind} spawned in the rock (y=${s.y.toFixed(1)} floor=${ground.toFixed(1)})`);
+    assert(s.y < 0.2, `${s.kind} spawned above the surface (y=${s.y.toFixed(1)})`);
+    const cfg = vehicleCfg(s.kind);
+    if (cfg.gait === "benthic") {
+      assert(s.y < ground + 12, `${s.kind} should seed on the bed`);
+    }
+  }
+  const squid = pack.find((s) => s.kind === "humboldtsquid");
+  if (squid) {
+    const ground = seafloorHeight(squid.x, squid.z);
+    assert(squid.y > ground + 0.3, "Humboldt squid must not seed inside a dropoff");
+    assert(squid.y < -200, `Humboldt squid day band should be mesopelagic, got ${squid.y.toFixed(1)}`);
+  }
+  const giant = pack.find((s) => s.kind === "giantsquid");
+  if (giant) {
+    const ground = seafloorHeight(giant.x, giant.z);
+    assert(giant.y > ground + 0.3, "giant squid must not seed inside a dropoff");
+    assert(giant.y < -500, `giant squid day band should be mesopelagic, got ${giant.y.toFixed(1)}`);
+  }
+}
+
+{
   const mid = presenceAt(12, -30);
   assert(mid.lanternfish > 0, "tropical Atlantic should have lanternfish");
   assert(mid.giantsquid > 0, "deep-capable oceanic cell flags giant squid before the floor gate");
@@ -135,4 +180,4 @@ function assert(cond, msg) {
   assert(clamped === -2000, `maxDepth/floor should clamp a too-deep hunt, got ${clamped}`);
 }
 
-console.log("column physics: 10 checks ok");
+console.log("column physics: 11 checks ok");

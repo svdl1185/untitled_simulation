@@ -160,7 +160,7 @@ function rebuildPlace() {
 function rebuildLife() {
   while (sharks.length) removeLastShark();
   const fishN = anySchoolPresent() ? Number(hud?.get("fish") ?? CONFIG.initialFish) : 0;
-  school = new School(fishN);
+  school = new School(fishN, { hour: day.look?.hour ?? 12 });
   school.colliders = outcrops.colliders;
   school.colliderCount = outcrops.colliderCount;
   plankton = new Plankton();
@@ -394,7 +394,7 @@ hud.on("fear", (on) => {
   for (const mesh of sharkMeshes) mesh.userData.fear.visible = on;
 });
 hud.on("reset", () => {
-  school.respawn(anySchoolPresent() ? Number(hud.get("fish")) : 0);
+  school.respawn(anySchoolPresent() ? Number(hud.get("fish")) : 0, day.look.hour);
   plankton.seed();
   school.clipToBloom(plankton);
   resetSharks(sharks, school);

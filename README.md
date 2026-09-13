@@ -37,7 +37,7 @@ How to add an animal: [`.cursor/rules/species.mdc`](.cursor/rules/species.mdc). 
 
 **Budgets** — bloom mean × photic production caps the school; Type II graze depletes `p`/`z`; bites restore predator energy; carcasses recycle; Q10 scales the rates. Named prey missing is a programmed starve, not a cheat.
 
-**Depth** — biological `maxDepth` is a clamp, then the seafloor. Lighting is optics, not a depth cap. Air-breathers surface, then dive toward prey or typical `forageDepth` — not a commute to the record.
+**Depth** — biological `maxDepth` is a clamp, then the seafloor. Agents seed at their DVM / forage / breath / bed depth for the current hour, then the **local** floor at that (x, z) — a dropoff or seamount is a wall, not `CONFIG.floorY`. If the typical band does not fit, they walk downslope until it does. Lighting is optics, not a depth cap. Air-breathers surface, then dive toward prey or typical `forageDepth` — not a commute to the record.
 
 **Range** — hulls in `src/world/ranges.js`, thermal niches, trophic gates, shelf-depth gates (`minFloorY` for giant squid; cod drop off the slope). Overlap is habitat. Empty is honest.
 

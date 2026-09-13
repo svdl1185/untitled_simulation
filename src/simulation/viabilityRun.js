@@ -28,8 +28,12 @@ export function runViability(opts = {}) {
   const sampleDt = CONFIG.viability?.sampleDt ?? 2;
   CONFIG.viability.maxSamples = Math.ceil((daysWanted * CONFIG.time.dayLength) / sampleDt) + 32;
 
+  const day = new DayCycle();
+  day.auto = true;
+  day.latitude = CONFIG.world.lat;
+  day.sample();
   const fishN = anySchoolPresent() ? Number(opts.fish ?? CONFIG.initialFish) : 0;
-  const school = new School(fishN);
+  const school = new School(fishN, { hour: day.look.hour });
   const plankton = new Plankton();
   school.clipToBloom(plankton);
   const predCounts = {};
@@ -43,9 +47,6 @@ export function runViability(opts = {}) {
     predCounts.shark = CONFIG.shark.count;
   }
   const sharks = spawnPredators(school, predCounts);
-  const day = new DayCycle();
-  day.auto = true;
-  day.latitude = CONFIG.world.lat;
   const log = new ViabilityLog();
   log.selectIds(PRESENCE_IDS.filter((id) => faunaPresent(id) && SPECIES[id]?.agent !== "field"));
 

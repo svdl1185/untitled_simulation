@@ -1,6 +1,6 @@
 import { CONFIG, breathTargetY, clampHabitatY, dvmY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
 import { SPECIES, VEHICLE_IDS, vehicleCfg } from "../world/fauna.js";
-import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
+import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, placeInColumn } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { columnQ10 } from "./temperature.js";
 
@@ -894,6 +894,16 @@ export function createShark(i, count, school, kind = "shark") {
     aggression: variant.aggression * (sex === 0 ? 0.96 : 1.05),
     tint: variant.tint,
   });
+  seedVehiclePose(shark, i, n, school);
+  shark.huntIndex = i % Math.max(1, school.initialSchools || 1);
+  shark.flankSign = i % 2 === 0 ? 1 : -1;
+  return shark;
+}
+
+function seedVehiclePose(shark, i, count, school) {
+  const kind = shark.kind;
+  const kindCfg = shark.cfg || vehicleCfg(kind);
+  const n = Math.max(1, count | 0);
   const seed = (kind.charCodeAt(0) * 17 + kind.length * 13 + i * 29) % 628;
   const ang = (i / n) * Math.PI * 2 + seed * 0.01;
   const world = Math.max(46, Math.min(CONFIG.halfX, CONFIG.halfZ) * 0.38);
@@ -911,28 +921,34 @@ export function createShark(i, count, school, kind = "shark") {
   }
   shark.x = Math.max(-CONFIG.halfX + 24, Math.min(CONFIG.halfX - 24, shark.x));
   shark.z = Math.max(-CONFIG.halfZ + 24, Math.min(waterMaxZ() - 24, shark.z));
+  const hour = school?._hour ?? 12;
+  let wantY;
   if (kindCfg.gait === "benthic") {
-    shark.y = seafloorHeight(shark.x, shark.z) + kindCfg.floorClearance + 2;
+    wantY = seafloorHeight(shark.x, shark.z) + kindCfg.floorClearance + 2;
   } else if (kindCfg.breathes) {
-    shark.y = clampHabitatY(-4 - i * 1.4, kindCfg.maxDepth);
+    wantY = -4 - i * 1.4;
   } else if (kindCfg.nightDepth != null) {
-    shark.y = clampHabitatY(dvmY(12, kindCfg), kindCfg.maxDepth);
+    wantY = dvmY(hour, kindCfg);
   } else {
-    shark.y = clampHabitatY(
-      (kindCfg.minDepth ?? CONFIG.fish.preferredDepth) - 8 - i * 2,
-      kindCfg.maxDepth
-    );
+    wantY = (kindCfg.minDepth ?? CONFIG.fish.preferredDepth) - 8 - i * 2;
   }
+  const placed = placeInColumn(shark.x, shark.z, wantY, {
+    maxDepth: kindCfg.maxDepth,
+    clearance: kindCfg.floorClearance,
+    minWater: kindCfg.minWater,
+  });
+  shark.x = placed.x;
+  shark.y = placed.y;
+  shark.z = placed.z;
+  shark.yDeep = shark.y;
+  shark.yShallow = shark.y;
   shark.yaw = ang + Math.PI;
   shark.yawLook = shark.yaw;
   shark.fwdX = Math.sin(shark.yaw);
   shark.fwdZ = Math.cos(shark.yaw);
-  shark.huntIndex = i % Math.max(1, school.initialSchools || 1);
-  shark.flankSign = i % 2 === 0 ? 1 : -1;
   shark.seekX = shark.x;
   shark.seekY = shark.y;
   shark.seekZ = shark.z;
-  return shark;
 }
 
 function hasHuntPrey(self, school, pack, cfg) {
@@ -1066,8 +1082,18 @@ export function spawnPredators(school, counts = {}) {
 }
 
 export function resetSharks(pack, school) {
+  const seen = {};
+  for (let i = 0; i < pack.length; i++) {
+    const kind = pack[i].kind || "shark";
+    seen[kind] = (seen[kind] || 0) + 1;
+  }
+  const idx = {};
   for (let i = 0; i < pack.length; i++) {
     const s = pack[i];
+    const kind = s.kind || "shark";
+    const n = seen[kind];
+    const k = idx[kind] || 0;
+    idx[kind] = k + 1;
     s.eaten = 0;
     s.pups = 0;
     s.filterTaken = 0;
@@ -1083,20 +1109,12 @@ export function resetSharks(pack, school) {
     s.lungeT = 0;
     s.aiMode = "patrol";
     s.aiT = 4 + Math.random() * 4;
-    const ang = (i / pack.length) * Math.PI * 2 + 0.55;
-    const r = 46 + i * 22;
-    s.x = school.centroid.x + Math.cos(ang) * r;
-    s.z = school.centroid.z + Math.sin(ang) * r * 0.85;
-    s.y =
-      s.cfg?.gait === "benthic"
-        ? seafloorHeight(s.x, s.z) + (s.cfg.floorClearance ?? 3) + 2
-        : school.centroid.y - 2.5 - i * 1.8;
+    seedVehiclePose(s, k, n, school);
     s.yDeep = s.y;
     s.yShallow = s.y;
     s.vx = 0;
     s.vy = 0;
     s.vz = -5;
-    s.yaw = ang + Math.PI;
     s.huntIndex = i % Math.max(1, school.initialSchools || 1);
     s.flankSign = i % 2 === 0 ? 1 : -1;
     s._pickRoam();

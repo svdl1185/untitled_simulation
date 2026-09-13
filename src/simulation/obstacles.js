@@ -1,4 +1,4 @@
-import { CONFIG, hasBeach } from "../config.js";
+import { CONFIG, hasBeach, waterMaxZ } from "../config.js";
 import { getActivePatch, samplePatchElevation } from "../world/patch.js";
 
 function syntheticSeafloor(x, z) {
@@ -53,6 +53,99 @@ export function seafloorSlope(x, z, eps = 3.2) {
   const dx = seafloorHeight(x + eps, z) - seafloorHeight(x - eps, z);
   const dz = seafloorHeight(x, z + eps) - seafloorHeight(x, z - eps);
   return { x: dx / (eps * 2), z: dz / (eps * 2) };
+}
+
+/** Local floor an animal may occupy: seafloor + clearance, then biological max. */
+export function columnFloorY(x, z, maxDepth, clearance) {
+  const ground = seafloorHeight(x, z);
+  const clear = clearance ?? CONFIG.fish.floorClearance ?? 2.2;
+  const bio = maxDepth ?? CONFIG.fish.maxDepth ?? -180;
+  return Math.max(ground + clear, bio);
+}
+
+/**
+ * Keep a vertical target in the water at this (x, z). `CONFIG.floorY` is
+ * the cell minimum — a dropoff or seamount is the floor that matters.
+ */
+export function clampLocalY(y, x, z, maxDepth, clearance) {
+  const floor = columnFloorY(x, z, maxDepth, clearance);
+  const ceil = -(CONFIG.fish.surfaceClearance ?? 1.35) - 0.4;
+  if (floor >= ceil - 0.5) return (ceil + Math.min(floor, ceil)) * 0.5;
+  if (y < floor) return floor;
+  if (y > ceil) return ceil;
+  return y;
+}
+
+/**
+ * Seed an animal in its typical band without putting it in the rock.
+ * If the local column is too shallow for `wantY`, step toward deeper
+ * water until the band fits (or sit at the deepest water in the cell).
+ */
+export function placeInColumn(x, z, wantY, opts = {}) {
+  const maxDepth = opts.maxDepth;
+  const clearance = opts.clearance ?? CONFIG.fish.floorClearance ?? 2.2;
+  const minWater = opts.minWater ?? CONFIG.fish.minWater ?? 12;
+  const ceil = -(CONFIG.fish.surfaceClearance ?? 1.35) - 0.4;
+  const margin = 24;
+  const minX = -CONFIG.halfX + margin;
+  const maxX = CONFIG.halfX - margin;
+  const minZ = -CONFIG.halfZ + margin;
+  const maxZ = waterMaxZ() - margin;
+  const clampX = (v) => (v < minX ? minX : v > maxX ? maxX : v);
+  const clampZ = (v) => (v < minZ ? minZ : v > maxZ ? maxZ : v);
+  let px = clampX(x);
+  let pz = clampZ(z);
+  const span = Math.min(CONFIG.halfX, CONFIG.halfZ);
+  const step = Math.max(18, span * 0.05);
+  const dirs = [
+    [0, -1],
+    [0, 1],
+    [-1, 0],
+    [1, 0],
+    [-0.7, -0.7],
+    [0.7, -0.7],
+    [-0.7, 0.7],
+    [0.7, 0.7],
+  ];
+
+  const scoreAt = (gx, gz) => {
+    const ground = seafloorHeight(gx, gz);
+    const wetFloor = ground + clearance;
+    const column = ceil - wetFloor;
+    if (column < minWater) return -1e9 + column;
+    const room = wantY - wetFloor;
+    if (room >= -0.4) return 1e6 - Math.abs(room - 8);
+    return room;
+  };
+
+  let bestX = px;
+  let bestZ = pz;
+  let best = scoreAt(px, pz);
+  for (let i = 0; i < 20; i++) {
+    if (best >= 1e6 - 400) break;
+    const sl = seafloorSlope(px, pz);
+    const slen = Math.hypot(sl.x, sl.z) || 1;
+    let nextX = clampX(px - (sl.x / slen) * step);
+    let nextZ = clampZ(pz - (sl.z / slen) * step);
+    let nextS = scoreAt(nextX, nextZ);
+    for (let d = 0; d < dirs.length; d++) {
+      const cx = clampX(px + dirs[d][0] * step);
+      const cz = clampZ(pz + dirs[d][1] * step);
+      const sc = scoreAt(cx, cz);
+      if (sc > nextS) {
+        nextS = sc;
+        nextX = cx;
+        nextZ = cz;
+      }
+    }
+    if (nextS <= best + 0.05) break;
+    px = nextX;
+    pz = nextZ;
+    best = nextS;
+    bestX = px;
+    bestZ = pz;
+  }
+  return { x: bestX, y: clampLocalY(wantY, bestX, bestZ, maxDepth, clearance), z: bestZ };
 }
 
 export function waterColumn(x, z) {

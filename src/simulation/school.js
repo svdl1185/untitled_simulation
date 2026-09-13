@@ -1,7 +1,7 @@
 import { CONFIG, cellSchoolTaxa, dvmY, gridMinY, hasBeach, waterMaxZ } from "../config.js";
 import { allocateSchoolCounts } from "../world/fauna.js";
 import { UniformGrid3D } from "./grid.js";
-import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore } from "./obstacles.js";
+import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore, clampLocalY, placeInColumn } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { TROPHIC } from "./plankton.js";
 import { columnQ10 } from "./temperature.js";
@@ -139,6 +139,7 @@ export class School {
     this._hungryN = 0;
     this.meanEnergy = 0.6;
     this._plankton = null;
+    this._hour = opts.hour ?? 12;
     this._tmax = 48;
     this._tn = new Uint32Array(this._tmax);
     this._te = new Float64Array(this._tmax);
@@ -234,32 +235,42 @@ export class School {
     const n = Math.max(1, this.initialSchools);
     const a = (s / n) * Math.PI * 2 + 0.31;
     const cfg = this.shoalCfg(s);
+    const wantY = dvmY(this._hour ?? 12, cfg) + (s % 2 === 0 ? -2 : 2.5);
+    let x;
+    let z;
     if (CONFIG.world?.lab) {
-      const deep = (cfg.maxDepth ?? -400) < -250 || cfg.social === "scatter";
-      const surface = (cfg.anchorTop ?? -8) > -6 || cfg.social === "loose";
       const rx = CONFIG.halfX * 0.4;
-      let zc = 240;
-      if (surface) zc = CONFIG.halfZ * 0.28;
-      else if (deep) zc = -CONFIG.halfZ * 0.42;
-      return {
-        x: Math.cos(a) * rx,
-        y: (cfg.preferredDepth ?? CONFIG.fish.preferredDepth) + (s % 2 === 0 ? -2 : 2.5),
-        z: zc + Math.sin(a) * CONFIG.halfZ * 0.1,
-        heading: a + Math.PI * 0.5,
-      };
+      x = Math.cos(a) * rx;
+      let zn;
+      if (wantY > -22) zn = 0.22;
+      else if (wantY > -70) zn = 0.16;
+      else if (wantY > -160) zn = 0.1;
+      else if (wantY > -300) zn = -0.1;
+      else if (wantY > -600) zn = -0.3;
+      else zn = -0.62;
+      z = zn * CONFIG.halfZ + Math.sin(a) * CONFIG.halfZ * 0.08;
+    } else {
+      const rx = CONFIG.halfX * 0.49;
+      const rz = CONFIG.halfZ * 0.31;
+      const zOff = hasBeach() ? -CONFIG.halfZ * 0.32 : 0;
+      x = Math.cos(a) * rx;
+      z = Math.sin(a) * rz + zOff;
     }
-    const rx = CONFIG.halfX * 0.49;
-    const rz = CONFIG.halfZ * 0.31;
-    const zOff = hasBeach() ? -CONFIG.halfZ * 0.32 : 0;
+    const placed = placeInColumn(x, z, wantY, {
+      maxDepth: cfg.maxDepth,
+      clearance: cfg.floorClearance,
+      minWater: cfg.minWater,
+    });
     return {
-      x: Math.cos(a) * rx,
-      y: (cfg.preferredDepth ?? CONFIG.fish.preferredDepth) + (s % 2 === 0 ? -2 : 2.5),
-      z: Math.sin(a) * rz + zOff,
+      x: placed.x,
+      y: placed.y,
+      z: placed.z,
       heading: a + Math.PI * 0.5,
     };
   }
 
-  respawn(count) {
+  respawn(count, hour) {
+    if (hour != null) this._hour = hour;
     const n = this.taxa.length ? Math.max(0, Math.min(this.max, count | 0)) : 0;
     this.count = 0;
     this.cap = n;
@@ -296,6 +307,7 @@ export class School {
     this.schoolCount = this.initialSchools;
     this._taxonSlots = slots;
 
+    const homes = [];
     for (let s = 0; s < this.maxSchools; s++) {
       let t = 0;
       for (let k = 0; k < slots.length; k++) {
@@ -308,6 +320,7 @@ export class School {
       const a = this.anchors[s];
       a.taxon = t;
       const home = this._home(s % Math.max(1, this.initialSchools));
+      homes[s] = home;
       a.x = home.x;
       a.y = home.y;
       a.z = home.z;
@@ -343,7 +356,7 @@ export class School {
         const i3 = i * 3;
         this.taxon[i] = t;
         this.schoolId[i] = sid;
-        const home = this._home(sid);
+        const home = homes[sid];
         const heading0 = home.heading + (Math.random() - 0.5) * (polarized ? 0.22 : 1.8);
         let x;
         let y;
@@ -374,6 +387,7 @@ export class School {
           y = home.y + (Math.random() - 0.5) * rest * 1.6;
           z = home.z + (Math.random() - 0.5) * spread * 2.4;
         }
+        y = clampLocalY(y, x, z, cfg.maxDepth, cfg.floorClearance);
         this.pos[i3] = x;
         this.pos[i3 + 1] = y;
         this.pos[i3 + 2] = z;
@@ -448,9 +462,18 @@ export class School {
       const i3 = i * 3;
       this.schoolId[i] = sid;
       this.taxon[i] = this.anchors[sid]?.taxon ?? 0;
-      this.pos[i3] = c.x + (Math.random() - 0.5) * rest * 4;
-      this.pos[i3 + 1] = c.y + (Math.random() - 0.5) * rest * 2;
-      this.pos[i3 + 2] = c.z + (Math.random() - 0.5) * rest * 4;
+      const tcfg = this.taxonCfg(i);
+      const x = c.x + (Math.random() - 0.5) * rest * 4;
+      const z = c.z + (Math.random() - 0.5) * rest * 4;
+      this.pos[i3] = x;
+      this.pos[i3 + 1] = clampLocalY(
+        c.y + (Math.random() - 0.5) * rest * 2,
+        x,
+        z,
+        tcfg.maxDepth,
+        tcfg.floorClearance
+      );
+      this.pos[i3 + 2] = z;
       const spd = a.cruise;
       this.vel[i3] = a.hx * spd;
       this.vel[i3 + 1] = 0;
@@ -1769,9 +1792,18 @@ export class School {
     const female = Math.random() < 0.5;
     this.schoolId[i] = sid;
     this.taxon[i] = this.anchors[sid]?.taxon ?? 0;
-    this.pos[i3] = c.x + (Math.random() - 0.5) * rest * 3;
-    this.pos[i3 + 1] = c.y + (Math.random() - 0.5) * rest * 1.4;
-    this.pos[i3 + 2] = c.z + (Math.random() - 0.5) * rest * 3;
+    const tcfg = this.taxonCfg(i);
+    const x = c.x + (Math.random() - 0.5) * rest * 3;
+    const z = c.z + (Math.random() - 0.5) * rest * 3;
+    this.pos[i3] = x;
+    this.pos[i3 + 1] = clampLocalY(
+      c.y + (Math.random() - 0.5) * rest * 1.4,
+      x,
+      z,
+      tcfg.maxDepth,
+      tcfg.floorClearance
+    );
+    this.pos[i3 + 2] = z;
     this.vel[i3] = a.hx * a.cruise;
     this.vel[i3 + 1] = 0;
     this.vel[i3 + 2] = a.hz * a.cruise;
