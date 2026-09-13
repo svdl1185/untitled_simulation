@@ -1,6 +1,6 @@
 name = "untitled-simulation"
 main = "workers/atlas.js"
-compatibility_date = "2026-09-14"
+compatibility_date = "2026-09-13"
 
 [assets]
 directory = "./dist"
