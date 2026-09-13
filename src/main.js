@@ -198,6 +198,7 @@ function bindWorld() {
   syncWorldUniforms(uniforms, day.look);
   rebuildPlace();
   rebuildLife();
+  hud.set("turbidity", CONFIG.water.turbidity);
   rig?.setExtents?.();
   syncDepthZones();
   inspect = null;
@@ -421,6 +422,9 @@ hud.on("currents", (on) => oceanMap.setCurrents(on));
 hud.on("lamp", (on) => {
   env.lampOn = !!on;
 });
+hud.on("turbidity", (n) => {
+  CONFIG.water.turbidity = Number(n);
+});
 
 function syncDepthZones() {
   if (!hud?.setSelectOptions) return;
@@ -577,16 +581,66 @@ function hudView() {
   const km = (CONFIG.halfX * 2) / 1000;
   const span = km >= 1.5 ? `${km.toFixed(0)} × ${km.toFixed(0)} km` : `${Math.round(CONFIG.halfX * 2)} m`;
   const general = [
-    { id: "place", label: "Cell", value: loc.region || formatLatLon(CONFIG.world.lat, CONFIG.world.lon) },
-    { id: "depth", label: "Floor", value: `${depthM.toFixed(0)} m` },
-    { id: "span", label: "Span", value: span },
-    { id: "zone", label: "Zone", value: zoneLabel() },
-    { id: "time", label: "Time", value: clockText(day.hour) },
-    { id: "weather", label: "Weather", value: weatherText() },
-    { id: "fish", label: "Forage", value: `${school.count.toLocaleString()} · ${foodCap.toLocaleString()}` },
-    { id: "sharks", label: "Predators", value: String(sharks.length) },
-    { id: "bloom", label: "P / Z", value: `${Math.round((plankton.meanP ?? 0) * 100)} · ${Math.round((plankton.meanZ ?? 0) * 100)}` },
-    { id: "camera", label: "Camera", value: cameraLabel() },
+    {
+      id: "place",
+      label: "Cell",
+      value: loc.region || formatLatLon(CONFIG.world.lat, CONFIG.world.lon),
+      hint: "Latitude and longitude of this nested patch.",
+    },
+    {
+      id: "depth",
+      label: "Floor",
+      value: `${depthM.toFixed(0)} m`,
+      hint: "Seafloor depth here. Biology may go shallower; the floor always wins.",
+    },
+    {
+      id: "span",
+      label: "Span",
+      value: span,
+      hint: "Horizontal extent of the simulated cell. World cells are 1 km; Lab is 10 km.",
+    },
+    {
+      id: "zone",
+      label: "Zone",
+      value: zoneLabel(),
+      hint: "Water-column layer at the camera, and the camera's depth.",
+    },
+    {
+      id: "time",
+      label: "Time",
+      value: clockText(day.hour),
+      hint: "Local solar time. One on-screen day is 8 minutes.",
+    },
+    {
+      id: "weather",
+      label: "Weather",
+      value: weatherText(),
+      hint: "Storm state. Storms raise current speed and upwelling.",
+    },
+    {
+      id: "fish",
+      label: "Forage",
+      value: `${school.count.toLocaleString()} · ${foodCap.toLocaleString()}`,
+      hint: "School fish in the cell, then the bloom-capped carrying capacity.",
+    },
+    {
+      id: "sharks",
+      label: "Predators",
+      value: String(sharks.length),
+      hint: "Vehicle predators currently in the cell (sharks, tunas, whales, squid, and the rest).",
+    },
+    {
+      id: "bloom",
+      label: "P / Z",
+      value: `${Math.round((plankton.meanP ?? 0) * 100)} · ${Math.round((plankton.meanZ ?? 0) * 100)}`,
+      hint: "Mean phytoplankton and zooplankton on the NPZD grid, scaled 0–100.",
+    },
+    {
+      id: "camera",
+      label: "Camera",
+      value: cameraLabel(),
+      hint: "How you are looking: free roam, a follow rig, or piloting a shark.",
+    },
   ];
   const sub = shownSubject();
   let subject = null;

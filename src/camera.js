@@ -29,7 +29,7 @@ export function cameraHint(mode, piloting, following = false) {
     return "Drag to look · Scroll zoom · WASD thrust · E/Q rise/dive · Shift boost · Space lunge · Esc release";
   }
   if (mode === CAM.FREE || !following) {
-    return "Click an animal · Drag to look · WASD fly · E/Q rise/dive · G depth zone · Scroll dolly · I field notes";
+    return "Click an animal · Drag to look · WASD fly · E/Q rise/dive · G depth zone · Scroll dolly · I census";
   }
   return "C camera · N next · Drag orbit · Scroll zoom · V free roam";
 }

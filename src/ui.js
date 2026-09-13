@@ -2,75 +2,112 @@ import { CONFIG } from "./config.js";
 import { CAMERA_MODES } from "./camera.js";
 
 /**
- * Add a control: push an item into MENU, then hud.on(id, handler) in main.js.
+ * Add a parameter: push an item into MENU, then hud.on(id, handler) in main.js.
  * Or at runtime: hud.addSection(...) / hud.addItem(...).
  * Toggles default to off unless `value` is true. Sliders/selects keep the value you set here.
+ * `mapOnly` / `cellOnly` hide a row until that view is active.
  */
 export { CAMERA_MODES };
 
 export const MENU = [
   {
-    id: "sim",
-    title: "Simulation",
+    id: "time",
+    title: "Time",
     items: [
       {
         id: "liveClock",
         kind: "toggle",
         label: "Live clock",
-        hint: "Advance time of day",
+        hint: "Advance local solar time. One on-screen day is 8 minutes.",
         key: "L",
         value: true,
       },
       {
         id: "hour",
         kind: "slider",
-        label: "Time",
+        label: "Time of day",
+        hint: "Sets the hour and pauses the live clock.",
         min: 0,
         max: 24,
         step: 0.05,
         value: 10.4,
         format: formatClock,
       },
+    ],
+  },
+  {
+    id: "life",
+    title: "Life",
+    items: [
       {
         id: "fish",
         kind: "slider",
-        label: "Fish cap",
+        label: "School cap",
+        hint: "Forage-fish ceiling in this cell. The bloom still caps how many it can carry.",
         min: 2000,
         max: CONFIG.maxFish,
         step: 500,
         value: CONFIG.initialFish,
         format: (n) => Number(n).toLocaleString(),
+        cellOnly: true,
       },
       {
         id: "sharks",
         kind: "slider",
-        label: "Shark cap",
+        label: "Blue sharks",
+        hint: "Headcount for blue sharks only. Other predators follow range and catalog counts.",
         min: 0,
         max: CONFIG.shark.max,
         step: 1,
         value: CONFIG.shark.count,
+        cellOnly: true,
       },
-      { id: "reset", kind: "action", label: "Reset school", key: "R" },
+      {
+        id: "reset",
+        kind: "action",
+        label: "Reset school",
+        hint: "Respawn forage and reseed the bloom.",
+        key: "R",
+        cellOnly: true,
+      },
     ],
   },
   {
-    id: "world",
-    title: "World",
+    id: "water",
+    title: "Water",
     items: [
-      { id: "storm", kind: "toggle", label: "Storm", key: "T" },
       {
-        id: "oceanMap",
+        id: "storm",
         kind: "toggle",
-        label: "World map",
-        hint: "Home screen · pick a 1 km cell",
-        key: "O",
+        label: "Storm",
+        hint: "Raises current speed and upwelling.",
+        key: "T",
+        cellOnly: true,
       },
-      { id: "lab", kind: "action", label: "Catalog tank", hint: "10 km cell with every species" },
+      {
+        id: "turbidity",
+        kind: "slider",
+        label: "Turbidity",
+        hint: "Optical extinction. Higher is murkier and a shallower photic zone.",
+        min: 0.35,
+        max: 1.4,
+        step: 0.05,
+        value: CONFIG.water.turbidity,
+        format: (n) => Number(n).toFixed(2),
+        cellOnly: true,
+      },
+    ],
+  },
+  {
+    id: "map",
+    title: "Map",
+    items: [
       {
         id: "currents",
         kind: "toggle",
         label: "Current overlay",
-        hint: "HYCOM arrows on the map",
+        hint: "HYCOM mean-flow arrows on the world map.",
+        mapOnly: true,
       },
     ],
   },
@@ -78,41 +115,66 @@ export const MENU = [
     id: "view",
     title: "View",
     items: [
-      { id: "fear", kind: "toggle", label: "Fear radius", key: "F" },
+      {
+        id: "fear",
+        kind: "toggle",
+        label: "Fear radius",
+        hint: "Draw the volume forage fish flee from.",
+        key: "F",
+        cellOnly: true,
+      },
       {
         id: "lamp",
         kind: "toggle",
         label: "Lamp",
-        hint: "Camera fill light after dark",
+        hint: "Camera fill light after dark. Optics, not habitat.",
         key: "K",
+        cellOnly: true,
       },
       {
         id: "camera",
         kind: "select",
-        label: "Camera",
+        label: "Follow camera",
+        hint: "Chase, orbit, cinematic, or surface while following.",
         options: CAMERA_MODES,
         value: 0,
         key: "C",
+        cellOnly: true,
       },
-      { id: "nextTarget", kind: "action", label: "Next target", key: "N" },
+      {
+        id: "nextTarget",
+        kind: "action",
+        label: "Next target",
+        hint: "Jump to the next followed animal of this kind.",
+        key: "N",
+        cellOnly: true,
+      },
       {
         id: "depthZone",
         kind: "select",
         label: "Water column",
-        hint: "Jump to a zone that exists in this cell",
+        hint: "Jump the camera to a zone that exists in this cell.",
         options: ["Surface", "Epipelagic", "Seafloor"],
         value: 1,
         key: "G",
+        cellOnly: true,
       },
-      { id: "pilot", kind: "toggle", label: "Pilot shark", key: "P" },
+      {
+        id: "pilot",
+        kind: "toggle",
+        label: "Pilot shark",
+        hint: "Drive the lead blue shark. Esc releases.",
+        key: "P",
+        cellOnly: true,
+      },
     ],
   },
 ];
 
 const KEY_HELP = [
-  ["M / Tab", "Open or close this panel"],
+  ["M / Tab", "Open or close parameters"],
   ["O", "World map (home)"],
-  ["I", "Census and cell readout"],
+  ["I", "Census, when a cell is open"],
   ["Click census", "Jump to that animal"],
   ["Click water", "Enter a 1 km cell"],
   ["Click animal", "Field notes on that individual"],
@@ -156,14 +218,20 @@ function defaultValue(item) {
 export function createHUD() {
   const body = document.getElementById("menu-body");
   const menu = document.getElementById("menu");
+  const about = document.getElementById("about");
   const backdrop = document.getElementById("menu-backdrop");
   const btnMenu = document.getElementById("btn-menu");
   const btnClose = document.getElementById("btn-menu-close");
+  const btnAbout = document.getElementById("btn-about");
+  const btnAboutClose = document.getElementById("btn-about-close");
   const btnMap = document.getElementById("btn-map");
   const btnLab = document.getElementById("btn-lab");
+  const btnCell = document.getElementById("btn-cell");
   const hint = document.getElementById("pilot-hint");
   const notes = document.getElementById("hud-notes");
   const btnNotes = document.getElementById("btn-notes");
+  const generalPanel = document.getElementById("hud-general");
+  const censusPanel = document.getElementById("hud-census");
   const generalBody = document.getElementById("hud-general-body");
   const censusBody = document.getElementById("hud-census-body");
   const brandPlace = document.getElementById("brand-place");
@@ -174,21 +242,25 @@ export function createHUD() {
   const subjectBody = document.getElementById("hud-subject-body");
   const subjectNotes = document.getElementById("hud-subject-notes");
   const btnFollow = document.getElementById("hud-follow");
+  const tip = el("div", { class: "hud-tip", hidden: "", role: "tooltip" });
+  document.body.append(tip);
   const fields = new Map();
+  const sections = new Map();
   const handlers = new Map();
-  const values = {};
-  const generalRows = bindStats(generalBody);
+  const values = { oceanMap: false };
+  const generalRows = bindStats(generalBody, tip);
   const censusRows = bindCensus(censusBody, (id) => {
     const fn = handlers.get("focusSpecies");
     if (fn) fn(id);
   });
-  const subjectRows = bindStats(subjectBody);
+  const subjectRows = bindStats(subjectBody, tip);
   const noteRows = bindNotes(subjectNotes);
 
   let open = false;
-  let notesOpen = true;
+  let aboutOpen = false;
+  let cellOpen = true;
+  let censusOpen = true;
   let cameraLive = false;
-  let mapSeen = true;
   let entered = false;
   body.replaceChildren();
 
@@ -196,6 +268,7 @@ export function createHUD() {
     const block = el("section", { class: "menu-section", "data-section": section.id }, [
       el("h3", { text: section.title }),
     ]);
+    sections.set(section.id, block);
     for (const item of section.items) {
       values[item.id] = defaultValue(item);
       const field = buildItem(item, values);
@@ -208,7 +281,7 @@ export function createHUD() {
   }
 
   const help = el("section", { class: "menu-section menu-help" }, [
-    el("h3", { text: "Controls" }),
+    el("h3", { text: "Keys" }),
   ]);
   for (const [key, text] of KEY_HELP) {
     help.append(
@@ -243,9 +316,14 @@ export function createHUD() {
 
   function set(id, value) {
     const item = findItem(id);
-    if (!item) return;
-    if (item.kind === "toggle") value = !!value;
-    if (item.kind === "slider" || item.kind === "select") value = Number(value);
+    if (item) {
+      if (item.kind === "toggle") value = !!value;
+      if (item.kind === "slider" || item.kind === "select") value = Number(value);
+    } else if (id === "oceanMap") {
+      value = !!value;
+    } else {
+      return;
+    }
     if (values[id] === value) {
       render(id);
       return;
@@ -255,9 +333,35 @@ export function createHUD() {
     if (id === "oceanMap") syncNav();
   }
 
+  function inCell() {
+    return entered && !values.oceanMap;
+  }
+
+  function rowHidden(item) {
+    if (item.mapOnly && !values.oceanMap) return true;
+    if (item.cellOnly && !inCell()) return true;
+    if ((item.id === "camera" || item.id === "nextTarget") && !cameraLive) return true;
+    return false;
+  }
+
+  function syncFields() {
+    for (const section of MENU) {
+      let any = false;
+      for (const item of section.items) {
+        const field = fields.get(item.id);
+        if (!field) continue;
+        const hide = rowHidden(item);
+        field.row.hidden = hide;
+        if (!hide) any = true;
+      }
+      const block = sections.get(section.id);
+      if (block) block.hidden = !any;
+    }
+  }
+
   function syncNav() {
     const mapOn = !!values.oceanMap;
-    if (mapOn) mapSeen = true;
+    const cell = inCell();
     if (btnMap) {
       btnMap.classList.toggle("on", mapOn);
       btnMap.setAttribute("aria-pressed", mapOn ? "true" : "false");
@@ -266,37 +370,68 @@ export function createHUD() {
       btnLab.classList.toggle("on", false);
       btnLab.disabled = false;
     }
+    if (btnCell) {
+      btnCell.hidden = !cell;
+      btnCell.classList.toggle("on", cell && cellOpen);
+      btnCell.setAttribute("aria-expanded", cell && cellOpen ? "true" : "false");
+    }
     if (btnNotes) {
-      btnNotes.classList.toggle("on", notesOpen);
-      btnNotes.setAttribute("aria-expanded", notesOpen ? "true" : "false");
+      btnNotes.hidden = !cell;
+      btnNotes.classList.toggle("on", cell && censusOpen);
+      btnNotes.setAttribute("aria-expanded", cell && censusOpen ? "true" : "false");
+    }
+    if (btnAbout) {
+      btnAbout.classList.toggle("on", aboutOpen);
+      btnAbout.setAttribute("aria-expanded", aboutOpen ? "true" : "false");
     }
     if (btnMenu) {
       btnMenu.classList.toggle("on", open);
       btnMenu.setAttribute("aria-expanded", open ? "true" : "false");
     }
+    if (generalPanel) generalPanel.hidden = !cell || !cellOpen;
+    if (censusPanel) censusPanel.hidden = !cell || !censusOpen;
+    notes.classList.toggle("is-collapsed", !cell || (!cellOpen && !censusOpen));
+    syncFields();
+  }
+
+  function setBackdrop() {
+    tip.hidden = true;
+    backdrop.hidden = !open && !aboutOpen;
+    document.body.classList.toggle("menu-open", open || aboutOpen);
+    if ((open || aboutOpen) && document.pointerLockElement) document.exitPointerLock();
   }
 
   function setOpen(next) {
     open = !!next;
+    if (open) aboutOpen = false;
     menu.hidden = !open;
-    backdrop.hidden = !open;
-    document.body.classList.toggle("menu-open", open);
-    if (open && document.pointerLockElement) document.exitPointerLock();
+    if (about) about.hidden = !aboutOpen;
+    setBackdrop();
     syncNav();
   }
 
-  function setNotesOpen(next) {
-    notesOpen = !!next;
-    notes.classList.toggle("is-collapsed", !notesOpen);
+  function setAboutOpen(next) {
+    aboutOpen = !!next;
+    if (aboutOpen) open = false;
+    if (about) about.hidden = !aboutOpen;
+    menu.hidden = !open;
+    setBackdrop();
+    syncNav();
+  }
+
+  function setCellOpen(next) {
+    cellOpen = !!next;
+    syncNav();
+  }
+
+  function setCensusOpen(next) {
+    censusOpen = !!next;
     syncNav();
   }
 
   function setCameraLive(on) {
     cameraLive = !!on;
-    const cam = fields.get("camera");
-    const next = fields.get("nextTarget");
-    if (cam) cam.row.hidden = !cameraLive;
-    if (next) next.row.hidden = !cameraLive;
+    syncFields();
   }
 
   function bindField(item, field) {
@@ -331,6 +466,7 @@ export function createHUD() {
     const block = el("section", { class: "menu-section", "data-section": id }, [
       el("h3", { text: title }),
     ]);
+    sections.set(id, block);
     body.insertBefore(block, help);
   }
 
@@ -347,12 +483,19 @@ export function createHUD() {
     bindField(item, field);
     body.querySelector(`[data-section="${sectionId}"]`).append(field.row);
     render(item.id);
+    syncFields();
   }
 
   btnMenu.addEventListener("click", () => setOpen(!open));
   btnClose.addEventListener("click", () => setOpen(false));
-  backdrop.addEventListener("click", () => setOpen(false));
-  btnNotes.addEventListener("click", () => setNotesOpen(!notesOpen));
+  btnAbout?.addEventListener("click", () => setAboutOpen(!aboutOpen));
+  btnAboutClose?.addEventListener("click", () => setAboutOpen(false));
+  backdrop.addEventListener("click", () => {
+    setOpen(false);
+    setAboutOpen(false);
+  });
+  btnNotes.addEventListener("click", () => setCensusOpen(!censusOpen));
+  btnCell?.addEventListener("click", () => setCellOpen(!cellOpen));
   btnMap?.addEventListener("click", () => {
     const next = !values.oceanMap;
     set("oceanMap", next);
@@ -372,24 +515,34 @@ export function createHUD() {
       setOpen(!open);
       return;
     }
-    if (e.code === "Escape" && open) {
+    if (e.code === "Escape" && (open || aboutOpen)) {
       e.preventDefault();
       e.stopImmediatePropagation();
       setOpen(false);
+      setAboutOpen(false);
+      return;
+    }
+    if (e.repeat) return;
+    if (e.code === "KeyO") {
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
+      e.preventDefault();
+      const next = !values.oceanMap;
+      set("oceanMap", next);
+      emit("oceanMap", next);
       return;
     }
     if (e.code === "KeyI") {
       if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
+      if (!inCell()) return;
       e.preventDefault();
-      setNotesOpen(!notesOpen);
+      setCensusOpen(!censusOpen);
       return;
     }
-    if (e.repeat) return;
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
     for (const section of MENU) {
       for (const item of section.items) {
         if (!item.key || e.code !== `Key${item.key}`) continue;
-        if ((item.id === "camera" || item.id === "nextTarget") && !cameraLive) continue;
+        if (rowHidden(item)) continue;
         if (item.kind === "toggle") {
           const next = !values[item.id];
           set(item.id, next);
@@ -461,6 +614,7 @@ export function createHUD() {
         id: "fps",
         label: "FPS",
         value: String(fpsVal),
+        hint: "Frames drawn per second. A drop here is the near-camera agent load, not the basin.",
       }));
       censusRows.set(view.census || []);
       if (brandPlace) {
@@ -590,8 +744,27 @@ function bindNotes(root) {
   };
 }
 
-function bindStats(root) {
+function bindStats(root, tip) {
   const rows = new Map();
+  function hideTip() {
+    if (tip) tip.hidden = true;
+  }
+  function showTip(node) {
+    const text = node.dataset.hint;
+    if (!tip || !text) return hideTip();
+    tip.textContent = text;
+    tip.hidden = false;
+    const r = node.getBoundingClientRect();
+    const width = Math.min(240, Math.max(160, r.left - 24));
+    tip.style.width = `${width}px`;
+    let left = r.left - width - 10;
+    if (left < 12) left = Math.min(window.innerWidth - width - 12, r.right + 10);
+    let top = r.top;
+    const h = tip.offsetHeight || 48;
+    if (top + h > window.innerHeight - 12) top = Math.max(12, r.bottom - h);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+  }
   return {
     set(list) {
       const seen = new Set();
@@ -603,13 +776,26 @@ function bindStats(root) {
           const label = el("span");
           const value = el("strong");
           const node = el("div", { class: "stat", "data-stat": item.id }, [label, value]);
+          node.addEventListener("pointerenter", () => showTip(node));
+          node.addEventListener("pointerleave", hideTip);
+          node.addEventListener("focus", () => showTip(node));
+          node.addEventListener("blur", hideTip);
           row = { node, label, value };
           rows.set(item.id, row);
+          root.append(node);
         }
         if (row.label.textContent !== item.label) row.label.textContent = item.label;
         const next = item.value == null ? "—" : String(item.value);
         if (row.value.textContent !== next) row.value.textContent = next;
-        root.append(row.node);
+        if (item.hint) {
+          row.node.dataset.hint = item.hint;
+          row.node.setAttribute("tabindex", "0");
+          row.node.setAttribute("aria-label", `${item.label}: ${next}. ${item.hint}`);
+        } else {
+          delete row.node.dataset.hint;
+          row.node.removeAttribute("tabindex");
+          row.node.removeAttribute("aria-label");
+        }
       }
       for (const [id, row] of rows) {
         if (seen.has(id)) continue;
@@ -627,6 +813,10 @@ function findItem(id) {
   return null;
 }
 
+function hintNode(item) {
+  return item.hint ? el("span", { class: "menu-hint", text: item.hint }) : null;
+}
+
 function buildItem(item, values) {
   if (item.kind === "toggle") {
     const row = el("button", {
@@ -638,7 +828,7 @@ function buildItem(item, values) {
     }, [
       el("span", { class: "switch-copy" }, [
         el("span", { class: "switch-label", text: item.label }),
-        item.hint ? el("span", { class: "switch-hint", text: item.hint }) : null,
+        hintNode(item),
       ]),
       item.key ? el("kbd", { text: item.key }) : null,
       el("span", { class: "switch-track", "aria-hidden": "true" }),
@@ -661,6 +851,7 @@ function buildItem(item, values) {
         el("span", { text: item.label }),
         readout,
       ]),
+      hintNode(item),
       input,
     ]);
     return { row, input, readout };
@@ -678,6 +869,7 @@ function buildItem(item, values) {
         el("span", { text: item.label }),
         item.key ? el("kbd", { text: item.key }) : null,
       ]),
+      hintNode(item),
       input,
     ]);
     return { row, input };
@@ -688,7 +880,10 @@ function buildItem(item, values) {
     class: "menu-action",
     id: `opt-${item.id}`,
   }, [
-    el("span", { text: item.label }),
+    el("span", { class: "switch-copy" }, [
+      el("span", { text: item.label }),
+      hintNode(item),
+    ]),
     item.key ? el("kbd", { text: item.key }) : null,
   ]);
   return { row };

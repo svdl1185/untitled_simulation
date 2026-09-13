@@ -18,9 +18,6 @@ export function createOceanMap({ onEnter }) {
     <canvas id="ocean-map-canvas"></canvas>
     <div class="ocean-map-chrome">
       <div class="ocean-map-top">
-        <p class="ocean-map-kicker">untitled_ocean_simulation</p>
-        <p class="ocean-map-title">World ocean</p>
-        <p class="ocean-map-lead">A nested ocean model. Click a kilometre of water to look through the camera. Lab is a 10 km tank with every implemented animal — beach, stepped shelves, a canyon, a seamount, 2000 m of water.</p>
         <p class="ocean-map-readout" id="ocean-map-readout">Hover water for coordinates and fauna in range</p>
         <p class="ocean-map-fauna" id="ocean-map-fauna"></p>
       </div>
