@@ -69,7 +69,7 @@ export function createCameraRig(camera) {
 
   function rangeFor(m, piloting) {
     if (piloting) return [12, 240];
-    if (m === CAM.FOLLOW) return [8, 280];
+    if (m === CAM.FOLLOW) return [4, 280];
     if (m === CAM.SURFACE) return [20, 720];
     if (m === CAM.FREE) return [4, 780];
     return [12, 640];

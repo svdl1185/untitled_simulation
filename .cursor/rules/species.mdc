@@ -77,7 +77,7 @@ Match existing module style in `src/simulation/`. No new frameworks. Keep the ha
 
 ## 8. Rendering and UI
 
-- Mesh under `src/render/`. Countershade; do not invent glow that is not a biological photophore. School looks live on `SPECIES[id].look`.
+- Mesh under `src/render/`. Guild silhouette + swim (`tail` | `body` | `thunniform` | `fluke` | `jet` on `vehicle.swim` / `look.swim`); countershade; do not invent glow that is not a biological photophore. School looks live on `SPECIES[id].look`. Procedural stand-ins until replaced with authored glTF.
 - Knobs in `src/config.js` / `SPECIES[id].fish` / `SPECIES[id].vehicle`. Toggles/sliders in `MENU` (`src/ui.js`), start **off**, wire with `hud.on` in `src/main.js`.
 - Prefer a physical control (depth, turbidity, nutrient) over a cosmetic one.
 - Field-notes card in `src/species.js` from `FAUNA`: **Now** (live), **In nature**, **In this cell** (program + live biological max vs this floor), **Not in the model** (`missing`, only if the array is non-empty). HUD readout only if it is a real state (counts, energy, zone, max depth).

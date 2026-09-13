@@ -14,80 +14,140 @@ function prepare(g) {
 
 export function createFishGeometry(speciesId = "herring") {
   const look = lookFor(speciesId);
-  if (look.shape === "squid") return createSquidGeometry(look);
-  const body = _latheBody(look);
+  const shape = look.shape || "fish";
+  if (shape === "squid") return createSquidGeometry(look);
+  if (shape === "krill") return createKrillGeometry(look);
+  if (shape === "lantern") return createLanternGeometry(look);
+  if (shape === "flying") return createFlyingGeometry(look);
+  return createFishBody(look, shape);
+}
+
+function createFishBody(look, shape) {
+  const body = _latheBody(look, shape === "needle" ? needleProfile() : null);
   const pecScale = look.pec ?? 1;
-  const dorsal = _fin(0.0, 0.12, -0.08, -0.16, 0.14, look);
+  const dorsalH = (look.dorsal ?? 1) * 0.14;
+  const dorsal = _fin(0.0, 0.12, -0.08, -0.16, dorsalH, look);
   const tail = _tail(look);
-  const pec = _fin(0.07, 0.02, 0.08, -0.12 * pecScale, 0.08 * Math.min(1.4, pecScale), look);
-  if (pecScale > 1.6) {
-    pec.scale(pecScale * 0.55, 1, pecScale * 0.72);
-  }
+  const pec = _fin(0.07, 0.02, 0.08, -0.12 * Math.min(1.6, pecScale), 0.08 * Math.min(1.4, pecScale), look);
   const pec2 = pec.clone();
   pec2.rotateZ(Math.PI);
-  const geo = mergeGeometries([body, dorsal, tail, pec, pec2].map(prepare), false);
+  const parts = [body, dorsal, tail, pec, pec2];
+  if (shape === "needle") {
+    const anal = _fin(0.0, -0.06, -0.12, -0.14, -0.08, look);
+    parts.push(anal);
+  }
+  const geo = mergeGeometries(parts.map(prepare), false);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createFlyingGeometry(look) {
+  const body = _latheBody(look);
+  const dorsal = _fin(0.0, 0.1, -0.05, -0.12, 0.1, look);
+  const tail = _tail(look);
+  const wing = _wing(look, 1);
+  const wing2 = _wing(look, -1);
+  const geo = mergeGeometries([body, dorsal, tail, wing, wing2].map(prepare), false);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createLanternGeometry(look) {
+  const body = _latheBody(look);
+  const dorsal = _fin(0.0, 0.1, -0.06, -0.12, 0.1, look);
+  const tail = _tail(look);
+  const pec = _fin(0.06, 0.02, 0.06, -0.1, 0.06, look);
+  const pec2 = pec.clone();
+  pec2.rotateZ(Math.PI);
+  const eyeL = _eye(0.055, 0.06, 0.32, 0.045, look);
+  const eyeR = _eye(-0.055, 0.06, 0.32, 0.045, look);
+  const lights = _photophores(look);
+  const geo = mergeGeometries([body, dorsal, tail, pec, pec2, eyeL, eyeR, lights].map(prepare), false);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createKrillGeometry(look) {
+  const profile = [
+    new THREE.Vector2(0.001, -0.42),
+    new THREE.Vector2(0.045, -0.32),
+    new THREE.Vector2(0.07, -0.08),
+    new THREE.Vector2(0.08, 0.12),
+    new THREE.Vector2(0.055, 0.32),
+    new THREE.Vector2(0.02, 0.42),
+  ];
+  const body = new THREE.LatheGeometry(profile, 8);
+  body.rotateX(-Math.PI / 2);
+  const bs = look.body || [0.22, 0.72, 1.55];
+  body.scale(bs[0], bs[1], bs[2]);
+  _paintLook(body, look);
+  const fan = _tailFan(look);
+  const leg1 = _fin(0.04, -0.04, 0.08, 0.08, -0.07, look);
+  const leg2 = _fin(-0.04, -0.04, 0.08, 0.08, -0.07, look);
+  const geo = mergeGeometries([body, fan, leg1, leg2].map(prepare), false);
   geo.computeVertexNormals();
   return geo;
 }
 
 function createSquidGeometry(look) {
   const profile = [
-    new THREE.Vector2(0.001, -0.55),
-    new THREE.Vector2(0.11, -0.42),
-    new THREE.Vector2(0.13, -0.1),
-    new THREE.Vector2(0.1, 0.22),
-    new THREE.Vector2(0.05, 0.42),
-    new THREE.Vector2(0.012, 0.5),
+    new THREE.Vector2(0.001, 0.5),
+    new THREE.Vector2(0.05, 0.38),
+    new THREE.Vector2(0.12, 0.08),
+    new THREE.Vector2(0.13, -0.18),
+    new THREE.Vector2(0.08, -0.38),
+    new THREE.Vector2(0.02, -0.48),
   ];
   const mantle = new THREE.LatheGeometry(profile, 8);
   mantle.rotateX(-Math.PI / 2);
   const bs = look.body || [0.38, 0.85, 1.35];
   mantle.scale(bs[0], bs[1], bs[2]);
-  const col = new Float32Array(mantle.attributes.position.count * 3);
-  const pos = mantle.attributes.position;
-  const back = look.back || [0.42, 0.38, 0.28];
-  const belly = look.belly || [0.62, 0.52, 0.38];
-  for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i);
-    const t = THREE.MathUtils.clamp((y + 0.12) / 0.28, 0, 1);
-    col[i * 3] = back[0] * (1 - t) + belly[0] * t;
-    col[i * 3 + 1] = back[1] * (1 - t) + belly[1] * t;
-    col[i * 3 + 2] = back[2] * (1 - t) + belly[2] * t;
-  }
-  mantle.setAttribute("color", new THREE.BufferAttribute(col, 3));
-  const fin = _fin(0.0, 0.02, 0.12, 0.18, 0.16, look);
-  const fin2 = fin.clone();
-  fin2.rotateZ(Math.PI);
+  _paintLook(mantle, look);
+  const fin = _fin(0.12, 0.0, 0.18, 0.16, 0.02, look);
+  const fin2 = _fin(-0.12, 0.0, 0.18, 0.16, 0.02, look);
   const arms = _tentacles(look);
   const geo = mergeGeometries([mantle, fin, fin2, arms].map(prepare), false);
   geo.computeVertexNormals();
   return geo;
 }
 
+function needleProfile() {
+  return [
+    new THREE.Vector2(0.001, -0.5),
+    new THREE.Vector2(0.028, -0.4),
+    new THREE.Vector2(0.045, -0.12),
+    new THREE.Vector2(0.05, 0.12),
+    new THREE.Vector2(0.038, 0.34),
+    new THREE.Vector2(0.016, 0.48),
+    new THREE.Vector2(0.004, 0.56),
+  ];
+}
+
 function _tentacles(look) {
   const g = new THREE.BufferGeometry();
-  const s = 0.04;
-  const verts = new Float32Array([
-    -s, 0, -0.48, s, 0, -0.48, 0.08, 0, -0.92,
-    s, 0, -0.48, -s, 0, -0.48, -0.08, 0, -0.92,
-    -s * 0.6, 0.02, -0.46, s * 0.6, 0.02, -0.46, 0, -0.04, -0.78,
-    -0.03, -0.02, -0.46, 0.03, -0.02, -0.46, 0.05, 0.06, -0.7,
-  ]);
-  g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
-  g.setIndex([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-  const f = look.fin || [0.48, 0.4, 0.3];
-  const col = new Float32Array(12 * 3);
-  for (let i = 0; i < 12; i++) {
-    col[i * 3] = f[0];
-    col[i * 3 + 1] = f[1];
-    col[i * 3 + 2] = f[2];
+  const verts = [];
+  const idx = [];
+  const n = 8;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const x = Math.cos(a) * 0.05;
+    const y = Math.sin(a) * 0.04;
+    const b = verts.length / 3;
+    verts.push(x, y, -0.42, x * 0.4, y * 0.4, -0.82, x + 0.012, y, -0.42);
+    idx.push(b, b + 1, b + 2);
   }
-  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  verts.push(0.04, -0.01, -0.42, 0.03, -0.02, -1.05, 0.055, 0.0, -0.42);
+  verts.push(-0.04, -0.01, -0.42, -0.03, -0.02, -1.05, -0.055, 0.0, -0.42);
+  const last = verts.length / 3;
+  idx.push(last - 6, last - 5, last - 4, last - 3, last - 2, last - 1);
+  g.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+  g.setIndex(idx);
+  _paintFlat(g, look.fin || [0.48, 0.4, 0.3]);
   return g;
 }
 
-function _latheBody(look) {
-  const profile = [
+function _latheBody(look, profilePts = null) {
+  const profile = (profilePts || [
     new THREE.Vector2(0.001, -0.48),
     new THREE.Vector2(0.05, -0.4),
     new THREE.Vector2(0.09, -0.22),
@@ -95,11 +155,16 @@ function _latheBody(look) {
     new THREE.Vector2(0.09, 0.22),
     new THREE.Vector2(0.045, 0.4),
     new THREE.Vector2(0.012, 0.48),
-  ];
+  ]);
   const g = new THREE.LatheGeometry(profile, 8);
   g.rotateX(-Math.PI / 2);
   const bs = look.body || [0.55, 1.15, 1];
   g.scale(bs[0], bs[1], bs[2]);
+  _paintLook(g, look);
+  return g;
+}
+
+function _paintLook(g, look) {
   const col = new Float32Array(g.attributes.position.count * 3);
   const pos = g.attributes.position;
   const back = look.back || [0.18, 0.28, 0.24];
@@ -112,7 +177,17 @@ function _latheBody(look) {
     col[i * 3 + 2] = back[2] * (1 - t) + belly[2] * t;
   }
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
-  return g;
+}
+
+function _paintFlat(g, rgb) {
+  const n = g.attributes.position.count;
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    col[i * 3] = rgb[0];
+    col[i * 3 + 1] = rgb[1];
+    col[i * 3 + 2] = rgb[2];
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
 }
 
 function _fin(x, y, z, w, h, look) {
@@ -126,6 +201,22 @@ function _fin(x, y, z, w, h, look) {
   g.setIndex([0, 1, 2]);
   const f = look.fin || [0.22, 0.32, 0.3];
   const col = new Float32Array([f[0], f[1], f[2], f[0] * 0.85, f[1] * 0.85, f[2] * 0.85, f[0] * 0.9, f[1] * 0.9, f[2] * 0.9]);
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  return g;
+}
+
+function _wing(look, side) {
+  const g = new THREE.BufferGeometry();
+  const s = side;
+  const verts = new Float32Array([
+    0.04 * s, 0.02, 0.12,
+    0.38 * s, 0.04, -0.02,
+    0.06 * s, -0.01, -0.16,
+  ]);
+  g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+  g.setIndex([0, 1, 2]);
+  const f = look.fin || [0.16, 0.28, 0.42];
+  const col = new Float32Array([f[0], f[1], f[2], f[0] * 0.8, f[1] * 0.85, f[2] * 0.9, f[0] * 0.9, f[1] * 0.9, f[2] * 0.95]);
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
   return g;
 }
@@ -154,14 +245,109 @@ function _tail(look) {
   return g;
 }
 
+function _tailFan(look) {
+  const g = new THREE.BufferGeometry();
+  const verts = new Float32Array([
+    0, 0, -0.4,
+    0.09, 0.02, -0.62,
+    0, 0.04, -0.7,
+    0, 0, -0.4,
+    -0.09, 0.02, -0.62,
+    0, 0.04, -0.7,
+  ]);
+  g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+  g.setIndex([0, 1, 2, 3, 4, 5]);
+  _paintFlat(g, look.fin || [0.7, 0.28, 0.16]);
+  return g;
+}
+
+function _eye(x, y, z, r, look) {
+  const g = new THREE.SphereGeometry(r, 6, 5);
+  g.translate(x, y, z);
+  _paintFlat(g, look.eye || [0.08, 0.1, 0.12]);
+  return g;
+}
+
+function _photophores(look) {
+  const g = new THREE.BufferGeometry();
+  const verts = [];
+  const idx = [];
+  for (let i = 0; i < 6; i++) {
+    const z = -0.28 + i * 0.09;
+    const b = verts.length / 3;
+    verts.push(-0.01, -0.07, z, 0.01, -0.07, z, 0, -0.055, z + 0.02);
+    idx.push(b, b + 1, b + 2);
+  }
+  g.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+  g.setIndex(idx);
+  _paintFlat(g, look.glow || [0.55, 0.85, 0.45]);
+  return g;
+}
+
+function fishSwim(look) {
+  if (look.swim) return look.swim;
+  if (look.shape === "squid") return "jet";
+  if (look.shape === "krill") return "paddle";
+  if (look.shape === "flying") return "fly";
+  if (look.shape === "needle") return "eel";
+  return "tail";
+}
+
+function fishVertex(swim) {
+  if (swim === "jet") {
+    return `
+      vec3 transformed = vec3(position);
+      float pulse = sin(uTime * 9.0 + aPhase);
+      float mantle = smoothstep(-0.22, 0.12, position.z);
+      float radial = 1.0 + pulse * 0.09 * uTail * mantle;
+      transformed.x *= radial;
+      transformed.y *= radial;
+      float arm = 1.0 - mantle;
+      transformed.x += sin(uTime * 9.0 + aPhase - 1.15) * arm * arm * uTail * 0.95;
+      transformed.y += cos(uTime * 7.0 + aPhase) * arm * arm * uTail * 0.38;
+      `;
+  }
+  if (swim === "paddle") {
+    return `
+      vec3 transformed = vec3(position);
+      float tail = smoothstep(0.05, -0.45, position.z);
+      transformed.y += sin(uTime * 22.0 + aPhase) * tail * uTail;
+      transformed.x += sin(uTime * 14.0 + aPhase * 1.7) * 0.02 * uTail;
+      `;
+  }
+  if (swim === "eel") {
+    return `
+      vec3 transformed = vec3(position);
+      float along = smoothstep(0.42, -0.52, position.z);
+      transformed.x += sin(uTime * 14.0 + aPhase - position.z * 8.0) * along * uTail;
+      `;
+  }
+  if (swim === "fly") {
+    return `
+      vec3 transformed = vec3(position);
+      float tail = smoothstep(0.05, -0.5, position.z);
+      transformed.x += sin(uTime * 16.0 + aPhase) * tail * tail * uTail;
+      float wing = smoothstep(0.07, 0.22, abs(position.x));
+      transformed.y += sin(uTime * 28.0 + aPhase) * wing * 0.14 * uTail;
+      `;
+  }
+  return `
+      vec3 transformed = vec3(position);
+      float tail = smoothstep(0.05, -0.5, position.z);
+      transformed.x += sin(uTime * 16.0 + aPhase) * tail * tail * uTail;
+      `;
+}
+
 export function createFishMaterial(uniforms, speciesId = "herring") {
   const look = lookFor(speciesId);
+  const swim = fishSwim(look);
+  const lantern = look.shape === "lantern";
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.38,
-    metalness: 0.28,
-    emissive: 0x143028,
-    emissiveIntensity: 0.18,
+    roughness: look.shape === "squid" || look.shape === "krill" ? 0.5 : 0.38,
+    metalness: look.shape === "squid" ? 0.08 : 0.28,
+    emissive: lantern ? 0x1a4030 : 0x143028,
+    emissiveIntensity: lantern ? 0.32 : 0.18,
   });
   if (!uniforms) return mat;
   const wave = look.wave ?? 0.16;
@@ -178,14 +364,10 @@ export function createFishMaterial(uniforms, speciesId = "herring") {
     );
     shader.vertexShader = shader.vertexShader.replace(
       "#include <begin_vertex>",
-      `
-      vec3 transformed = vec3(position);
-      float tail = smoothstep(0.05, -0.5, position.z);
-      transformed.x += sin(uTime * 16.0 + aPhase) * tail * tail * uTail;
-      `
+      fishVertex(swim)
     );
   };
-  mat.customProgramCacheKey = () => `fish-tail-${speciesId}`;
+  mat.customProgramCacheKey = () => `fish-${speciesId}-${swim}-v2`;
   attachWorldShading(mat, uniforms);
   return mat;
 }

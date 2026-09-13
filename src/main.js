@@ -210,9 +210,12 @@ function bindWorld() {
 }
 
 function addSharkMesh(s) {
+  const spec = SPECIES[s.kind]?.vehicle || {};
   const mesh = createSharkMesh(uniforms, {
     tint: s.tint,
-    form: SPECIES[s.kind]?.vehicle?.mesh || "shark",
+    form: spec.mesh || "shark",
+    kind: s.kind,
+    swim: spec.swim || "tail",
   });
   mesh.userData.fear.visible = fearVisible;
   scene.add(mesh);

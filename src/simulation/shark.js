@@ -16,9 +16,10 @@ const KINDS = [
  * the same seek / pursuit / arrive / wander set as most decent fish
  * and predator sims.
  *
- * Locomotion is burst-and-glide (tail kicks, then a coast) rather than
- * a constant thruster. AI sharks split schools, strike from below, and
- * keep a body-length of water between each other.
+ * Locomotion follows `cfg.gait` and `cfg.swim`: burst-and-glide or ram
+ * for most fishes and sharks, pulse–coast jet for squid, vertical fluke
+ * for cetaceans. AI sharks split schools, strike from below, and keep a
+ * body-length of water between each other.
  */
 export class Shark {
   constructor(opts = {}) {
@@ -84,7 +85,10 @@ export class Shark {
     this.fearStrength = CONFIG.fish.fearWeight;
     this.biteRadius = this.cfg.biteRadius;
     this.bursting = true;
-    this.burstT = 1.2 + Math.random() * 1.8;
+    this.burstT =
+      this.cfg.gait === "jet" || this.cfg.swim === "jet"
+        ? 0.12 + Math.random() * 0.12
+        : 1.2 + Math.random() * 1.8;
     this.glideT = 0;
     this.surfacing = !!this.cfg.breathes && Math.random() < 0.28;
     this.breathT = Math.random() * (this.cfg.diveTime ?? 20);
@@ -96,6 +100,11 @@ export class Shark {
       this.eaten++;
       this.eatEvents.push({ x, y, z, t: 0 });
     };
+  }
+
+  get camRadius() {
+    const len = (this.cfg?.length ?? CONFIG.shark.length) * (this.scale || 1);
+    return Math.max(5, Math.min(64, len * 2.6 + 4));
   }
 
   setControlled(on) {
@@ -135,6 +144,8 @@ export class Shark {
     if (this.controlled) this._player(dt, input, cfg);
     else this._ai(dt, school, cfg, pack, look);
 
+    if (cfg.gait === "jet" || cfg.swim === "jet") this._tickJet(dt);
+
     if (pack) this._fleeHunted(pack, dt);
 
     this.lungeT -= dt;
@@ -157,8 +168,18 @@ export class Shark {
 
     if (pack) this._avoidPack(pack, dt);
 
-    const kick = Math.max(0, Math.sin(this.swimT));
-    const kickForce = kick * kick * (this.lunging ? 9 : 3.1) * this.thrust * this.cruiseMul;
+    const swim = cfg.swim || "tail";
+    let kickForce;
+    if (cfg.gait === "jet" || swim === "jet") {
+      const pulse = this.bursting ? 0.85 + Math.max(0, Math.sin(this.swimT)) * 0.4 : 0.06;
+      kickForce = pulse * (this.lunging ? 14 : 6.4) * this.thrust * this.cruiseMul;
+    } else if (swim === "fluke") {
+      const kick = Math.sin(this.swimT);
+      kickForce = kick * kick * (this.lunging ? 10 : 3.4) * this.thrust * this.cruiseMul;
+    } else {
+      const kick = Math.max(0, Math.sin(this.swimT));
+      kickForce = kick * kick * (this.lunging ? 9 : 3.1) * this.thrust * this.cruiseMul;
+    }
     this.vx += this.fwdX * kickForce * dt;
     this.vy += this.fwdY * kickForce * dt * 0.25;
     this.vz += this.fwdZ * kickForce * dt;
@@ -216,7 +237,12 @@ export class Shark {
     this.mouthZ = this.z + this.fwdZ * mouth;
 
     const spd = Math.hypot(this.vx, this.vy, this.vz);
-    const freq = (0.32 + spd * 0.042) / Math.sqrt(this.scale);
+    let freq;
+    if (swim === "jet") freq = (0.42 + spd * 0.028) / Math.sqrt(this.scale);
+    else if (swim === "fluke") freq = (0.16 + spd * 0.016) / Math.sqrt(this.scale);
+    else if (swim === "thunniform") freq = (0.55 + spd * 0.05) / Math.sqrt(this.scale);
+    else if (swim === "body") freq = (0.28 + spd * 0.03) / Math.sqrt(this.scale);
+    else freq = (0.32 + spd * 0.042) / Math.sqrt(this.scale);
     this.swimT += dt * Math.PI * 2 * freq;
 
     for (let i = this.eatEvents.length - 1; i >= 0; i--) {
@@ -656,7 +682,26 @@ export class Shark {
     this._steer(des.x, des.y, des.z, force, dt);
   }
 
+  _tickJet(dt) {
+    const striking = this.lunging || this.aiMode === "strike";
+    const driven = this.controlled && this.thrust > 0.5;
+    if (this.bursting) {
+      this.burstT -= dt;
+      if (this.burstT <= 0) {
+        this.bursting = false;
+        this.glideT = striking || driven ? 0.16 + Math.random() * 0.18 : 0.5 + Math.random() * 0.85;
+      }
+    } else {
+      this.glideT -= dt;
+      if (this.glideT <= 0) {
+        this.bursting = true;
+        this.burstT = striking || driven ? 0.08 + Math.random() * 0.08 : 0.12 + Math.random() * 0.16;
+      }
+    }
+  }
+
   _tickLocomotion(dt) {
+    if (this.cfg.gait === "jet" || this.cfg.swim === "jet") return;
     if (this.cfg.gait === "ram") {
       this.bursting = true;
       return;
