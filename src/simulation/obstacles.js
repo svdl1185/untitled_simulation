@@ -40,9 +40,10 @@ function syntheticSeafloor(x, z) {
 
 export function seafloorHeight(x, z) {
   const patch = getActivePatch();
-  if (patch && !patch.synthetic && patch.elevation) {
+  if (patch?.elevation) {
+    const detail = patch.lab ? 1.8 : 0.35;
     let y = samplePatchElevation(patch, x, z);
-    y += Math.sin(x * 0.045 + z * 0.02) * 0.35 + Math.sin(x * 0.16 + z * 0.12) * 0.12;
+    y += Math.sin(x * 0.045 + z * 0.02) * detail + Math.sin(x * 0.16 + z * 0.12) * detail * 0.35;
     return y;
   }
   return syntheticSeafloor(x, z);

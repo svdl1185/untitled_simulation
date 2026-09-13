@@ -1322,6 +1322,12 @@ export function emptyPresence() {
   return p;
 }
 
+export function fullPresence(weight = 1) {
+  const p = emptyPresence();
+  for (const id of PRESENCE_IDS) p[id] = weight;
+  return p;
+}
+
 export function schoolTaxaFromPresence(presence) {
   const taxa = [];
   if (!presence) return taxa;
@@ -1356,7 +1362,7 @@ export function forageIdFromPresence(presence) {
 }
 
 /** Split a shared agent cap across every school species in the cell. */
-export function allocateSchoolCounts(cap, taxa) {
+export function allocateSchoolCounts(cap, taxa, minPer = 0) {
   const n = Math.max(0, cap | 0);
   const out = taxa.map((t) => ({ id: t.id, n: 0 }));
   if (!taxa.length || n <= 0) return out;
@@ -1373,11 +1379,15 @@ export function allocateSchoolCounts(cap, taxa) {
     out[i].n = Math.max(0, take);
     used += out[i].n;
   }
-  if (n >= taxa.length) {
+  const floor = Math.max(
+    n >= taxa.length ? 1 : 0,
+    minPer > 0 ? Math.min(minPer, Math.floor(n / taxa.length)) : 0
+  );
+  if (floor > 0) {
     for (let i = 0; i < out.length; i++) {
-      if (out[i].n < 1) {
-        out[i].n = 1;
-        used += 1;
+      if (out[i].n < floor) {
+        used += floor - out[i].n;
+        out[i].n = floor;
       }
     }
   }
@@ -1388,7 +1398,7 @@ export function allocateSchoolCounts(cap, taxa) {
   };
   while (used > n) {
     const b = biggest();
-    if (out[b].n <= 1 && used - 1 < taxa.length) break;
+    if (out[b].n <= floor && used - 1 < taxa.length * Math.max(1, floor)) break;
     out[b].n -= 1;
     used -= 1;
   }

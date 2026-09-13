@@ -741,14 +741,33 @@ export function createShark(i, count, school, kind = "shark") {
     aggression: variant.aggression * (sex === 0 ? 0.96 : 1.05),
     tint: variant.tint,
   });
-  const ang = (i / n) * Math.PI * 2 + 0.55;
-  const r = (kindCfg.gait === "benthic" ? 28 : 46) + i * (kindCfg.gait === "ram" ? 14 : 22);
-  shark.x = school.centroid.x + Math.cos(ang) * r;
-  shark.z = school.centroid.z + Math.sin(ang) * r * 0.85;
-  shark.y =
-    kindCfg.gait === "benthic"
-      ? seafloorHeight(shark.x, shark.z) + kindCfg.floorClearance + 2
-      : school.centroid.y - 2.5 - i * 1.8;
+  const seed = (kind.charCodeAt(0) * 17 + kind.length * 13 + i * 29) % 628;
+  const ang = (i / n) * Math.PI * 2 + seed * 0.01;
+  const world = Math.max(46, Math.min(CONFIG.halfX, CONFIG.halfZ) * 0.38);
+  const r = (kindCfg.gait === "benthic" ? world * 0.35 : world * 0.55) * (0.45 + (i + 1) / (n + 1));
+  shark.x = Math.cos(ang) * r;
+  if (kindCfg.gait === "benthic") {
+    shark.z = (hasBeach() ? CONFIG.beach.startZ : 0) - 120 - (i % 3) * 80;
+  } else if (kindCfg.breathes) {
+    shark.z = Math.sin(ang) * world * 0.4 - world * 0.15;
+  } else if ((kindCfg.maxDepth ?? -400) < -800) {
+    shark.z = -Math.abs(world) * 0.7 + Math.sin(ang) * world * 0.22;
+  } else {
+    shark.z = (school.centroid?.z || 0) + Math.sin(ang) * r * 0.85;
+    shark.x = (school.centroid?.x || 0) + Math.cos(ang) * r;
+  }
+  shark.x = Math.max(-CONFIG.halfX + 24, Math.min(CONFIG.halfX - 24, shark.x));
+  shark.z = Math.max(-CONFIG.halfZ + 24, Math.min(waterMaxZ() - 24, shark.z));
+  if (kindCfg.gait === "benthic") {
+    shark.y = seafloorHeight(shark.x, shark.z) + kindCfg.floorClearance + 2;
+  } else if (kindCfg.breathes) {
+    shark.y = clampHabitatY(-4 - i * 1.4, kindCfg.maxDepth);
+  } else {
+    shark.y = clampHabitatY(
+      (kindCfg.minDepth ?? CONFIG.fish.preferredDepth) - 8 - i * 2,
+      kindCfg.maxDepth
+    );
+  }
   shark.yaw = ang + Math.PI;
   shark.yawLook = shark.yaw;
   shark.fwdX = Math.sin(shark.yaw);
@@ -845,7 +864,8 @@ export function spawnPredators(school, counts = {}) {
     if (!faunaPresent(kind)) continue;
     const cfg = vehicleCfg(kind);
     const raw = counts[kind] !== undefined ? counts[kind] : cfg.count;
-    const count = Math.max(0, Math.min(cfg.max ?? raw, raw | 0));
+    const want = CONFIG.world?.lab ? Math.max(2, raw | 0) : raw | 0;
+    const count = Math.max(0, Math.min(cfg.max ?? want, want));
     for (let i = 0; i < count; i++) pack.push(createShark(i, count, school, kind));
   }
   return pack;

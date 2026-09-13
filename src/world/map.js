@@ -10,7 +10,7 @@ const WATER = "#07090c";
 const SOUTH = -85;
 const NORTH = 85;
 
-export function createOceanMap({ onEnter }) {
+export function createOceanMap({ onEnter, onLab }) {
   const root = document.createElement("div");
   root.id = "ocean-map";
   root.hidden = true;
@@ -18,17 +18,20 @@ export function createOceanMap({ onEnter }) {
     <canvas id="ocean-map-canvas"></canvas>
     <div class="ocean-map-chrome">
       <div class="ocean-map-top">
-        <p class="ocean-map-title">Map</p>
-        <p class="ocean-map-readout" id="ocean-map-readout">Click water to enter a 1 km cell</p>
+        <p class="ocean-map-kicker">untitled_ocean_simulation</p>
+        <p class="ocean-map-title">World ocean</p>
+        <p class="ocean-map-lead">A nested ocean model. Click a kilometre of water to look through the camera. The lab is a 10 km tank with every implemented animal — beach, stepped shelves, a canyon, a seamount, 2000 m of water.</p>
+        <p class="ocean-map-readout" id="ocean-map-readout">Hover water for coordinates and fauna in range</p>
       </div>
       <div class="ocean-map-bottom">
         <p class="ocean-map-status" id="ocean-map-status"></p>
+        <button type="button" id="ocean-map-lab">Catalog tank</button>
         <div class="ocean-map-legend" aria-hidden="true">
           <span>Shelf</span>
           <i></i><i></i><i></i><i></i>
           <span>Abyss</span>
         </div>
-        <p class="ocean-map-attr">Click a cell · Esc, O, or Map to close</p>
+        <p class="ocean-map-attr">1 km cells · Esc returns to the last cell if you have entered one</p>
       </div>
     </div>
   `;
@@ -36,6 +39,7 @@ export function createOceanMap({ onEnter }) {
   const canvas = root.querySelector("#ocean-map-canvas");
   const readout = root.querySelector("#ocean-map-readout");
   const status = root.querySelector("#ocean-map-status");
+  const btnLab = root.querySelector("#ocean-map-lab");
   const ctx = canvas.getContext("2d", { alpha: false });
   const sheet = document.createElement("canvas");
   const sheetCtx = sheet.getContext("2d", { alpha: false });
@@ -224,7 +228,7 @@ export function createOceanMap({ onEnter }) {
   function setHover(geo) {
     hover = geo;
     if (!geo) {
-      readout.textContent = "Click water to enter a 1 km cell";
+      readout.textContent = "Hover water for coordinates and fauna in range";
       draw();
       return;
     }
@@ -239,6 +243,23 @@ export function createOceanMap({ onEnter }) {
     setHover(xyToLonLat(e.clientX - rect.left, e.clientY - rect.top));
   });
   canvas.addEventListener("pointerleave", () => setHover(null));
+  btnLab?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (loading || !onLab) return;
+    loading = true;
+    status.textContent = "Building 10 km catalog tank…";
+    draw();
+    try {
+      await onLab();
+      setOpen(false);
+      status.textContent = "";
+    } catch (err) {
+      status.textContent = err?.message || "Could not open the lab.";
+    } finally {
+      loading = false;
+      draw();
+    }
+  });
   canvas.addEventListener("click", async (e) => {
     if (loading) return;
     const rect = root.getBoundingClientRect();

@@ -13,7 +13,8 @@ export const CONFIG = {
   maxFish: 20000,
   initialFish: 12000,
   schoolCount: 2,
-  maxSchools: 16,
+  maxSchools: 32,
+  schoolMinPer: 0,
   forageId: "herring",
 
   surfaceY: 0,
@@ -28,6 +29,7 @@ export const CONFIG = {
     lon: 3.2,
     synthetic: true,
     statics: true,
+    lab: false,
   },
 
   presence: { ...emptyPresence(), herring: 1, shark: 1, cod: 1 },

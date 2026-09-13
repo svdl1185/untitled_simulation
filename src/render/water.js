@@ -4,7 +4,7 @@ import { seafloorHeight } from "../simulation/obstacles.js";
 import { attachWorldShading } from "./caustics.js";
 
 function _xzExtent() {
-  const pad = 48;
+  const pad = Math.min(80, Math.max(48, CONFIG.halfX * 0.02));
   const minZ = -CONFIG.halfZ - pad * 0.4;
   const maxZ = worldMaxZ() + pad;
   return {
@@ -14,9 +14,13 @@ function _xzExtent() {
   };
 }
 
+function _floorSegs(span) {
+  return Math.min(200, Math.max(96, Math.round(span / 48)));
+}
+
 export function createWaterSurface(uniforms) {
   const ext = _xzExtent();
-  const geo = new THREE.PlaneGeometry(ext.spanX, ext.spanZ, 96, 108);
+  const geo = new THREE.PlaneGeometry(ext.spanX, ext.spanZ, _floorSegs(ext.spanX * 0.45), _floorSegs(ext.spanZ * 0.5));
   geo.rotateX(-Math.PI / 2);
   geo.translate(0, 0, ext.zCenter);
   const shoreZ = CONFIG.beach.shoreZ.toFixed(1);
@@ -112,7 +116,7 @@ export function createWaterSurface(uniforms) {
 
 export function createSeafloor(uniforms) {
   const ext = _xzExtent();
-  const geo = new THREE.PlaneGeometry(ext.spanX, ext.spanZ, 160, 176);
+  const geo = new THREE.PlaneGeometry(ext.spanX, ext.spanZ, _floorSegs(ext.spanX), _floorSegs(ext.spanZ));
   geo.rotateX(-Math.PI / 2);
   geo.translate(0, 0, ext.zCenter);
   const pos = geo.attributes.position;
@@ -166,7 +170,7 @@ function _sandTexture() {
   }
   const tex = new THREE.DataTexture(data, size, size);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(18, 18);
+  tex.repeat.set(Math.max(18, CONFIG.halfX / 14), Math.max(18, CONFIG.halfZ / 14));
   tex.needsUpdate = true;
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;

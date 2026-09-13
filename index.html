@@ -10,21 +10,24 @@
     <canvas id="c"></canvas>
     <div id="vignette"></div>
     <header class="hud-top">
-      <h1 class="brand">untitled_ocean_simulation</h1>
-      <nav class="nav-bar" aria-label="Simulation">
-        <button type="button" id="btn-return" disabled title="Return to the last world map">
-          Return
-        </button>
+      <div class="brand-block">
+        <h1 class="brand">untitled_ocean_simulation</h1>
+        <p class="brand-sub" id="brand-place">World ocean</p>
+      </div>
+      <nav class="nav-bar" aria-label="Observatory">
         <button type="button" id="btn-map" aria-pressed="false">
           Map
           <kbd>O</kbd>
         </button>
+        <button type="button" id="btn-lab" title="10 km catalog tank with every species">
+          Lab
+        </button>
         <button type="button" id="btn-notes" aria-expanded="true" aria-controls="hud-notes-body">
-          Field notes
+          Census
           <kbd>I</kbd>
         </button>
         <button type="button" id="btn-menu" aria-expanded="false" aria-controls="menu">
-          Menu
+          Controls
           <kbd>M</kbd>
         </button>
       </nav>
@@ -42,20 +45,25 @@
     <aside class="hud-right" id="hud-notes">
       <div id="hud-notes-body">
         <section class="hud-panel" id="hud-general">
-          <h3>General</h3>
+          <h3>Cell</h3>
           <div class="hud-stats" id="hud-general-body"></div>
+        </section>
+        <section class="hud-panel" id="hud-census">
+          <h3>Census</h3>
+          <p class="census-hint">Click a name to look at it</p>
+          <div class="census-list" id="hud-census-body"></div>
         </section>
       </div>
     </aside>
     <div id="menu-backdrop" hidden></div>
     <aside id="menu" hidden>
       <div class="menu-head">
-        <h2>Options</h2>
+        <h2>Controls</h2>
         <button type="button" id="btn-menu-close">Close</button>
       </div>
       <div id="menu-body"></div>
     </aside>
-    <p id="pilot-hint">Click an animal · Drag to look · WASD fly · Scroll dolly · I field notes</p>
+    <p id="pilot-hint">Click water on the map to enter a 1 km cell · Lab opens the catalog tank</p>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

@@ -34,10 +34,18 @@ export function cameraHint(mode, piloting, following = false) {
   return "C camera · N next · Drag orbit · Scroll zoom · V free roam";
 }
 
+function cameraSpan() {
+  return Math.hypot(CONFIG.halfX * 2, CONFIG.halfZ * 2, Math.abs(CONFIG.floorY) + 80);
+}
+
 export function createCameraRig(camera) {
-  camera.near = 0.35;
-    camera.far = Math.max(2400, CONFIG.halfX * 6, Math.abs(CONFIG.floorY) + 600);
+  function applyLens() {
+    const span = cameraSpan();
+    camera.near = span > 3500 ? 1.2 : 0.35;
+    camera.far = Math.max(2400, span * 1.25);
     camera.updateProjectionMatrix();
+  }
+  applyLens();
 
   const target = new THREE.Vector3();
   const pan = new THREE.Vector3();
@@ -145,8 +153,7 @@ export function createCameraRig(camera) {
   }
 
   function setExtents() {
-    camera.far = Math.max(2400, CONFIG.halfX * 6, Math.abs(CONFIG.floorY) + 600);
-    camera.updateProjectionMatrix();
+    applyLens();
   }
 
   function jumpToY(y) {
@@ -207,8 +214,8 @@ export function createCameraRig(camera) {
     if (pointer.wheel) {
       camera.position.addScaledVector(_fwd, -pointer.wheel * 0.055);
     }
-    let speed = (input.boost ? 92 : 42) * dt;
-    const vSpeed = (input.boost ? 620 : 260) * dt;
+    let speed = (input.boost ? 92 : 42) * dt * Math.max(1, Math.sqrt(CONFIG.halfX / 240));
+    const vSpeed = (input.boost ? 620 : 260) * dt * Math.max(1, Math.sqrt(Math.abs(CONFIG.floorY) / 110));
     if (input.forward) camera.position.addScaledVector(_fwd, speed);
     if (input.back) camera.position.addScaledVector(_fwd, -speed);
     if (input.right) camera.position.addScaledVector(_right, speed);

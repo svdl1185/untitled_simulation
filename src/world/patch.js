@@ -1,7 +1,8 @@
 import { CONFIG, bindCellFauna, bindColumnHabitat } from "../config.js";
-import { emptyPresence, SPECIES } from "./fauna.js";
+import { emptyPresence, fullPresence, SPECIES } from "./fauna.js";
 
 export const PATCH_SIZE_M = 1000;
+export const LAB_SIZE_M = 10000;
 export const ELEV_NX = 80;
 export const ELEV_NZ = 80;
 
@@ -129,7 +130,8 @@ export function resampleElevation(src, srcNx, srcNz, dstNx, dstNz) {
 }
 
 export function makeElevationPatch(id, originLat, originLon, elevation, nx, nz, extra = {}) {
-  const half = PATCH_SIZE_M / 2;
+  const size = extra.sizeM || PATCH_SIZE_M;
+  const half = size / 2;
   const wet = new Uint8Array(nx * nz);
   let minY = Infinity;
   let maxY = -Infinity;
@@ -158,13 +160,13 @@ export function makeElevationPatch(id, originLat, originLon, elevation, nx, nz, 
     key: id.key,
     originLat,
     originLon,
-    sizeM: PATCH_SIZE_M,
+    sizeM: size,
     nx,
     nz,
     minX: -half,
     minZ: -half,
-    cellX: PATCH_SIZE_M / nx,
-    cellZ: PATCH_SIZE_M / nz,
+    cellX: size / nx,
+    cellZ: size / nz,
     elevation,
     wet,
     floorY,
@@ -175,8 +177,10 @@ export function makeElevationPatch(id, originLat, originLon, elevation, nx, nz, 
     landFrac,
     wetFrac: nWet / Math.max(1, elevation.length),
     hasLand,
-    synthetic: false,
-    statics: false,
+    synthetic: extra.synthetic ?? false,
+    lab: !!extra.lab,
+    boot: !!extra.boot,
+    statics: extra.statics ?? false,
     current: extra.current || { u: 0, v: 0 },
     presence: extra.presence || emptyPresence(),
     note: extra.note || "",
@@ -216,7 +220,114 @@ export function makeSyntheticPatch() {
     note: "Synthetic North Sea shelf (offline fallback).",
     name: "Coastal shelf",
     region: "North Sea–style inner shelf",
+    lab: false,
+    boot: false,
   };
+}
+
+/** Empty cell shown under the world map until the user picks water or the lab. */
+export function makeBootPatch() {
+  const patch = makeSyntheticPatch();
+  patch.boot = true;
+  patch.presence = emptyPresence();
+  patch.name = "World ocean";
+  patch.region = "Pick a 1 km cell";
+  patch.note = "The map is the home screen. Click water to enter a kilometre of ocean.";
+  return patch;
+}
+
+/**
+ * 10 km catalog tank: beach, inner/mid/outer shelves, a canyon to 2000 m,
+ * a slope terrace, and a seamount. Every implemented animal is present.
+ */
+export function makeTestPatch() {
+  const size = LAB_SIZE_M;
+  const nx = 192;
+  const nz = 192;
+  const half = size / 2;
+  const elevation = new Float32Array(nx * nz);
+  for (let iz = 0; iz < nz; iz++) {
+    for (let ix = 0; ix < nx; ix++) {
+      const x = ((ix + 0.5) / nx - 0.5) * size;
+      const z = ((iz + 0.5) / nz - 0.5) * size;
+      elevation[iz * nx + ix] = labFloorY(x, z, half);
+    }
+  }
+  const id = { ix: 0, iz: 0, key: "lab:catalog" };
+  return makeElevationPatch(id, 22.4, -38.2, elevation, nx, nz, {
+    sizeM: size,
+    synthetic: true,
+    lab: true,
+    statics: true,
+    presence: fullPresence(1),
+    name: "Catalog tank",
+    region: "10 km laboratory cell",
+    note: "Not a real place. Every catalogued animal, a beach, stepped shelves, a canyon, a seamount, and a 2000 m basin.",
+  });
+}
+
+/**
+ * Stepped shelves rather than a single ramp. +Z is land.
+ * Inner terrace ~40 m, mid ~110 m, outer ledge ~220 m, slope terrace
+ * ~800 m, basin 2000 m, with a canyon and a seamount cutting the pattern.
+ */
+function labFloorY(x, z, half) {
+  const zn = z / half;
+  let y;
+  if (zn > 0.76) {
+    const u = (zn - 0.76) / 0.24;
+    y = 0.4 + u * 7.2 + Math.sin(x * 0.0035) * 0.9 * u;
+  } else if (zn > 0.68) {
+    const u = (zn - 0.68) / 0.08;
+    y = -6 + u * 6.4;
+  } else if (zn > 0.32) {
+    y = -40 + Math.sin(x * 0.0016) * 4;
+    const channel = Math.exp(-((x - 900) * (x - 900)) / (260 * 260));
+    const along = Math.exp(-((zn - 0.48) * (zn - 0.48)) / (0.07 * 0.07));
+    y -= channel * along * 34;
+  } else if (zn > 0.08) {
+    y = -108 + Math.sin(x * 0.0011 + z * 0.0004) * 6;
+    const ridge = Math.exp(-((x + 700) * (x + 700)) / (380 * 380));
+    const along = Math.exp(-((zn - 0.18) * (zn - 0.18)) / (0.05 * 0.05));
+    y += ridge * along * 36;
+  } else if (zn > -0.04) {
+    const u = (0.08 - zn) / 0.12;
+    const s = u * u * (3 - 2 * u);
+    y = -112 + s * (-220 + 112);
+  } else if (zn > -0.22) {
+    y = -220 + Math.sin(x * 0.0008) * 12;
+  } else if (zn > -0.48) {
+    const u = (-0.22 - zn) / 0.26;
+    const s = u * u * (3 - 2 * u);
+    y = -230 + s * (-820 + 230);
+    y += Math.sin(x * 0.0007 + z * 0.0003) * 28;
+  } else {
+    const u = Math.min(1, (-0.48 - zn) / 0.52);
+    y = -820 - u * 1180;
+  }
+
+  const canyonX = x + (z + 200) * 0.32;
+  const canyon = Math.exp(-(canyonX * canyonX) / (420 * 420));
+  const canyonMouth = zn < 0.18 ? 1 : Math.max(0, 1 - (zn - 0.18) / 0.22);
+  const cut = zn < -0.12 ? 980 : 260;
+  y -= canyon * canyonMouth * cut;
+  y = Math.max(-2000, y);
+
+  const smx = x + 1700;
+  const smz = z + 2700;
+  const seamount = Math.exp(-(smx * smx + smz * smz) / (780 * 780));
+  if (y < -240) {
+    const lift = Math.min(-y - 190, 1550);
+    y += seamount * lift;
+  }
+
+  const knx = x - 2100;
+  const knz = z + 1100;
+  const knoll = Math.exp(-(knx * knx + knz * knz) / (520 * 520));
+  if (zn < -0.05 && y < -500) y += knoll * 260;
+
+  y += Math.sin(x * 0.0022 + z * 0.0014) * 3.5 + Math.sin(x * 0.008) * 1.2;
+  return y;
 }
 
 export function formatLatLon(lat, lon) {
@@ -252,22 +363,48 @@ export function applyPatch(patch) {
   CONFIG.world.lon = patch.originLon;
   CONFIG.world.synthetic = !!patch.synthetic;
   CONFIG.world.statics = !!patch.statics;
+  CONFIG.world.lab = !!patch.lab;
   const next = emptyPresence();
   const src = patch.presence || {};
   for (const id of Object.keys(next)) next[id] = src[id] ?? 0;
-  for (const id of Object.keys(next)) {
-    if (next[id] && SPECIES[id]?.guild === "demersal" && patch.floorY < -650) next[id] = 0;
+  if (!patch.lab) {
+    for (const id of Object.keys(next)) {
+      if (next[id] && SPECIES[id]?.guild === "demersal" && patch.floorY < -650) next[id] = 0;
+    }
   }
   CONFIG.presence = next;
   CONFIG.flow.meanU = patch.current?.u ?? 0;
   CONFIG.flow.meanV = patch.current?.v ?? 0;
+  CONFIG.maxSchools = patch.lab ? 48 : 32;
+  CONFIG.schoolMinPer = patch.lab ? 80 : 0;
+
+  if (patch.lab) {
+    const half = (patch.sizeM || LAB_SIZE_M) / 2;
+    CONFIG.location = "lab-cell";
+    CONFIG.halfX = half;
+    CONFIG.halfZ = half;
+    CONFIG.floorY = patch.floorY;
+    CONFIG.shelfY = patch.shelfY;
+    CONFIG.initialFish = 20000;
+    CONFIG.beach.enabled = true;
+    CONFIG.beach.startZ = half * 0.4;
+    CONFIG.beach.shoreZ = half * 0.68;
+    CONFIG.beach.endZ = half;
+    CONFIG.beach.shoreY = 0.18;
+    CONFIG.beach.duneY = Math.max(4, patch.centerY > 0 ? patch.centerY : 6);
+    bindColumnHabitat(patch.floorY, true);
+    CONFIG.water.turbidity = 0.72;
+    bindCellFauna();
+    return patch;
+  }
 
   if (patch.synthetic) {
-    CONFIG.location = "north-sea-shelf";
+    CONFIG.location = patch.boot ? "world-map" : "north-sea-shelf";
     CONFIG.halfX = STOCK.halfX;
     CONFIG.halfZ = STOCK.halfZ;
     CONFIG.floorY = STOCK.floorY;
     CONFIG.shelfY = STOCK.shelfY;
+    CONFIG.initialFish = 12000;
     Object.assign(CONFIG.beach, STOCK.beach);
     bindColumnHabitat(STOCK.floorY, true);
     CONFIG.thermoY = STOCK.thermoY;
@@ -282,6 +419,7 @@ export function applyPatch(patch) {
   CONFIG.halfZ = PATCH_SIZE_M / 2;
   CONFIG.floorY = patch.floorY;
   CONFIG.shelfY = patch.shelfY;
+  CONFIG.initialFish = 12000;
   bindColumnHabitat(patch.floorY, patch.hasLand);
   if (patch.hasLand) {
     CONFIG.beach.enabled = true;

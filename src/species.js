@@ -6,6 +6,22 @@ import { FAUNA } from "./world/fieldNotes.js";
 export { FAUNA };
 
 export const LOCATIONS = {
+  "world-map": {
+    id: "world-map",
+    name: "World ocean",
+    region: "Pick a 1 km cell",
+    about:
+      "The map is the window onto the basin. Click water to load that kilometre: GEBCO bathymetry, a mean current, and every catalogued animal whose range covers the cell. The lab is a 10 km tank with the whole catalog, for testing coexistence and depth — not a real place.",
+    fauna: Object.values(FAUNA),
+  },
+  "lab-cell": {
+    id: "lab-cell",
+    name: "Catalog tank",
+    region: "10 × 10 km laboratory cell",
+    about:
+      "A synthetic 10 km cell: a beach on +Z, an inner shelf near −40 m, a mid-shelf terrace near −110 m, an outer ledge near −220 m, a slope terrace near −800 m, a canyon and a seamount, and a basin to −2000 m. Every implemented animal is present. School fish share one bloom-capped budget; vehicles spawn in pairs or more. Not a biogeographic range — a test of the model.",
+    fauna: Object.values(FAUNA),
+  },
   "north-sea-shelf": {
     id: "north-sea-shelf",
     name: "Coastal shelf",
@@ -25,7 +41,7 @@ export const LOCATIONS = {
 };
 
 export function getLocation(id = CONFIG.location) {
-  const loc = LOCATIONS[id] || LOCATIONS["north-sea-shelf"];
+  const loc = LOCATIONS[id] || LOCATIONS["world-map"];
   const patch = getActivePatch();
   const fauna = (loc.fauna || []).filter((sp) => faunaPresent(sp.id)).map(localizeFauna);
   if (!patch) return { ...loc, fauna };
@@ -33,11 +49,13 @@ export function getLocation(id = CONFIG.location) {
     ...loc,
     name: patch.name || loc.name,
     region: patch.region || loc.region,
-    about: patch.synthetic
+    about: patch.lab
       ? loc.about
-      : `1 km cell at ${patch.region}. Mean floor ${Math.abs(patch.floorY).toFixed(0)} m. ${
-          fauna.length ? fauna.map((s) => s.common).join(", ") : "No implemented fauna in range."
-        }${patch.note ? ` ${patch.note}` : ""}`,
+      : patch.synthetic
+        ? loc.about
+        : `1 km cell at ${patch.region}. Mean floor ${Math.abs(patch.floorY).toFixed(0)} m. ${
+            fauna.length ? fauna.map((s) => s.common).join(", ") : "No implemented fauna in range."
+          }${patch.note ? ` ${patch.note}` : ""}`,
     fauna,
   };
 }
@@ -70,6 +88,57 @@ function localizeFauna(sp) {
     return { ...sp, common: "Atlantic bluefin", latin: "Thunnus thynnus" };
   }
   return sp;
+}
+
+const CENSUS_GUILD_ORDER = [
+  "Pelagic forage fish",
+  "Benthopelagic forage fish",
+  "Surface forage fish",
+  "Pelagic cephalopod",
+  "Pelagic predator",
+  "Coastal pelagic predator",
+  "Surface pelagic predator",
+  "Demersal predator",
+  "Filter-feeding shark",
+  "Pelagic cephalopod predator",
+  "Mysticete",
+  "Odontocete",
+];
+
+export function censusList(school, sharks = []) {
+  const counts = {};
+  const present = [];
+  for (const spec of Object.values(FAUNA)) {
+    if (!faunaPresent(spec.id)) continue;
+    counts[spec.id] = 0;
+    present.push(localizeFauna(spec));
+  }
+  if (school) {
+    for (let i = 0; i < school.count; i++) {
+      const id = school.taxonId?.(i) || "herring";
+      counts[id] = (counts[id] || 0) + 1;
+    }
+  }
+  for (const s of sharks) {
+    const id = s.kind || "shark";
+    counts[id] = (counts[id] || 0) + 1;
+  }
+  present.sort((a, b) => {
+    const ga = CENSUS_GUILD_ORDER.indexOf(a.guild);
+    const gb = CENSUS_GUILD_ORDER.indexOf(b.guild);
+    const ia = ga < 0 ? 99 : ga;
+    const ib = gb < 0 ? 99 : gb;
+    if (ia !== ib) return ia - ib;
+    return a.common.localeCompare(b.common);
+  });
+  return present.map((spec) => ({
+    id: spec.id,
+    common: spec.common,
+    latin: spec.latin,
+    guild: spec.guild,
+    count: counts[spec.id] || 0,
+    agent: SPECIES[spec.id]?.agent || "school",
+  }));
 }
 
 function faunaOf(id) {

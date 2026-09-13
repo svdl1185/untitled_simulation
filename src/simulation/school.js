@@ -200,10 +200,24 @@ export class School {
   _home(s) {
     const n = Math.max(1, this.initialSchools);
     const a = (s / n) * Math.PI * 2 + 0.31;
+    const cfg = this.shoalCfg(s);
+    if (CONFIG.world?.lab) {
+      const deep = (cfg.maxDepth ?? -400) < -250 || cfg.social === "scatter";
+      const surface = (cfg.anchorTop ?? -8) > -6 || cfg.social === "loose";
+      const rx = CONFIG.halfX * 0.4;
+      let zc = 240;
+      if (surface) zc = CONFIG.halfZ * 0.28;
+      else if (deep) zc = -CONFIG.halfZ * 0.42;
+      return {
+        x: Math.cos(a) * rx,
+        y: (cfg.preferredDepth ?? CONFIG.fish.preferredDepth) + (s % 2 === 0 ? -2 : 2.5),
+        z: zc + Math.sin(a) * CONFIG.halfZ * 0.1,
+        heading: a + Math.PI * 0.5,
+      };
+    }
     const rx = CONFIG.halfX * 0.49;
     const rz = CONFIG.halfZ * 0.31;
     const zOff = hasBeach() ? -CONFIG.halfZ * 0.32 : 0;
-    const cfg = this.shoalCfg(s);
     return {
       x: Math.cos(a) * rx,
       y: (cfg.preferredDepth ?? CONFIG.fish.preferredDepth) + (s % 2 === 0 ? -2 : 2.5),
@@ -226,15 +240,14 @@ export class School {
     this._alarm.fill(0);
     this.schoolHunger.fill(0.4);
 
-    const nTaxa = Math.max(1, this.taxa.length);
-    const slots = [];
+    const slots = this.taxa.map(() => []);
     let used = 0;
     for (let t = 0; t < this.taxa.length && used < this.maxSchools; t++) {
+      slots[t].push(used++);
+    }
+    for (let t = 0; t < this.taxa.length && used < this.maxSchools; t++) {
       const want = Math.max(1, this._tcfg[t]?.groups ?? 2);
-      const n = Math.min(want, this.maxSchools - used);
-      const list = [];
-      for (let k = 0; k < n; k++, used++) list.push(used);
-      slots.push(list);
+      while (slots[t].length < want && used < this.maxSchools) slots[t].push(used++);
     }
     if (!slots.length) slots.push([0]);
     this.initialSchools = Math.max(1, used);
@@ -270,7 +283,7 @@ export class School {
       this.schoolN[s] = 0;
     }
 
-    const alloc = allocateSchoolCounts(n, this.taxa);
+    const alloc = allocateSchoolCounts(n, this.taxa, CONFIG.schoolMinPer || 0);
     const nY = 5;
     let i = 0;
     for (let t = 0; t < alloc.length; t++) {

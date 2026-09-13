@@ -61,10 +61,11 @@ export const MENU = [
       {
         id: "oceanMap",
         kind: "toggle",
-        label: "Ocean map",
-        hint: "Pick a 1 km ocean cell · also in the navbar",
+        label: "World map",
+        hint: "Home screen · pick a 1 km cell",
         key: "O",
       },
+      { id: "lab", kind: "action", label: "Catalog tank", hint: "10 km cell with every species" },
       {
         id: "currents",
         kind: "toggle",
@@ -109,18 +110,18 @@ export const MENU = [
 ];
 
 const KEY_HELP = [
-  ["M / Tab", "Open or close this menu"],
-  ["O", "Ocean map"],
-  ["Return", "Reopen the last world map"],
-  ["K", "Lamp (night fill)"],
-  ["Click", "Select a predator, fish, or school"],
-  ["I", "Open or close field notes"],
+  ["M / Tab", "Open or close this panel"],
+  ["O", "World map (home)"],
+  ["I", "Census and cell readout"],
+  ["Click census", "Jump to that animal"],
+  ["Click water", "Enter a 1 km cell"],
+  ["Click animal", "Field notes on that individual"],
   ["Drag", "Look around · orbit when following"],
   ["Scroll", "Zoom or dolly"],
   ["Right-drag", "Pan · Shift-drag also pans"],
   ["C", "Follow camera (after Follow)"],
   ["N", "Next followed animal"],
-  ["V / Esc", "Free roam"],
+  ["V / Esc", "Free roam · Esc also closes map if a cell is open"],
   ["WASD", "Move · E/Q rise/dive · G depth zone · Shift boost · Space lunge"],
 ];
 
@@ -159,11 +160,13 @@ export function createHUD() {
   const btnMenu = document.getElementById("btn-menu");
   const btnClose = document.getElementById("btn-menu-close");
   const btnMap = document.getElementById("btn-map");
-  const btnReturn = document.getElementById("btn-return");
+  const btnLab = document.getElementById("btn-lab");
   const hint = document.getElementById("pilot-hint");
   const notes = document.getElementById("hud-notes");
   const btnNotes = document.getElementById("btn-notes");
   const generalBody = document.getElementById("hud-general-body");
+  const censusBody = document.getElementById("hud-census-body");
+  const brandPlace = document.getElementById("brand-place");
   const subjectPanel = document.getElementById("hud-subject");
   const subjectKind = document.getElementById("hud-subject-kind");
   const subjectTitle = document.getElementById("hud-subject-title");
@@ -171,17 +174,22 @@ export function createHUD() {
   const subjectBody = document.getElementById("hud-subject-body");
   const subjectNotes = document.getElementById("hud-subject-notes");
   const btnFollow = document.getElementById("hud-follow");
-  const generalRows = bindStats(generalBody);
-  const subjectRows = bindStats(subjectBody);
-  const noteRows = bindNotes(subjectNotes);
-
   const fields = new Map();
   const handlers = new Map();
   const values = {};
+  const generalRows = bindStats(generalBody);
+  const censusRows = bindCensus(censusBody, (id) => {
+    const fn = handlers.get("focusSpecies");
+    if (fn) fn(id);
+  });
+  const subjectRows = bindStats(subjectBody);
+  const noteRows = bindNotes(subjectNotes);
+
   let open = false;
   let notesOpen = true;
   let cameraLive = false;
-  let mapSeen = false;
+  let mapSeen = true;
+  let entered = false;
   body.replaceChildren();
 
   for (const section of MENU) {
@@ -254,7 +262,10 @@ export function createHUD() {
       btnMap.classList.toggle("on", mapOn);
       btnMap.setAttribute("aria-pressed", mapOn ? "true" : "false");
     }
-    if (btnReturn) btnReturn.disabled = mapOn || !mapSeen;
+    if (btnLab) {
+      btnLab.classList.toggle("on", false);
+      btnLab.disabled = false;
+    }
     if (btnNotes) {
       btnNotes.classList.toggle("on", notesOpen);
       btnNotes.setAttribute("aria-expanded", notesOpen ? "true" : "false");
@@ -347,11 +358,7 @@ export function createHUD() {
     set("oceanMap", next);
     emit("oceanMap", next);
   });
-  btnReturn?.addEventListener("click", () => {
-    if (values.oceanMap || !mapSeen) return;
-    set("oceanMap", true);
-    emit("oceanMap", true);
-  });
+  btnLab?.addEventListener("click", () => emit("lab", true));
   btnFollow.addEventListener("click", () => emit("followSubject", true));
   setCameraLive(false);
   syncNav();
@@ -425,6 +432,10 @@ export function createHUD() {
       hint.textContent = text;
     },
     setCameraLive,
+    setEntered(on) {
+      entered = !!on;
+      syncNav();
+    },
     setSelectOptions(id, options, value) {
       const item = findItem(id);
       const field = fields.get(id);
@@ -451,6 +462,10 @@ export function createHUD() {
         label: "FPS",
         value: String(fpsVal),
       }));
+      censusRows.set(view.census || []);
+      if (brandPlace) {
+        brandPlace.textContent = values.oceanMap ? "World ocean" : view.placeName || brandPlace.textContent;
+      }
       const subject = view.subject;
       if (!subject) {
         subjectPanel.hidden = true;
@@ -470,6 +485,76 @@ export function createHUD() {
       if (view.day) {
         if (values.liveClock) set("hour", Number(view.day.hour.toFixed(2)));
         else render("hour");
+      }
+    },
+  };
+}
+
+function bindCensus(root, onPick) {
+  if (!root) {
+    return { set() {} };
+  }
+  const rows = new Map();
+  const heads = new Map();
+  let layoutKey = "";
+  return {
+    set(list) {
+      const items = (list || []).filter((item) => item?.id);
+      const nextKey = items.map((item) => `${item.guild || ""}:${item.id}`).join("|");
+      const rebuild = nextKey !== layoutKey;
+      const seen = new Set();
+      const seenGuild = new Set();
+      let lastGuild = "";
+      for (const item of items) {
+        if (item.guild && item.guild !== lastGuild) {
+          lastGuild = item.guild;
+          seenGuild.add(lastGuild);
+          let head = heads.get(lastGuild);
+          if (!head) {
+            head = el("h4", { class: "census-guild", text: lastGuild });
+            heads.set(lastGuild, head);
+          }
+          if (rebuild) root.append(head);
+        }
+        seen.add(item.id);
+        let row = rows.get(item.id);
+        if (!row) {
+          const id = item.id;
+          const name = el("span", { class: "census-name" });
+          const count = el("strong", { class: "census-count" });
+          const btn = el("button", {
+            type: "button",
+            class: "census-row",
+            "data-id": id,
+          }, [name, count]);
+          btn.addEventListener("pointerdown", (e) => e.stopPropagation());
+          btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onPick(id);
+          });
+          row = { btn, name, count };
+          rows.set(id, row);
+        }
+        if (row.name.textContent !== item.common) row.name.textContent = item.common;
+        const next = item.count == null ? "—" : Number(item.count).toLocaleString();
+        if (row.count.textContent !== next) row.count.textContent = next;
+        row.btn.disabled = !item.count;
+        row.btn.title = item.latin ? `${item.latin} · click to look` : "Click to look";
+        if (rebuild) root.append(row.btn);
+      }
+      if (rebuild) {
+        for (const [id, row] of rows) {
+          if (seen.has(id)) continue;
+          row.btn.remove();
+          rows.delete(id);
+        }
+        for (const [guild, head] of heads) {
+          if (seenGuild.has(guild)) continue;
+          head.remove();
+          heads.delete(guild);
+        }
+        layoutKey = nextKey;
       }
     },
   };
