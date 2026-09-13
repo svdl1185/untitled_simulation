@@ -7,8 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "preview:pages": "npm run build && npx wrangler pages dev dist",
     "test": "node src/simulation/viability.test.js && node src/simulation/column.test.js",
     "viability": "node src/simulation/viabilityRun.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "three": "^0.185.1"

@@ -11,6 +11,8 @@ npm run dev
 
 Open the URL Vite prints. The **world map** is home. Click water to load that kilometre (GEBCO floor, a mean current, every catalogued animal whose range and thermal niche cover the cell). Land is not a cell. **Catalog tank** is a 10 km lab with the whole catalog, a beach, stepped shelves, a canyon, a seamount, and 2000 m of water — for coexistence and depth, not a real place.
 
+The public host is Cloudflare Pages. Atlas paths `/gebco`, `/gmrt`, `/hycom` are the same in `npm run dev` and in production (Vite proxy locally, Pages Functions on the edge). Attach a domain: [`docs/deploy.md`](docs/deploy.md).
+
 Menu: `M` / `Tab`. Toggles start off. Prefer a physical control (turbidity, SST anomaly) over a cosmetic one.
 
 ## Mission
@@ -21,7 +23,7 @@ Light sets photosynthesis. Photosynthesis sets plankton. Plankton, temperature, 
 
 The long-term target is a single catalog plus presence plus shared budgets that can hold any ocean ecosystem — pelagic, mesopelagic, demersal, polar, upwelling — without a second 20k boid loop. Near the camera: agents. Kilometres out: density. Basin: Eulerian fields.
 
-How to add an animal: [`.cursor/rules/species.mdc`](.cursor/rules/species.mdc). Architecture for agents: [`.cursor/rules/mission.mdc`](.cursor/rules/mission.mdc). Keep this README in the same commit as the feature: [`.cursor/rules/readme.mdc`](.cursor/rules/readme.mdc).
+How to add an animal: [`.cursor/rules/species.mdc`](.cursor/rules/species.mdc). Architecture for agents: [`.cursor/rules/mission.mdc`](.cursor/rules/mission.mdc). Keep this README in the same commit as the feature: [`.cursor/rules/readme.mdc`](.cursor/rules/readme.mdc). Public deploy: [`docs/deploy.md`](docs/deploy.md).
 
 ## What is coupled now
 
