@@ -1,6 +1,6 @@
 import { formatLatLon } from "./patch.js";
 import { gebcoMapUrl, fetchCurrentField } from "./atlas.js";
-import { presenceAt, presentLabel } from "./ranges.js";
+import { presenceAt, presentNames } from "./ranges.js";
 import { topoPolygons } from "./topo.js";
 
 const INK = "#e7f4f2";
@@ -10,7 +10,7 @@ const WATER = "#07090c";
 const SOUTH = -85;
 const NORTH = 85;
 
-export function createOceanMap({ onEnter, onLab }) {
+export function createOceanMap({ onEnter }) {
   const root = document.createElement("div");
   root.id = "ocean-map";
   root.hidden = true;
@@ -20,12 +20,12 @@ export function createOceanMap({ onEnter, onLab }) {
       <div class="ocean-map-top">
         <p class="ocean-map-kicker">untitled_ocean_simulation</p>
         <p class="ocean-map-title">World ocean</p>
-        <p class="ocean-map-lead">A nested ocean model. Click a kilometre of water to look through the camera. The lab is a 10 km tank with every implemented animal — beach, stepped shelves, a canyon, a seamount, 2000 m of water.</p>
+        <p class="ocean-map-lead">A nested ocean model. Click a kilometre of water to look through the camera. Lab is a 10 km tank with every implemented animal — beach, stepped shelves, a canyon, a seamount, 2000 m of water.</p>
         <p class="ocean-map-readout" id="ocean-map-readout">Hover water for coordinates and fauna in range</p>
+        <p class="ocean-map-fauna" id="ocean-map-fauna"></p>
       </div>
       <div class="ocean-map-bottom">
         <p class="ocean-map-status" id="ocean-map-status"></p>
-        <button type="button" id="ocean-map-lab">Catalog tank</button>
         <div class="ocean-map-legend" aria-hidden="true">
           <span>Shelf</span>
           <i></i><i></i><i></i><i></i>
@@ -38,8 +38,8 @@ export function createOceanMap({ onEnter, onLab }) {
   document.body.append(root);
   const canvas = root.querySelector("#ocean-map-canvas");
   const readout = root.querySelector("#ocean-map-readout");
+  const faunaList = root.querySelector("#ocean-map-fauna");
   const status = root.querySelector("#ocean-map-status");
-  const btnLab = root.querySelector("#ocean-map-lab");
   const ctx = canvas.getContext("2d", { alpha: false });
   const sheet = document.createElement("canvas");
   const sheetCtx = sheet.getContext("2d", { alpha: false, willReadFrequently: true });
@@ -243,14 +243,15 @@ export function createOceanMap({ onEnter, onLab }) {
       readout.textContent = landHit
         ? "Land · pick water"
         : "Hover water for coordinates and fauna in range";
+      faunaList.textContent = "";
       draw();
       return;
     }
     hover = geo;
     canvas.style.cursor = "crosshair";
-    const fauna = presenceAt(geo.lat, geo.lon);
-    const who = presentLabel(fauna, 4);
-    readout.textContent = `${formatLatLon(geo.lat, geo.lon)} · ${who}`;
+    const who = presentNames(presenceAt(geo.lat, geo.lon));
+    readout.textContent = formatLatLon(geo.lat, geo.lon);
+    faunaList.textContent = who.length ? who.join(", ") : "no implemented fauna";
     draw();
   }
 
@@ -261,23 +262,6 @@ export function createOceanMap({ onEnter, onLab }) {
     setHover(xyToLonLat(px, py), sampleLand(px, py));
   });
   canvas.addEventListener("pointerleave", () => setHover(null, false));
-  btnLab?.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    if (loading || !onLab) return;
-    loading = true;
-    status.textContent = "Building 10 km catalog tank…";
-    draw();
-    try {
-      await onLab();
-      setOpen(false);
-      status.textContent = "";
-    } catch (err) {
-      status.textContent = err?.message || "Could not open the lab.";
-    } finally {
-      loading = false;
-      draw();
-    }
-  });
   canvas.addEventListener("click", async (e) => {
     if (loading) return;
     const rect = root.getBoundingClientRect();

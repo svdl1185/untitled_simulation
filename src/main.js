@@ -339,7 +339,6 @@ hud.setHint(cameraHint(CAM.FREE, false, false));
 const world = new WorldStream();
 const oceanMap = createOceanMap({
   onEnter: enterCell,
-  onLab: enterLab,
 });
 
 let cellEntered = false;

@@ -617,13 +617,15 @@ export function faunaIdsPresent(lat, lon) {
   return ids;
 }
 
-export function presentLabel(presence, limit = 4) {
+export function presentNames(presence) {
   const who = [];
   for (const id of Object.keys(presence || {})) {
     if ((presence[id] ?? 0) > 0.05) who.push(speciesLabel(id));
   }
-  if (!who.length) return "no implemented fauna";
-  const cap = Math.max(1, limit | 0);
-  if (who.length <= cap) return who.join(", ");
-  return `${who.slice(0, cap).join(", ")} +${who.length - cap} more`;
+  return who;
+}
+
+export function presentLabel(presence) {
+  const who = presentNames(presence);
+  return who.length ? who.join(", ") : "no implemented fauna";
 }

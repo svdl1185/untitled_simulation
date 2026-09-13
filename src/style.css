@@ -425,8 +425,7 @@ h3 {
 #btn-map,
 #btn-lab,
 .menu-action,
-.switch,
-#ocean-map-lab {
+.switch {
   appearance: none;
   background: var(--panel);
   color: var(--ink);
@@ -552,6 +551,7 @@ kbd {
 }
 
 .ocean-map-readout,
+.ocean-map-fauna,
 .ocean-map-status,
 .ocean-map-attr {
   margin: 6px 0 0;
@@ -560,11 +560,14 @@ kbd {
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85);
 }
 
-.ocean-map-readout {
-  max-width: min(28rem, 62vw);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.ocean-map-readout,
+.ocean-map-fauna {
+  max-width: 34rem;
+}
+
+.ocean-map-fauna {
+  line-height: 1.45;
+  color: var(--muted);
 }
 
 .ocean-map-status {
@@ -576,25 +579,6 @@ kbd {
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-}
-
-#ocean-map-lab {
-  pointer-events: auto;
-  appearance: none;
-  border-radius: 2px;
-  padding: 8px 14px;
-  font: inherit;
-  font-size: 13px;
-  color: var(--ink);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  cursor: pointer;
-  backdrop-filter: blur(12px);
-}
-
-#ocean-map-lab:hover {
-  background: rgba(90, 200, 190, 0.18);
-  border-color: rgba(160, 230, 220, 0.4);
 }
 
 .ocean-map-legend {
