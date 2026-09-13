@@ -18,6 +18,11 @@ export const FAUNA = {
     missing: [
       "Seals and gannets are not agents; the day dive is the refuge those visual hunters would create.",
       "Temperature and spawning grounds are not fields yet.",
+      "Seasonal feeding–spawning migration (Norwegian Sea, Georges Bank, Baltic) is a range hull, not a swim between cells.",
+      "Gravel-bank spawning, egg beds, and larval drift are not a season — recruits appear when the bloom can carry the mixed forage budget.",
+      "Natal homing and stock structure are not states.",
+      "The lateral line and vision are neighbour forces, not separate senses.",
+      "Overwintering as dense inactive layers in fjords is not a programme.",
     ],
   },
   capelin: {
@@ -34,6 +39,10 @@ export const FAUNA = {
     missing: [
       "Beach spawning and bird predation are not agents.",
       "Ice cover is not a field.",
+      "Semelparity (many stocks spawn once and die) is not a life-history — they recruit and starve like any other school fish.",
+      "Males do not grow spawning ridges or a hooked lower jaw; sex is a size tint.",
+      "The beach rolling run onto the strand is not a state.",
+      "Post-spawn carcass pulses that feed bears and birds on the beach are not a budget.",
     ],
   },
   menhaden: {
@@ -50,6 +59,10 @@ export const FAUNA = {
     missing: [
       "Direct phytoplankton bites are not wired; graze still pulls z.",
       "Striped bass and coastal birds are not agents.",
+      "Estuarine nurseries and larval ingress through inlets are not a habitat.",
+      "Gill-raker particle-size filtering is a graze multiplier, not a filter on p versus z.",
+      "Hypoxic dead-zone avoidance is not a field.",
+      "The reduction fishery is not mortality.",
     ],
   },
   sardine: {
@@ -63,7 +76,12 @@ export const FAUNA = {
       "Pacific and southern-hemisphere sardine, typically 15–25 cm. Tight, fast shoals in eastern-boundary currents. Usually in the upper 100 m; recorded near 200 m. Co-occurs with anchovy.",
     program:
       "Polarized clupeid shoal. Type II graze on z. Empty in the North Sea is a range gate.",
-    missing: ["Temperature-driven stock collapses are not a field."],
+    missing: [
+      "Temperature-driven stock collapses are not a field.",
+      "Sardine–anchovy regime alternation is not a two-stock oscillator.",
+      "Spawning in offshore upwelling filaments is not a season.",
+      "Tight balling under bird attack is the same polarized school, not a distinct compression.",
+    ],
   },
   pilchard: {
     id: "pilchard",
@@ -75,7 +93,11 @@ export const FAUNA = {
     about:
       "Northeast Atlantic, Mediterranean, and northwest African upwelling. Typically 15–25 cm. Day depths tens of metres; recorded to about 150 m. Overlaps herring at the Celtic / Biscay edge.",
     program: "Polarized shoal. Type II graze on z.",
-    missing: ["Purse-seine fishing mortality is not in the budget."],
+    missing: [
+      "Purse-seine fishing mortality is not in the budget.",
+      "Coastwise migration along Iberia and the Canary Current is a range hull, not a swim.",
+      "Egg buoyancy and larval drift are not a field.",
+    ],
   },
   anchovy: {
     id: "anchovy",
@@ -87,7 +109,13 @@ export const FAUNA = {
     about:
       "Small engraulid, typically 8–16 cm. Coastal upwelling. Usually above 100 m; recorded to about 150 m. Latin follows the cell: ringens (Humboldt), mordax (California), japonicus (Kuroshio), encrasicolus (Europe).",
     program: "Slender polarized shoal. Type II graze on z. Competes with sardine where both hulls cover the kilometre.",
-    missing: ["Egg and larval stages are not agents."],
+    missing: [
+      "Egg and larval stages are not agents.",
+      "Lunar batch spawning is not a clock.",
+      "Humboldt El Niño collapses are not an ENSO or temperature field.",
+      "Cannibalism on eggs is not a bite.",
+      "The inshore–offshore split versus sardine is hull overlap, not two depth programmes.",
+    ],
   },
   sardinella: {
     id: "sardinella",
@@ -99,7 +127,11 @@ export const FAUNA = {
     about:
       "Tropical Atlantic, Caribbean, Gulf of Guinea, and Indian Ocean. Typically 15–25 cm. Upper 100–200 m. The forage that occupies warm water herring never reach.",
     program: "Polarized tropical shoal. Type II graze on z.",
-    missing: ["Indian oil sardine is the same id with a localized latin name, not a second loop."],
+    missing: [
+      "Indian oil sardine is the same id with a localized latin name, not a second loop.",
+      "Monsoon-driven inshore/offshore shifts are a range hull, not a swim.",
+      "Round versus flat sardinella (S. maderensis) is not a second taxon.",
+    ],
   },
   mackerel: {
     id: "mackerel",
@@ -115,6 +147,9 @@ export const FAUNA = {
     missing: [
       "Piscivory on herring, sprat, and sand lance is not wired.",
       "Pacific chub mackerel is this id with a localized name, not a second species loop.",
+      "Ram-filter feeding through copepod patches is Type II graze, not a ram-filter gait.",
+      "Summer feeding migrations into the North Sea and Norwegian Sea are a hull, not a commute.",
+      "Overwintering in deep water off the shelf edge is not a seasonal state.",
     ],
   },
   flyingfish: {
@@ -131,6 +166,9 @@ export const FAUNA = {
     missing: [
       "Aerial gliding is not simulated.",
       "Gannets and other birds are not agents; common dolphin and mahi are the surface bites that exist.",
+      "The taxi-then-glide (tail-beats on the surface, then airborne) is not a state — fear only swims.",
+      "Eggs with filaments stuck to flotsam are not objects.",
+      "Wind-relative glide heading is not a cue.",
     ],
   },
   sprat: {
@@ -143,7 +181,12 @@ export const FAUNA = {
     about:
       "Northeast Atlantic and Baltic clupeid, typically 8–16 cm. Smaller and shallower than herring. Usually above 100 m; recorded to about 150 m. Shares the North Sea with herring and sand lance.",
     program: "Tight polarized shoal. Type II graze on z. Smaller catalog share so it does not fill the 20k budget alone.",
-    missing: ["Baltic salinity is not a field."],
+    missing: [
+      "Baltic salinity is not a field.",
+      "Spring and autumn spawning pulses are not a season.",
+      "Hypoxia-driven vertical squeeze in Baltic basins is not a field.",
+      "Mixed herring–sprat schools in nature are species-pure shoals here.",
+    ],
   },
   sandlance: {
     id: "sandlance",
@@ -159,6 +202,9 @@ export const FAUNA = {
     missing: [
       "Burying in sand is not a state — they stay in the water.",
       "Seabird predation is not an agent.",
+      "Diurnal bury/emerge (in the bed by day, out at dusk in many stocks) is not a schedule.",
+      "Sediment grain-size as habitat is not a field.",
+      "Winter dormancy in the sand is not a season.",
     ],
   },
   polarcod: {
@@ -174,6 +220,10 @@ export const FAUNA = {
     missing: [
       "Sea ice, beluga, and Greenland shark are not in the catalog.",
       "Under-ice habitat is not a field.",
+      "Cryopelagic feeding on ice-algal copepods is not a food.",
+      "Antifreeze and subzero water are not a temperature field.",
+      "Polar-night light climate is still the epipelagic day/night clock.",
+      "Under-ice spawning is not a season.",
     ],
   },
   silverfish: {
@@ -189,6 +239,10 @@ export const FAUNA = {
     missing: [
       "Penguins are not agents.",
       "Krill is now a school taxon where hulls overlap; silverfish still graze z, not krill bites.",
+      "Neutral buoyancy from high muscle lipid (no swim bladder) is just a fish integrator.",
+      "Platelet-ice and under-ice winter habitat are not a field.",
+      "Ontogenetic depth split (larvae versus adults) is not a stage.",
+      "Weddell seals are not agents.",
     ],
   },
   saury: {
@@ -201,7 +255,12 @@ export const FAUNA = {
     about:
       "North Pacific scomberesocid, typically 20–30 cm. Surface to about 50 m. Loose aggregations, not a polarized lattice. Migrates with the Kuroshio / Oyashio.",
     program: "Loose surface aggregation on the shared grid. Type II graze on z.",
-    missing: ["Seasonal north–south migration is a range hull, not a swim."],
+    missing: [
+      "Seasonal north–south migration is a range hull, not a swim.",
+      "Night-light attraction (the stick-held dip-net fishery) is not a cue.",
+      "The Oyashio–Kuroshio front is not a temperature field.",
+      "Surface skipping and jumping are not a behaviour.",
+    ],
   },
   marketsquid: {
     id: "marketsquid",
@@ -218,6 +277,11 @@ export const FAUNA = {
       "Piscivory on small fish is not a bite.",
       "Spawning aggregations and die-off are not a season.",
       "Sea lions are not agents.",
+      "Chromatophore displays are not a state.",
+      "Jet-and-fin locomotion is scatter swimming, not a jet integrator.",
+      "Ink as a decoy is not a behaviour.",
+      "Mating chains and benthic egg mops are not objects.",
+      "Paralarvae are not agents.",
     ],
   },
   lanternfish: {
@@ -235,6 +299,10 @@ export const FAUNA = {
       "A true mesopelagic optical story (dark water, photophore lighting) is not in the shader.",
       "Oxygen-minimum habitat is not a field.",
       "Family is one catalog id, not thirty myctophid species.",
+      "Species-specific photophore patterns are not a mate cue.",
+      "Ventral counterillumination is not rendered.",
+      "Lunar inhibition of DVM is not a clock.",
+      "Swimbladder resonance (the acoustic deep-scattering layer) is not a sense.",
     ],
   },
   krill: {
@@ -251,6 +319,11 @@ export const FAUNA = {
     missing: [
       "Krill as a basin-scale density field is not this agent set.",
       "Ice-edge blooms are not a season.",
+      "Swarm densities of thousands per cubic metre are a scatter school, not a super-swarm field.",
+      "Filter-basket feeding is Type II graze on p, not an appendage model.",
+      "Antarctic overwintering under ice and lipid storage are not a season.",
+      "Calyptopis / furcilia larvae and moulting stanzas are not stages.",
+      "Photophore flashing is not a cue.",
     ],
   },
   jackmackerel: {
@@ -264,7 +337,11 @@ export const FAUNA = {
       "Carangid forage of eastern-boundary currents, typically 20–50 cm. Deeper and larger than sardine. Humboldt (murphyi), California (symmetricus), Japan (japonicus), New Zealand (declivis). Usually the upper 150 m; recorded near 300 m. Prey for tunas and Humboldt squid.",
     program:
       "Polarized shoal, not a Scomber clone: different hulls, a deeper day band, and a Humboldt-squid huntTaxa slot. Type II graze on z.",
-    missing: ["Piscivory on anchoveta is not a school-on-school bite."],
+    missing: [
+      "Piscivory on anchoveta is not a school-on-school bite.",
+      "The oceanic jack-mackerel-belt spawning is a hull, not a swim.",
+      "Seamount aggregations are not landmarks.",
+    ],
   },
   illex: {
     id: "illex",
@@ -277,7 +354,13 @@ export const FAUNA = {
       "Ommastrephid squid of the Atlantic. Northern shortfin (illecebrosus) from the Grand Banks to the Mid-Atlantic; Argentine shortfin (argentinus) on the Patagonian shelf. Typically 20–40 cm mantle. Night near the surface; day a few hundred metres. Recorded to about 600 m. The Atlantic squid sperm whales actually meet.",
     program:
       "Scatter school squid, same programme as market squid but an Atlantic hull and a deeper day refuge. Type II graze on z. Sperm huntTaxa includes this id.",
-    missing: ["Shelf-break spawning and the fishery are not a season."],
+    missing: [
+      "Shelf-break spawning and the fishery are not a season.",
+      "Chromatophores, ink, and jet locomotion are scatter swimming, not cephalopod displays.",
+      "Semelparity after spawning is not a death programme.",
+      "Onshore–offshore ontogenetic migration is a hull, not a swim.",
+      "Cannibalism is not a bite.",
+    ],
   },
   shark: {
     id: "shark",
@@ -293,6 +376,11 @@ export const FAUNA = {
     missing: [
       "Humboldt squid are a vehicle sperm whales hunt; blue sharks do not bite vehicles.",
       "Carrion and seabirds are not food items.",
+      "Transoceanic pupping-versus-feeding migrations are a range hull, not a swim.",
+      "Sexual segregation (females and males in different gyres) is not a state.",
+      "Olfaction along an odor corridor to a carcass is not a sense.",
+      "Courtship is a year-timer plus energy, not bite-copulation or a nursery in another cell.",
+      "Magnetoreception is not a sense.",
     ],
   },
   tuna: {
@@ -306,7 +394,14 @@ export const FAUNA = {
       "Tropical and subtropical tuna, typically 40–80 cm. Ram ventilator — must keep swimming. Usually 0–200 m; recorded to about 260 m. Schools with birds on surface forage. Broadcast spawner.",
     program:
       "Ram gait vehicle. Hunts school fish in the photic-to-upper-mesopelagic band. Bite restores energy. Year-timer recruit stands in for a spawn batch. Absent without school prey, poleward of about 40°.",
-    missing: ["Bird-associated surface feeding is not a cue.", "Squid diet is school fish only."],
+    missing: [
+      "Bird-associated surface feeding is not a cue.",
+      "Squid diet is school fish only.",
+      "FAD and log association is not a cue.",
+      "Mixed schools with yellowfin or dolphins are pack spacing, not a mixed-species association.",
+      "Surface boiling schools are generic ram hunting, not a feeding mode.",
+      "Spawning whenever the water is warm is a year-timer recruit, not an SST gate.",
+    ],
   },
   cod: {
     id: "cod",
@@ -322,6 +417,10 @@ export const FAUNA = {
     missing: [
       "Benthos and crabs are not agents, so energy is only from named school-fish bites.",
       "Fishing mortality is not in the budget.",
+      "Skrei / Lofoten spawning migrations are a hull, not a commute.",
+      "Drumming in spawning aggregations is not a sound field.",
+      "Age-structured cannibalism is not a bite.",
+      "Year-class structure is not a state.",
     ],
   },
   toothfish: {
@@ -338,6 +437,10 @@ export const FAUNA = {
     missing: [
       "Patagonian toothfish (D. eleginoides) is not a second hull yet.",
       "Icefish and other notothenioids are not school taxa.",
+      "Neutral buoyancy from muscle lipid is not a physics.",
+      "Circumpolar displacement on the Antarctic Circumpolar Current is a hull, not a swim.",
+      "Slow growth over decades is not an age timer.",
+      "The longline fishery is not mortality.",
     ],
   },
   greatwhite: {
@@ -354,6 +457,11 @@ export const FAUNA = {
     missing: [
       "Seals, sea lions, and whale carcasses are not agents — this build is the fish-eating programme.",
       "Endothermy / regional warm muscle is not a temperature field.",
+      "Breaching on pinnipeds is not a behaviour.",
+      "The juvenile-to-adult diet shift (fish, then mammals) is not ontogeny.",
+      "The offshore white-shark-café commute is a hull, not a swim.",
+      "Spyhopping is not a state.",
+      "Colony-adjacent hunting landmarks are not objects.",
     ],
   },
   tigershark: {
@@ -368,6 +476,10 @@ export const FAUNA = {
     program: "Burst-and-glide. Tropical (|lat| < 28°) with school prey. Bites school fish.",
     missing: [
       "Turtles, carrion, and seabirds are not agents. Energy is only from school-fish bites, not a fake constant.",
+      "Night-inshore / day-offshore commutes are not a schedule.",
+      "Ambush at turtle nesting beaches is not a landmark.",
+      "Scavenging on whale carcasses is not an object.",
+      "Rolling on large prey is not a handling behaviour.",
     ],
   },
   hammerhead: {
@@ -380,7 +492,14 @@ export const FAUNA = {
     about:
       "Tropical and subtropical sphyrnid, typically 1.5–3 m. Schools by day at seamounts; hunts at night. Usually 0–275 m; recorded to about 500 m.",
     program: "Burst-and-glide, tighter pack spacing than tiger sharks. Bites school fish. |lat| < 32°.",
-    missing: ["Rays and seamount schooling landmarks are not in the cell.", "Electroreception is not a sense."],
+    missing: [
+      "Rays and seamount schooling landmarks are not in the cell.",
+      "Electroreception is not a sense.",
+      "Daytime seamount schooling then night hunting is not a schedule — they use the generic patrol/stalk loop.",
+      "The cephalofoil is the mesh, not a sensory array or hydrofoil.",
+      "Natal homing to coastal pupping lagoons is not a migration.",
+      "Scalloped, great, and smooth hammerheads are one id.",
+    ],
   },
   whaleshark: {
     id: "whaleshark",
@@ -396,6 +515,10 @@ export const FAUNA = {
     missing: [
       "Fish eggs and bait balls as a separate food are not fields.",
       "The deep-dive optical story is still photic water — lighting is not a reason to forbid the dive.",
+      "Ram-filter versus suction-filter (vertical feeding, yo-yo dives) is graze-while-cruising, not a feeding-mode switch.",
+      "Aggregations at fish-spawn slicks are not a cue.",
+      "Remoras are not agents.",
+      "Seasonal coastal aggregations (Ningaloo, Yucatán) are hull presence, not a commute.",
     ],
   },
   minke: {
@@ -412,6 +535,10 @@ export const FAUNA = {
     missing: [
       "Lunge-feeding bubble nets are not a hydrodynamics model.",
       "Ice-edge krill super-swarms are still a school patch, not a basin field.",
+      "Gape-and-accordion lunge kinematics are a bite radius, not a gulp.",
+      "Mother–calf pairs are not a social unit.",
+      "Seasonal fasting is not a budget.",
+      "Northern and Antarctic minke share this id; dwarf minke is not split.",
     ],
   },
   humpback: {
@@ -428,6 +555,12 @@ export const FAUNA = {
     missing: [
       "Song and breeding lagoons are not a season.",
       "Bubble-net hydrodynamics are not a field.",
+      "Cooperative bubble-net feeding (a ring of bubbles, trap the bait) is not a behaviour.",
+      "Breach, pec-slap, and lobtail are not states.",
+      "Fasting on the tropical wintering grounds is not a budget — they hunt wherever the hull says.",
+      "Male escorting and competition are not a courtship.",
+      "Calf nursing is not an energy transfer.",
+      "North–south migration is a hull, not a swim between cells.",
     ],
   },
   spermwhale: {
@@ -445,6 +578,12 @@ export const FAUNA = {
       "Giant and glass squid (Architeuthis, Histioteuthis) are not agents. The whale still dives; it does not get free calories from empty water.",
       "Echolocation clicks are not a sense or a sound field.",
       "Lighting below the photic zone is still the epipelagic shader. That is an optical gap, not a reason to keep the whale shallow.",
+      "Coda dialects and clan culture are not a state.",
+      "Creche behaviour — females and calves staying at the surface while adults dive — is not a social split. Every vehicle dives.",
+      "Spermaceti buoyancy control is not a physics.",
+      "Vertical sleeping at the surface is not a state.",
+      "Male bachelor groups versus female social units are size dimorphism, not kinship.",
+      "Calf nursing during the surface interval is not a transfer.",
     ],
   },
   orca: {
@@ -462,6 +601,12 @@ export const FAUNA = {
       "Mammal-eating ecotypes are not wired — seals and other whales are not prey.",
       "Salmon are not a school taxon.",
       "Pod culture / dialect is not a state.",
+      "Carousel feeding (herring ball plus tail-slap) is a generic bite, not a cooperative hunt.",
+      "Wave-washing seals off ice and beach-hunting at Punta Norte are not behaviours.",
+      "Spyhop, breach, and play (kelp, waves, tossing prey) are not states.",
+      "Matrilineal pods that stay together for life are pack spacing, not kinship.",
+      "Food-sharing and teaching calves are not a transfer.",
+      "Transient, resident, and offshore ecotypes are one fish-eating programme.",
     ],
   },
   commondolphin: {
@@ -478,6 +623,13 @@ export const FAUNA = {
     missing: [
       "Tuna-dolphin associations are not a cue.",
       "Long-beaked D. capensis is not a second id.",
+      "Bow-riding and wake-riding are not behaviours.",
+      "Aerial play, spinning, and surfing internal waves are not states.",
+      "Super-pods of hundreds to thousands are a handful of vehicles.",
+      "Night feeding on the DSL / lanternfish in some stocks is not wired — huntTaxa is surface forage only.",
+      "Whistles and echolocation are not a sense.",
+      "Cooperative herding of anchovy into a bait ball is not hydrodynamics.",
+      "Mother–calf pairs and babysitting are not a social unit.",
     ],
   },
   humboldtsquid: {
@@ -494,6 +646,12 @@ export const FAUNA = {
     missing: [
       "The oxygen-minimum zone is not a field.",
       "Cannibalism is not a huntKinds loop on this pack.",
+      "Rapid chromatophore flashing as pack communication is not a state.",
+      "Colour change (red at depth, paler at the surface) is not a shader.",
+      "Feeding frenzies packing on a bait are generic strikes.",
+      "Floating gelatinous egg masses are not objects.",
+      "One-to-two-year boom–bust with El Niño is not a season.",
+      "Bioluminescence is not a cue.",
     ],
   },
   mahi: {
@@ -506,7 +664,15 @@ export const FAUNA = {
     about:
       "Tropical surface hunter, typically 0.8–1.5 m. Lives with flotsam in the top ~85 m. Fast-growing. Eaten by billfish and sharks.",
     program: "Ram vehicle in the surface band. Hunts school fish. Absent poleward of about 32°.",
-    missing: ["Flotsam / FADs are not objects.", "Aerial flying-fish strikes are not a behaviour."],
+    missing: [
+      "Flotsam / FADs are not objects.",
+      "Aerial flying-fish strikes are not a behaviour.",
+      "Extreme growth (adult size in months) is a vehicle birth, not a growth curve.",
+      "Colour change (gold alive, silver in death) is not a shader.",
+      "Sargassum as a nursery is not an object.",
+      "Jumping after flying fish is not a behaviour.",
+      "The bull's steep forehead is not a sexed mesh.",
+    ],
   },
   barracuda: {
     id: "barracuda",
@@ -518,7 +684,13 @@ export const FAUNA = {
     about:
       "Tropical ambush piscivore, typically 0.6–1.7 m. Reefs, wrecks, and clear coastal water. Usually 0–50 m; recorded to about 110 m. Sit-and-dash, not a ram tuna.",
     program: "Burst-and-glide, slow cruise, fast lunge. Tropical (|lat| < 28°). Bites school fish.",
-    missing: ["Reef structure as a sit-and-wait landmark is not a collider type."],
+    missing: [
+      "Reef structure as a sit-and-wait landmark is not a collider type.",
+      "Hover-then-dash from a wreck or reef is burst-and-glide patrol, not ambush-from-structure.",
+      "Curiosity toward shiny objects is not a cue.",
+      "Solitary adults versus juvenile schools are always a small vehicle pack.",
+      "Crepuscular hunting peaks are not a clocked window — hunger is the gate.",
+    ],
   },
   yellowfin: {
     id: "yellowfin",
@@ -530,7 +702,13 @@ export const FAUNA = {
     about:
       "Tropical tuna, typically 1–1.8 m. Deeper and larger than skipjack. Often 0–250 m; recorded to about 500 m. Can share a cell with skipjack because skipjack stay shallower.",
     program: "Ram gait. Hunts school fish. Tropical (|lat| < 32°).",
-    missing: ["FADs and dolphin-associated schools are not cues."],
+    missing: [
+      "FADs and dolphin-associated schools are not cues.",
+      "Mixed-species tuna schools are pack spacing, not an association.",
+      "Regional endothermy is not a temperature field.",
+      "Surface boiling is generic ram hunting.",
+      "Spawning in warm water is a year-timer, not an SST gate.",
+    ],
   },
   bluefin: {
     id: "bluefin",
@@ -546,6 +724,10 @@ export const FAUNA = {
     missing: [
       "Regional endothermy is not a temperature field.",
       "Spawning in the Gulf of Mexico / Mediterranean is not a migration.",
+      "Transoceanic feeding–spawning commutes are a hull, not a swim.",
+      "Giant versus school-size bluefin are one vehicle scale.",
+      "Purse-seine and ranching mortality are not in the budget.",
+      "The thermal niche that lets them hunt in subpolar water is not a field.",
     ],
   },
   sailfish: {
@@ -558,6 +740,13 @@ export const FAUNA = {
     about:
       "Tropical billfish, typically 2–3 m. Fastest cruise in the catalog. Usually the upper 50–100 m; recorded to about 200 m. Raises the sail when herding bait. Depth partitions it from yellowfin.",
     program: "Ram vehicle, billfish mesh. Tropical (|lat| < 32°) with school prey. Bites restore energy.",
-    missing: ["Sail-herding hydrodynamics are not a behaviour.", "The sail is the mesh, not a scoring device."],
+    missing: [
+      "Sail-herding hydrodynamics are not a behaviour.",
+      "The sail is the mesh, not a scoring device.",
+      "Group herding with raised sails and colour flashing is not a cooperative hunt.",
+      "The bill is used as a mouth bite, not a tap-and-slash on bait.",
+      "Rapid colour change during the hunt is not a shader.",
+      "Jumping and surface basking are not states.",
+    ],
   },
 };
