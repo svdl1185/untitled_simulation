@@ -405,6 +405,7 @@ hud.on("camera", (index) => {
 hud.on("nextTarget", () => cycleTarget());
 hud.on("followSubject", () => followShown());
 hud.on("depthZone", (index) => jumpDepthZone(index));
+hud.on("jumpY", (y) => jumpToDepth(y));
 hud.on("oceanMap", (on) => {
   if (!on && !cellEntered) {
     hud.set("oceanMap", true);
@@ -418,6 +419,9 @@ hud.on("lab", () => {
   oceanMap.setOpen(false);
 });
 hud.on("focusSpecies", (id) => focusSpecies(id));
+hud.on("dismissSubject", () => {
+  inspect = null;
+});
 hud.on("currents", (on) => oceanMap.setCurrents(on));
 hud.on("lamp", (on) => {
   env.lampOn = !!on;
@@ -442,12 +446,28 @@ function jumpDepthZone(index) {
   const zones = columnZones(day.look.preferredDepth);
   if (!zones.length) return;
   const z = zones[Math.max(0, Math.min(zones.length - 1, index | 0))];
+  jumpToDepth(z.y);
+}
+
+function jumpToDepth(y) {
+  if (!Number.isFinite(y)) return;
   if (shark?.controlled) {
     shark.setControlled(false);
     hud.setControl(false);
   }
   applyCamera(CAM.FREE);
-  rig.jumpToY(z.y);
+  rig.jumpToY(y);
+  const zones = columnZones(day.look.preferredDepth);
+  let best = 0;
+  let d = Infinity;
+  for (let i = 0; i < zones.length; i++) {
+    const n = Math.abs(zones[i].y - y);
+    if (n < d) {
+      d = n;
+      best = i;
+    }
+  }
+  hud.set("depthZone", best);
 }
 
 function zoneLabel() {
@@ -662,7 +682,14 @@ function hudView() {
       schoolLabel: `${Math.max(1, ids.indexOf(sid) + 1)} of ${Math.max(1, ids.length)}`,
     });
   }
-  return { general, subject, day, census: censusList(school, sharks), placeName: loc.name || loc.region };
+  if (subject) subject.picked = !!(inspect && sameSubject(sub, inspect));
+  const column = {
+    surfaceY: CONFIG.surfaceY ?? 0,
+    floorY: CONFIG.floorY,
+    camY: camera.position.y,
+    zones: columnZones(day.look.preferredDepth),
+  };
+  return { general, subject, day, census: censusList(school, sharks), placeName: loc.name || loc.region, column };
 }
 
 function pickSubject(clientX, clientY) {
@@ -942,7 +969,7 @@ function frame(now) {
     if (oceanMap.isOpen()) {
       hud.tick(dt, hudView());
     } else {
-      if (pointer.click && !hud.isOpen()) {
+      if (pointer.click) {
         inspect = pickSubject(pointer.click.x, pointer.click.y);
       }
       if (tracking?.kind === "herring" && tracking.id >= school.count) stopFollow();

@@ -176,6 +176,7 @@ const KEY_HELP = [
   ["O", "World map (home)"],
   ["I", "Census, when a cell is open"],
   ["Click census", "Jump to that animal"],
+  ["Click column", "Jump to a depth zone"],
   ["Click water", "Enter a 1 km cell"],
   ["Click animal", "Field notes on that individual"],
   ["Drag", "Look around · orbit when following"],
@@ -221,17 +222,16 @@ export function createHUD() {
   const about = document.getElementById("about");
   const backdrop = document.getElementById("menu-backdrop");
   const btnMenu = document.getElementById("btn-menu");
-  const btnClose = document.getElementById("btn-menu-close");
   const btnAbout = document.getElementById("btn-about");
-  const btnAboutClose = document.getElementById("btn-about-close");
   const btnMap = document.getElementById("btn-map");
   const btnLab = document.getElementById("btn-lab");
   const btnCell = document.getElementById("btn-cell");
   const hint = document.getElementById("pilot-hint");
   const notes = document.getElementById("hud-notes");
   const btnNotes = document.getElementById("btn-notes");
-  const generalPanel = document.getElementById("hud-general");
+  const generalPanel = document.getElementById("hud-cell");
   const censusPanel = document.getElementById("hud-census");
+  const columnRoot = document.getElementById("hud-column");
   const generalBody = document.getElementById("hud-general-body");
   const censusBody = document.getElementById("hud-census-body");
   const brandPlace = document.getElementById("brand-place");
@@ -253,15 +253,14 @@ export function createHUD() {
     const fn = handlers.get("focusSpecies");
     if (fn) fn(id);
   });
+  const columnView = bindColumn(columnRoot, (y) => emit("jumpY", y));
   const subjectRows = bindStats(subjectBody, tip);
   const noteRows = bindNotes(subjectNotes);
 
-  let open = false;
-  let aboutOpen = false;
-  let cellOpen = true;
-  let censusOpen = true;
+  let dock = null;
   let cameraLive = false;
   let entered = false;
+  const CELL_DOCKS = new Set(["census", "cell", "subject"]);
   body.replaceChildren();
 
   for (const section of MENU) {
@@ -362,6 +361,10 @@ export function createHUD() {
   function syncNav() {
     const mapOn = !!values.oceanMap;
     const cell = inCell();
+    if ((mapOn || !cell) && CELL_DOCKS.has(dock)) {
+      if (dock === "subject") emit("dismissSubject", true);
+      dock = null;
+    }
     if (btnMap) {
       btnMap.classList.toggle("on", mapOn);
       btnMap.setAttribute("aria-pressed", mapOn ? "true" : "false");
@@ -372,61 +375,56 @@ export function createHUD() {
     }
     if (btnCell) {
       btnCell.hidden = !cell;
-      btnCell.classList.toggle("on", cell && cellOpen);
-      btnCell.setAttribute("aria-expanded", cell && cellOpen ? "true" : "false");
+      btnCell.classList.toggle("on", cell && dock === "cell");
+      btnCell.setAttribute("aria-expanded", cell && dock === "cell" ? "true" : "false");
     }
     if (btnNotes) {
       btnNotes.hidden = !cell;
-      btnNotes.classList.toggle("on", cell && censusOpen);
-      btnNotes.setAttribute("aria-expanded", cell && censusOpen ? "true" : "false");
+      btnNotes.classList.toggle("on", cell && dock === "census");
+      btnNotes.setAttribute("aria-expanded", cell && dock === "census" ? "true" : "false");
     }
     if (btnAbout) {
-      btnAbout.classList.toggle("on", aboutOpen);
-      btnAbout.setAttribute("aria-expanded", aboutOpen ? "true" : "false");
+      btnAbout.classList.toggle("on", dock === "about");
+      btnAbout.setAttribute("aria-expanded", dock === "about" ? "true" : "false");
     }
     if (btnMenu) {
-      btnMenu.classList.toggle("on", open);
-      btnMenu.setAttribute("aria-expanded", open ? "true" : "false");
+      btnMenu.classList.toggle("on", dock === "menu");
+      btnMenu.setAttribute("aria-expanded", dock === "menu" ? "true" : "false");
     }
-    if (generalPanel) generalPanel.hidden = !cell || !cellOpen;
-    if (censusPanel) censusPanel.hidden = !cell || !censusOpen;
-    notes.classList.toggle("is-collapsed", !cell || (!cellOpen && !censusOpen));
+    if (generalPanel) generalPanel.hidden = dock !== "cell";
+    if (censusPanel) censusPanel.hidden = dock !== "census";
+    if (subjectPanel) subjectPanel.hidden = dock !== "subject";
+    if (about) about.hidden = dock !== "about";
+    if (menu) menu.hidden = dock !== "menu";
+    notes.classList.toggle("is-collapsed", !dock);
+    if (columnRoot) columnRoot.hidden = !cell;
+    document.body.classList.toggle("has-column", cell);
+    if (backdrop) backdrop.hidden = true;
+    document.body.classList.remove("menu-open");
     syncFields();
   }
 
-  function setBackdrop() {
+  function setDock(next) {
+    let id = next || null;
+    if (CELL_DOCKS.has(id) && !inCell()) id = null;
+    if (dock === id) {
+      syncNav();
+      return;
+    }
+    const prev = dock;
+    dock = id;
+    if (prev === "subject" && dock !== "subject") emit("dismissSubject", true);
+    if (dock && document.pointerLockElement) document.exitPointerLock();
     tip.hidden = true;
-    backdrop.hidden = !open && !aboutOpen;
-    document.body.classList.toggle("menu-open", open || aboutOpen);
-    if ((open || aboutOpen) && document.pointerLockElement) document.exitPointerLock();
+    syncNav();
+  }
+
+  function toggleDock(id) {
+    setDock(dock === id ? null : id);
   }
 
   function setOpen(next) {
-    open = !!next;
-    if (open) aboutOpen = false;
-    menu.hidden = !open;
-    if (about) about.hidden = !aboutOpen;
-    setBackdrop();
-    syncNav();
-  }
-
-  function setAboutOpen(next) {
-    aboutOpen = !!next;
-    if (aboutOpen) open = false;
-    if (about) about.hidden = !aboutOpen;
-    menu.hidden = !open;
-    setBackdrop();
-    syncNav();
-  }
-
-  function setCellOpen(next) {
-    cellOpen = !!next;
-    syncNav();
-  }
-
-  function setCensusOpen(next) {
-    censusOpen = !!next;
-    syncNav();
+    setDock(next ? "menu" : dock === "menu" ? null : dock);
   }
 
   function setCameraLive(on) {
@@ -486,16 +484,10 @@ export function createHUD() {
     syncFields();
   }
 
-  btnMenu.addEventListener("click", () => setOpen(!open));
-  btnClose.addEventListener("click", () => setOpen(false));
-  btnAbout?.addEventListener("click", () => setAboutOpen(!aboutOpen));
-  btnAboutClose?.addEventListener("click", () => setAboutOpen(false));
-  backdrop.addEventListener("click", () => {
-    setOpen(false);
-    setAboutOpen(false);
-  });
-  btnNotes.addEventListener("click", () => setCensusOpen(!censusOpen));
-  btnCell?.addEventListener("click", () => setCellOpen(!cellOpen));
+  btnMenu.addEventListener("click", () => toggleDock("menu"));
+  btnAbout?.addEventListener("click", () => toggleDock("about"));
+  btnNotes.addEventListener("click", () => toggleDock("census"));
+  btnCell?.addEventListener("click", () => toggleDock("cell"));
   btnMap?.addEventListener("click", () => {
     const next = !values.oceanMap;
     set("oceanMap", next);
@@ -503,6 +495,19 @@ export function createHUD() {
   });
   btnLab?.addEventListener("click", () => emit("lab", true));
   btnFollow.addEventListener("click", () => emit("followSubject", true));
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (!dock) return;
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      if (t.closest(".nav-bar")) return;
+      if (t.closest("#hud-notes")) return;
+      if (t.closest(".hud-tip")) return;
+      setDock(null);
+    },
+    true
+  );
   setCameraLive(false);
   syncNav();
 
@@ -512,14 +517,13 @@ export function createHUD() {
         if (e.code === "KeyM") return;
       }
       e.preventDefault();
-      setOpen(!open);
+      toggleDock("menu");
       return;
     }
-    if (e.code === "Escape" && (open || aboutOpen)) {
+    if (e.code === "Escape" && dock) {
       e.preventDefault();
       e.stopImmediatePropagation();
-      setOpen(false);
-      setAboutOpen(false);
+      setDock(null);
       return;
     }
     if (e.repeat) return;
@@ -535,7 +539,7 @@ export function createHUD() {
       if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
       if (!inCell()) return;
       e.preventDefault();
-      setCensusOpen(!censusOpen);
+      toggleDock("census");
       return;
     }
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
@@ -565,7 +569,7 @@ export function createHUD() {
 
   return {
     values,
-    isOpen: () => open,
+    isOpen: () => dock === "menu",
     setOpen,
     set,
     addItem,
@@ -587,7 +591,8 @@ export function createHUD() {
     setCameraLive,
     setEntered(on) {
       entered = !!on;
-      syncNav();
+      if (entered && !values.oceanMap && !CELL_DOCKS.has(dock)) setDock("census");
+      else syncNav();
     },
     setSelectOptions(id, options, value) {
       const item = findItem(id);
@@ -617,14 +622,12 @@ export function createHUD() {
         hint: "Frames drawn per second. A drop here is the near-camera agent load, not the basin.",
       }));
       censusRows.set(view.census || []);
+      columnView.set(inCell() ? view.column : null);
       if (brandPlace) {
         brandPlace.textContent = values.oceanMap ? "World ocean" : view.placeName || brandPlace.textContent;
       }
       const subject = view.subject;
-      if (!subject) {
-        subjectPanel.hidden = true;
-      } else {
-        subjectPanel.hidden = false;
+      if (subject) {
         subjectKind.textContent = subject.kindLabel || "Subject";
         subjectTitle.textContent = subject.title || "";
         subjectTitle.hidden = !subject.title;
@@ -633,13 +636,86 @@ export function createHUD() {
         subjectSub.hidden = !sub;
         noteRows.set(subject.notes || []);
         subjectRows.set(subject.stats || []);
-        const following = !!subject.following;
-        btnFollow.textContent = following ? "Unfollow" : "Follow";
+        btnFollow.textContent = subject.following ? "Unfollow" : "Follow";
       }
+      if (subject?.picked && dock !== "subject") setDock("subject");
+      else if (dock === "subject" && !subject) setDock(null);
       if (view.day) {
         if (values.liveClock) set("hour", Number(view.day.hour.toFixed(2)));
         else render("hour");
       }
+    },
+  };
+}
+
+function bindColumn(root, onJump) {
+  if (!root) return { set() {} };
+  const track = root.querySelector("#hud-column-track");
+  const you = root.querySelector("#hud-column-you");
+  const depthRead = root.querySelector("#hud-column-depth");
+  const floorRead = root.querySelector("#hud-column-floor");
+  const zoneBtns = new Map();
+  let zoneKey = "";
+
+  function frac(y, surface, floor) {
+    const span = surface - floor;
+    if (!(span > 0.5)) return 0;
+    return Math.min(1, Math.max(0, (surface - y) / span));
+  }
+
+  function yAt(clientY, surface, floor) {
+    const r = track.getBoundingClientRect();
+    const t = r.height ? Math.min(1, Math.max(0, (clientY - r.top) / r.height)) : 0;
+    return surface - t * (surface - floor);
+  }
+
+  track?.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".column-zone")) return;
+    const surface = Number(track.dataset.surface || 0);
+    const floor = Number(track.dataset.floor || -100);
+    onJump(yAt(e.clientY, surface, floor));
+  });
+
+  return {
+    set(col) {
+      if (!col || !track) return;
+      const surface = Number(col.surfaceY ?? 0);
+      const floor = Number(col.floorY ?? -100);
+      track.dataset.surface = String(surface);
+      track.dataset.floor = String(floor);
+      if (floorRead) floorRead.textContent = `${Math.abs(Math.min(0, floor)).toFixed(0)} m`;
+      const zones = col.zones || [];
+      const nextKey = zones.map((z) => `${z.id}:${z.y}`).join("|");
+      if (nextKey !== zoneKey) {
+        for (const btn of zoneBtns.values()) btn.remove();
+        zoneBtns.clear();
+        let lastT = -1;
+        for (const z of zones) {
+          const t = frac(z.y, surface, floor);
+          if (t - lastT < 0.06 && lastT >= 0) continue;
+          lastT = t;
+          const btn = el("button", {
+            type: "button",
+            class: "column-zone",
+            "data-id": z.id,
+            text: z.label,
+            title: `${z.label} · ${Math.abs(z.y).toFixed(0)} m`,
+          });
+          btn.style.top = `${t * 100}%`;
+          btn.addEventListener("pointerdown", (e) => e.stopPropagation());
+          btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onJump(z.y);
+          });
+          track.append(btn);
+          zoneBtns.set(z.id, btn);
+        }
+        zoneKey = nextKey;
+      }
+      const t = frac(col.camY ?? 0, surface, floor);
+      if (you) you.style.top = `${t * 100}%`;
+      if (depthRead) depthRead.textContent = `${Math.max(0, -(col.camY ?? 0)).toFixed(0)} m`;
     },
   };
 }
