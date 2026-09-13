@@ -67,10 +67,10 @@ const N27Z = new Int8Array(27);
  * Mixed pelagic school on a shared uniform grid.
  *
  * Every school species present in the cell occupies this one agent set.
- * Individuals carry a taxon index; shoals stay species-pure; the hashed
- * neighbour cap is unchanged. Headcount is a shared bloom-capped budget,
- * split by catalog `share` — adding a later forage fish does not start a
- * second 20k boid loop.
+ * Individuals carry a taxon index and a social mode. Polarized taxa
+ * keep the herring pancake; loose taxa aggregate without aligning;
+ * scatter is nearly independent. Shoals stay species-pure. Headcount is
+ * a shared bloom-capped budget, split by catalog `share`.
  *
  * Spacing is nearest-neighbor packing (project + spring on the K closest
  * fish), not a crowd of cancelling forces. Alignment is same-school only
@@ -227,12 +227,29 @@ export class School {
     this.schoolHunger.fill(0.4);
 
     const nTaxa = Math.max(1, this.taxa.length);
-    const shoalsPer = Math.max(1, Math.min(3, (this.maxSchools / nTaxa) | 0));
-    this.initialSchools = Math.min(this.maxSchools, nTaxa * shoalsPer);
+    const slots = [];
+    let used = 0;
+    for (let t = 0; t < this.taxa.length && used < this.maxSchools; t++) {
+      const want = Math.max(1, this._tcfg[t]?.groups ?? 2);
+      const n = Math.min(want, this.maxSchools - used);
+      const list = [];
+      for (let k = 0; k < n; k++, used++) list.push(used);
+      slots.push(list);
+    }
+    if (!slots.length) slots.push([0]);
+    this.initialSchools = Math.max(1, used);
     this.schoolCount = this.initialSchools;
+    this._taxonSlots = slots;
 
     for (let s = 0; s < this.maxSchools; s++) {
-      const t = this.taxa.length ? Math.min(this.taxa.length - 1, (s / shoalsPer) | 0) : 0;
+      let t = 0;
+      for (let k = 0; k < slots.length; k++) {
+        if (slots[k].includes(s)) {
+          t = k;
+          break;
+        }
+      }
+      if (s >= used) t = Math.max(0, this.taxa.length - 1);
       const a = this.anchors[s];
       a.taxon = t;
       const home = this._home(s % Math.max(1, this.initialSchools));
@@ -260,40 +277,55 @@ export class School {
       const want = alloc[t].n;
       const cfg = this._tcfg[t] || CONFIG.fish;
       const rest = cfg.restSpacing;
-      const baseSid = t * shoalsPer;
-      const per = Math.ceil(want / shoalsPer);
+      const sids = this._taxonSlots[t] || [0];
+      const nSid = Math.max(1, sids.length);
+      const polarized = (cfg.social || "polarized") === "polarized";
+      const per = Math.ceil(want / nSid);
       const nSide = Math.max(5, Math.round(Math.sqrt(per / nY) * 0.62));
       const nAlong = Math.max(8, Math.ceil(per / (nY * nSide)));
       for (let k = 0; k < want && i < n; k++, i++) {
-        const sid = baseSid + (k % shoalsPer);
+        const sid = sids[k % nSid];
         const i3 = i * 3;
         this.taxon[i] = t;
         this.schoolId[i] = sid;
         const home = this._home(sid);
-        const layer = k % nY;
-        const plane = (k / nY) | 0;
-        const sideI = plane % nSide;
-        const alongI = (plane / nSide) | 0;
-        const jitter = rest * 0.42;
-        const side =
-          (sideI + (alongI & 1) * 0.5 - (nSide - 1) * 0.5) * rest +
-          (Math.random() - 0.5) * jitter;
-        const along =
-          (alongI - (nAlong - 1) * 0.5) * rest * 0.92 +
-          (Math.random() - 0.5) * jitter;
-        const up =
-          (layer - (nY - 1) * 0.5) * rest * 0.72 +
-          (Math.random() - 0.5) * jitter * 0.7;
-        const hx = Math.sin(home.heading);
-        const hz = Math.cos(home.heading);
-        this.pos[i3] = home.x + hx * along - hz * side;
-        this.pos[i3 + 1] = home.y + up;
-        this.pos[i3 + 2] = home.z + hz * along + hx * side;
-        const heading = home.heading + (Math.random() - 0.5) * 0.22;
+        const heading0 = home.heading + (Math.random() - 0.5) * (polarized ? 0.22 : 1.8);
+        let x;
+        let y;
+        let z;
+        if (polarized) {
+          const layer = k % nY;
+          const plane = (k / nY) | 0;
+          const sideI = plane % nSide;
+          const alongI = (plane / nSide) | 0;
+          const jitter = rest * 0.42;
+          const side =
+            (sideI + (alongI & 1) * 0.5 - (nSide - 1) * 0.5) * rest +
+            (Math.random() - 0.5) * jitter;
+          const along =
+            (alongI - (nAlong - 1) * 0.5) * rest * 0.92 +
+            (Math.random() - 0.5) * jitter;
+          const up =
+            (layer - (nY - 1) * 0.5) * rest * 0.72 +
+            (Math.random() - 0.5) * jitter * 0.7;
+          const hx = Math.sin(home.heading);
+          const hz = Math.cos(home.heading);
+          x = home.x + hx * along - hz * side;
+          y = home.y + up;
+          z = home.z + hz * along + hx * side;
+        } else {
+          const spread = rest * (6 + (k % nSid) * 0.4);
+          x = home.x + (Math.random() - 0.5) * spread * 2.4;
+          y = home.y + (Math.random() - 0.5) * rest * 1.6;
+          z = home.z + (Math.random() - 0.5) * spread * 2.4;
+        }
+        this.pos[i3] = x;
+        this.pos[i3 + 1] = y;
+        this.pos[i3 + 2] = z;
         const spd = (cfg.minSpeed + cfg.maxSpeed) * 0.42 + Math.random() * 1.8;
-        this.vel[i3] = Math.sin(heading) * spd;
-        this.vel[i3 + 1] = (Math.random() - 0.5) * 0.08;
-        this.vel[i3 + 2] = Math.cos(heading) * spd;
+        this.vel[i3] = Math.sin(heading0) * spd;
+        this.vel[i3 + 1] = (Math.random() - 0.5) * (polarized ? 0.08 : 0.35);
+        this.vel[i3 + 2] = Math.cos(heading0) * spd;
         this.phase[i] = Math.random() * Math.PI * 2;
         const female = Math.random() < 0.5;
         this.sex[i] = female ? 0 : 1;
@@ -311,7 +343,21 @@ export class School {
     if (!plankton) return;
     const foodCap = plankton.carryingCapacity(this.cap);
     if (this.count <= foodCap) return;
-    this.count = foodCap;
+    const alloc = allocateSchoolCounts(foodCap, this.taxa);
+    const have = new Array(this.taxa.length).fill(0);
+    for (let i = 0; i < this.count; i++) have[this.taxon[i]]++;
+    let i = this.count - 1;
+    while (this.count > foodCap && i >= 0) {
+      const t = this.taxon[i];
+      if (have[t] > (alloc[t]?.n ?? 0)) {
+        this.remove(i, false);
+        have[t]--;
+        if (i >= this.count) i = this.count - 1;
+      } else {
+        i--;
+      }
+    }
+    while (this.count > foodCap) this.remove(this.count - 1, false);
     this._refreshCentroids();
   }
 
@@ -394,7 +440,7 @@ export class School {
     }
   }
 
-  nearestFish(x, y, z, radius) {
+  nearestFish(x, y, z, radius, taxa = null) {
     const grid = this.grid;
     if (!grid || this.count <= 0) return null;
     const { heads, next, keyOf, nx, ny, nz, mask, inv, minX, minY, minZ } = grid;
@@ -426,6 +472,7 @@ export class School {
         if (keyOf[j] !== want) continue;
         inspected++;
         if (inspected > NEIGHBOR_BUDGET) break outer;
+        if (taxa && taxa.length && !taxa.includes(this.taxonId(j))) continue;
         const j3 = j * 3;
         const dx = pos[j3] - x;
         const dy = pos[j3 + 1] - y;
@@ -451,10 +498,18 @@ export class School {
   }
 
   targetFor(shark) {
+    const want = shark.cfg?.huntTaxa;
     let best = 0;
     let bestD = Infinity;
+    let matched = false;
     for (let s = 0; s < this.maxSchools; s++) {
       if (this.schoolN[s] < 8) continue;
+      if (want && want.length) {
+        const tid = this.anchors[s]?.taxon ?? 0;
+        const id = this.taxa[tid]?.id;
+        if (!want.includes(id)) continue;
+        matched = true;
+      }
       const c = this.centroids[s];
       const dx = c.x - shark.x;
       const dy = c.y - shark.y;
@@ -465,7 +520,12 @@ export class School {
         best = s;
       }
     }
-    const idx = this.schoolN[shark.huntIndex] > 8 ? shark.huntIndex : best;
+    if (want && want.length && !matched) {
+      return this.centroids[this.schoolN[shark.huntIndex] > 8 ? shark.huntIndex : 0] || this.centroid;
+    }
+    const idx = this.schoolN[shark.huntIndex] > 8 && (!want || want.includes(this.taxa[this.anchors[shark.huntIndex]?.taxon ?? 0]?.id))
+      ? shark.huntIndex
+      : best;
     return this.centroids[idx];
   }
 
@@ -489,8 +549,10 @@ export class School {
     const boundX = CONFIG.halfX - 32;
     const boundZ = CONFIG.halfZ - 36;
     for (let s = 0; s < this.maxSchools; s++) {
-      const depth = dvmY(look?.hour ?? 12, this.shoalCfg(s));
-      const lead = this.shoalCfg(s).lead ?? CONFIG.fish.lead;
+      const scfg = this.shoalCfg(s);
+      const depth = dvmY(look?.hour ?? 12, scfg);
+      const lead = scfg.lead ?? CONFIG.fish.lead;
+      const polarized = (scfg.social || "polarized") === "polarized";
       this._splitLock[s] = Math.max(0, this._splitLock[s] - dt);
       if (this.schoolN[s] === 0) {
         this.anchors[s].mill = 0;
@@ -515,7 +577,7 @@ export class School {
         const dy = c.y - shark.y;
         const dz = c.z - shark.z;
         const d2 = dx * dx + dz * dz;
-        const avoidR = shark.fearRadius + CONFIG.fish.schoolRadius;
+        const avoidR = shark.fearRadius + scfg.schoolRadius;
         if (d2 + dy * dy < (shark.fearRadius + 82) ** 2) farAll = false;
         if (d2 < avoidR * avoidR && d2 > 1) {
           sharkNear = true;
@@ -528,6 +590,13 @@ export class School {
       if (sharkNear) {
         a.wantMill = 0;
         a.modeT = 5 + Math.random() * 4;
+      } else if (!polarized) {
+        const turn = Math.sin(a.t * 0.19 + s * 2.1) * 0.95 + (Math.random() - 0.5) * 0.4;
+        const ang = Math.atan2(hx, hz) + turn * dt;
+        hx = Math.sin(ang);
+        hz = Math.cos(ang);
+        a.wantMill = hunger < 0.62 && farAll ? 1 : 0;
+        if (a.modeT <= 0) a.modeT = 6 + Math.random() * 10;
       } else {
         const turn = Math.sin(a.t * 0.11 + s * 1.3) * (a.mill > 0.45 ? 0.82 : 0.2);
         const ang = Math.atan2(hx, hz) + turn * dt;
@@ -653,13 +722,14 @@ export class School {
         continue;
       }
       const c = this.centroids[s];
+      const holdRs = (this.shoalCfg(s).schoolRadius ?? cfg.schoolRadius) * (look?.schoolRadiusScale ?? 1);
       let u = 0;
       for (let p = 0; p < nPred; p++) {
         const pred = pack[p];
         const fearR = pred.fearRadius;
         const d = Math.hypot(c.x - pred.x, c.y - pred.y, c.z - pred.z);
         const inner = fearR + 10;
-        const outer = fearR + holdR0 + 30;
+        const outer = fearR + holdRs + 30;
         let uu = 0;
         if (d < inner) uu = 1;
         else if (d < outer) uu = (outer - d) / (outer - inner);
@@ -705,6 +775,7 @@ export class School {
       const cohR2 = cfg.cohRadius * cfg.cohRadius;
       const forageGain = cfg.forageGain;
       const metabolism = cfg.metabolism;
+      const polarized = (cfg.social || "polarized") === "polarized";
       const anchor = this.anchors[sid];
       const hold = this.centroids[sid];
 
@@ -877,8 +948,8 @@ export class School {
       }
       let nextAlarm = this.alarm[i] * Math.exp(-dt * 3.1);
       if (inFear) nextAlarm = 1;
-      else if (neighAlarm > 0.22) {
-        const spread = neighAlarm * 0.58;
+      else if (neighAlarm > (polarized ? 0.22 : 0.5)) {
+        const spread = neighAlarm * (polarized ? 0.58 : 0.16);
         if (spread > nextAlarm) {
           nextAlarm += (spread - nextAlarm) * Math.min(1, dt * 7);
         }
@@ -887,10 +958,10 @@ export class School {
       else if (nextAlarm > 1) nextAlarm = 1;
       this._alarm[i] = nextAlarm;
       const alarm = nextAlarm;
-      const mill = anchor.mill;
-      const packed = this._compact[sid];
-      const holdR =
-        holdR0 * (1 - tight * 0.1) * (1 - packed * 0.24) * (1 - mill * 0.1);
+      const mill = polarized ? anchor.mill : 0;
+      const packed = polarized ? this._compact[sid] : this._compact[sid] * 0.35;
+      const holdR = (cfg.schoolRadius * (look?.schoolRadiusScale ?? 1)) *
+        (1 - tight * 0.1) * (1 - packed * 0.24) * (1 - mill * 0.1);
       const holdH = cfg.schoolHeight * (1 - tight * 0.34) * (1 - packed * 0.16);
       const alongR = holdR * 1.36;
       const sideR = holdR * 0.68;
@@ -944,30 +1015,41 @@ export class School {
       const hdx = px - hold.x;
       const hdy = py - holdY;
       const hdz = pz - hold.z;
-      const along = hdx * anchor.hx + hdz * anchor.hz;
-      const side = hdx * -anchor.hz + hdz * anchor.hx;
-      const nxh = along / alongR;
-      const nyh = hdy / localH;
-      const nzh = side / sideR;
-      const e2 = nxh * nxh + nyh * nyh + nzh * nzh;
-      if (e2 > 1) {
-        const e = Math.sqrt(e2);
-        const extra = (e - 1) * cfg.holdWeight * (1 + (e - 1) * 0.65);
-        cruiseX -= extra * (nxh * anchor.hx) / alongR - extra * (nzh * anchor.hz) / sideR;
-        cruiseY -= extra * nyh / localH;
-        cruiseZ -= extra * (nxh * anchor.hz) / alongR + extra * (nzh * anchor.hx) / sideR;
-      } else if (along < 0) {
-        const catchUp = (-along / alongR) * 2.6;
-        cruiseX += dhx * catchUp;
-        cruiseZ += dhz * catchUp;
-      }
-      const sideAbs = Math.abs(side);
-      if (mill < 0.25 && sideAbs > alongR * 0.4) {
-        const cut = (sideAbs / sideR - 0.5) * 3.1;
-        if (cut > 0) {
-          const sgn = side > 0 ? 1 : -1;
-          cruiseX += anchor.hz * sgn * cut;
-          cruiseZ -= anchor.hx * sgn * cut;
+      if (polarized) {
+        const along = hdx * anchor.hx + hdz * anchor.hz;
+        const side = hdx * -anchor.hz + hdz * anchor.hx;
+        const nxh = along / alongR;
+        const nyh = hdy / localH;
+        const nzh = side / sideR;
+        const e2 = nxh * nxh + nyh * nyh + nzh * nzh;
+        if (e2 > 1) {
+          const e = Math.sqrt(e2);
+          const extra = (e - 1) * cfg.holdWeight * (1 + (e - 1) * 0.65);
+          cruiseX -= extra * (nxh * anchor.hx) / alongR - extra * (nzh * anchor.hz) / sideR;
+          cruiseY -= extra * nyh / localH;
+          cruiseZ -= extra * (nxh * anchor.hz) / alongR + extra * (nzh * anchor.hx) / sideR;
+        } else if (along < 0) {
+          const catchUp = (-along / alongR) * 2.6;
+          cruiseX += dhx * catchUp;
+          cruiseZ += dhz * catchUp;
+        }
+        const sideAbs = Math.abs(side);
+        if (mill < 0.25 && sideAbs > alongR * 0.4) {
+          const cut = (sideAbs / sideR - 0.5) * 3.1;
+          if (cut > 0) {
+            const sgn = side > 0 ? 1 : -1;
+            cruiseX += anchor.hz * sgn * cut;
+            cruiseZ -= anchor.hx * sgn * cut;
+          }
+        }
+      } else {
+        const d2 = hdx * hdx + hdz * hdz;
+        const r = Math.max(8, cfg.schoolRadius);
+        if (d2 > r * r) {
+          const d = Math.sqrt(d2);
+          const w = cfg.holdWeight * Math.min(2.2, d / r - 1);
+          cruiseX -= (hdx / d) * w;
+          cruiseZ -= (hdz / d) * w;
         }
       }
       cruiseY += (anchor.y - py) * cfg.depthWeight;
@@ -1266,9 +1348,10 @@ export class School {
     return -1;
   }
 
-  _minSchoolSize() {
-    const cfg = CONFIG.fish;
-    return Math.max(cfg.minSchoolSize, Math.min(400, (this.count * cfg.minSchoolFrac) | 0));
+  _minSchoolSize(s = 0) {
+    const cfg = this.shoalCfg(s);
+    const frac = cfg.minSchoolFrac ?? 0.04;
+    return Math.max(cfg.minSchoolSize ?? 12, Math.min(400, (this.count * frac) | 0));
   }
 
   _reorganize(dt, pack, look) {
@@ -1282,13 +1365,13 @@ export class School {
   }
 
   _trySplits(pack, look) {
-    const minS = this._minSchoolSize();
-    const cfg = CONFIG.fish;
-    const splitR = cfg.splitDistance * (look?.schoolRadiusScale ?? 1);
-    const splitR2 = splitR * splitR;
     const { pos, schoolId, count } = this;
     for (let s = 0; s < this.maxSchools; s++) {
       const n = this.schoolN[s];
+      const minS = this._minSchoolSize(s);
+      const cfg = this.shoalCfg(s);
+      const splitR = cfg.splitDistance * (look?.schoolRadiusScale ?? 1);
+      const splitR2 = splitR * splitR;
       if (n < minS * 2.2) continue;
       if (this._splitLock[s] > 0) continue;
       const nid = this._allocSchool();
@@ -1408,15 +1491,17 @@ export class School {
   }
 
   _tryJoins(pack, look) {
-    const minS = this._minSchoolSize();
-    const holdR = CONFIG.fish.schoolRadius * (look?.schoolRadiusScale ?? 1);
-    const slack = CONFIG.fish.joinSlack;
     const { pos, vel, schoolId, count } = this;
     let switched = 0;
     const cap = 70;
     for (let i = 0; i < count; i++) {
       if (switched >= cap) break;
       const sid = schoolId[i];
+      const jcfg = this.shoalCfg(sid);
+      if ((jcfg.social || "polarized") !== "polarized") continue;
+      const minS = this._minSchoolSize(sid);
+      const holdR = jcfg.schoolRadius * (look?.schoolRadiusScale ?? 1);
+      const slack = jcfg.joinSlack;
       if (this.schoolN[sid] <= minS) continue;
       if (this._splitLock[sid] > 0.5) continue;
       const i3 = i * 3;
@@ -1465,13 +1550,15 @@ export class School {
   }
 
   _tryMerges(pack, look) {
-    const minS = this._minSchoolSize();
-    const mergeR = CONFIG.fish.mergeDistance * (0.85 + (look?.tight ?? 0) * 0.4);
-    const mergeR2 = mergeR * mergeR;
     const { schoolId, count } = this;
     for (let a = 0; a < this.maxSchools; a++) {
+      const acfg = this.shoalCfg(a);
+      if ((acfg.social || "polarized") !== "polarized") continue;
+      const minS = this._minSchoolSize(a);
       if (this.schoolN[a] < minS) continue;
       if (this._splitLock[a] > 0) continue;
+      const mergeR = acfg.mergeDistance * (0.85 + (look?.tight ?? 0) * 0.4);
+      const mergeR2 = mergeR * mergeR;
       const ca = this.centroids[a];
       let scared = false;
       for (let p = 0; p < pack.length; p++) {
@@ -1486,9 +1573,10 @@ export class School {
       }
       if (scared) continue;
       for (let b = a + 1; b < this.maxSchools; b++) {
-        if (this.schoolN[b] < minS) continue;
+        if (this.schoolN[b] < this._minSchoolSize(b)) continue;
         if (this._splitLock[b] > 0) continue;
         if ((this.anchors[a]?.taxon ?? 0) !== (this.anchors[b]?.taxon ?? 0)) continue;
+        if ((this.shoalCfg(b).social || "polarized") !== "polarized") continue;
         const cb = this.centroids[b];
         const dx = ca.x - cb.x;
         const dy = ca.y - cb.y;
@@ -1521,6 +1609,8 @@ export class School {
       for (let p = 0; p < pack.length; p++) {
         const shark = pack[p];
         if ((shark.biteT ?? 0) > 0) continue;
+        if ((shark.cfg?.diet || "bite") === "filter") continue;
+        if (shark.cfg?.huntTaxa?.length && !shark.cfg.huntTaxa.includes(this.taxonId(i))) continue;
         const r = shark.biteRadius;
         const dx = x - shark.mouthX;
         const dy = y - shark.mouthY;

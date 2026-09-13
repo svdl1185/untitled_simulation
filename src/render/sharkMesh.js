@@ -14,17 +14,20 @@ function prepare(g) {
 
 export function createSharkMesh(uniforms, opts = {}) {
   const tint = opts.tint || { r: 1, g: 1, b: 1 };
-  const body = _body(tint);
-  const dorsal = _triFin(0, 0.55, 0.1, 1.15, 1.4, 0.28, tint);
-  const tailUpper = _triFin(0, 0.15, -4.6, 1.6, 1.9, 0.2, tint);
-  const tailLower = _triFin(0, -0.05, -4.6, -1.05, 1.35, 0.18, tint);
-  const pecL = _pec(1, tint);
-  const pecR = _pec(-1, tint);
-  const pelvic = _triFin(0, -0.42, -0.8, -0.45, 0.7, 0.12, tint);
-  const geo = mergeGeometries(
-    [body, dorsal, tailUpper, tailLower, pecL, pecR, pelvic].map(prepare),
-    false
-  );
+  const form = opts.form || "shark";
+  const parts =
+    form === "whale"
+      ? _whaleParts(tint)
+      : form === "squid"
+        ? _squidParts(tint)
+        : form === "billfish"
+          ? _billfishParts(tint)
+          : form === "dolphin"
+            ? _dolphinParts(tint)
+            : form === "tuna" || form === "cod"
+              ? _tunaParts(tint)
+              : _sharkParts(tint);
+  const geo = mergeGeometries(parts.map(prepare), false);
   geo.computeVertexNormals();
 
   const uSharkAmp = { value: 0.55 };
@@ -126,24 +129,113 @@ export function createSharkMesh(uniforms, opts = {}) {
   return group;
 }
 
+function _sharkParts(tint) {
+  return [
+    _body(tint, 1, 0.78),
+    _triFin(0, 0.55, 0.1, 1.15, 1.4, 0.28, tint),
+    _triFin(0, 0.15, -4.6, 1.6, 1.9, 0.2, tint),
+    _triFin(0, -0.05, -4.6, -1.05, 1.35, 0.18, tint),
+    _pec(1, tint),
+    _pec(-1, tint),
+    _triFin(0, -0.42, -0.8, -0.45, 0.7, 0.12, tint),
+  ];
+}
+
+function _tunaParts(tint) {
+  return [
+    _body(tint, 0.72, 0.92),
+    _triFin(0, 0.42, 0.2, 0.72, 1.1, 0.16, tint),
+    _triFin(0, 0.12, -4.6, 1.35, 1.5, 0.14, tint),
+    _triFin(0, -0.08, -4.6, -1.2, 1.4, 0.14, tint),
+    _pec(1, tint, 0.72),
+    _pec(-1, tint, 0.72),
+  ];
+}
+
+function _whaleParts(tint) {
+  return [
+    _body(tint, 1.55, 1.05, [
+      [0.02, -5.1],
+      [0.28, -4.4],
+      [0.95, -2.4],
+      [1.28, 0.2],
+      [1.05, 2.4],
+      [0.55, 4.2],
+      [0.12, 5.0],
+    ]),
+    _triFin(0, 0.62, -0.4, 0.55, 0.9, 0.22, tint),
+    _triFin(0.55, 0.05, -4.7, 0.15, 1.6, 0.18, tint),
+    _triFin(-0.55, 0.05, -4.7, 0.15, 1.6, 0.18, tint),
+    _pec(1, tint, 1.25),
+    _pec(-1, tint, 1.25),
+  ];
+}
+
+function _dolphinParts(tint) {
+  return [
+    _body(tint, 0.95, 0.95),
+    _triFin(0, 0.5, 0.05, 0.95, 1.15, 0.2, tint),
+    _triFin(0.4, 0.02, -4.55, 0.12, 1.35, 0.16, tint),
+    _triFin(-0.4, 0.02, -4.55, 0.12, 1.35, 0.16, tint),
+    _pec(1, tint, 0.85),
+    _pec(-1, tint, 0.85),
+  ];
+}
+
+function _billfishParts(tint) {
+  const bill = _triFin(0, 0.04, 4.6, 0.08, 2.4, 0.08, tint);
+  const sail = _triFin(0, 0.45, 0.4, 1.85, 2.6, 0.1, tint);
+  return [
+    _body(tint, 0.55, 0.88),
+    sail,
+    bill,
+    _triFin(0, 0.1, -4.55, 1.2, 1.45, 0.12, tint),
+    _triFin(0, -0.08, -4.55, -1.05, 1.3, 0.12, tint),
+    _pec(1, tint, 0.65),
+    _pec(-1, tint, 0.65),
+  ];
+}
+
+function _squidParts(tint) {
+  const mantle = _body(tint, 1.15, 0.62, [
+    [0.02, -4.2],
+    [0.55, -3.4],
+    [0.95, -1.2],
+    [0.82, 1.4],
+    [0.42, 3.6],
+    [0.08, 4.6],
+  ]);
+  const tent = _triFin(0, -0.15, -4.1, -0.08, 2.8, 0.22, tint);
+  const tent2 = _triFin(0.25, -0.1, -4.1, -0.06, 2.4, 0.16, tint);
+  const tent3 = _triFin(-0.25, -0.1, -4.1, -0.06, 2.4, 0.16, tint);
+  return [
+    mantle,
+    _triFin(0.7, 0.15, 0.8, 0.35, 1.4, 0.12, tint),
+    _triFin(-0.7, 0.15, 0.8, 0.35, 1.4, 0.12, tint),
+    tent,
+    tent2,
+    tent3,
+  ];
+}
+
 function _shade(baseR, baseG, baseB, tint) {
   return [baseR * tint.r, baseG * tint.g, baseB * tint.b];
 }
 
-function _body(tint) {
-  const profile = [
-    new THREE.Vector2(0.01, -4.85),
-    new THREE.Vector2(0.12, -4.55),
-    new THREE.Vector2(0.42, -3.8),
-    new THREE.Vector2(0.72, -2.6),
-    new THREE.Vector2(0.95, -0.2),
-    new THREE.Vector2(0.7, 2.2),
-    new THREE.Vector2(0.28, 4.5),
-    new THREE.Vector2(0.02, 5.2),
-  ];
+function _body(tint, width = 1, height = 0.78, ring = null) {
+  const profile = (ring || [
+    [0.01, -4.85],
+    [0.12, -4.55],
+    [0.42, -3.8],
+    [0.72, -2.6],
+    [0.95, -0.2],
+    [0.7, 2.2],
+    [0.28, 4.5],
+    [0.02, 5.2],
+  ]).map(([x, y]) => new THREE.Vector2(x, y));
   const g = new THREE.LatheGeometry(profile, 10);
   g.rotateX(-Math.PI / 2);
-  g.scale(1, 0.78, 1);
+  g.scale(width, height, 1);
   const col = new Float32Array(g.attributes.position.count * 3);
   const pos = g.attributes.position;
   for (let i = 0; i < pos.count; i++) {
@@ -181,12 +273,12 @@ function _triFin(x, y, z, h, length, thickness, tint) {
   return g;
 }
 
-function _pec(side, tint) {
+function _pec(side, tint, span = 1) {
   const g = new THREE.BufferGeometry();
   const s = side;
   const verts = new Float32Array([
     0.55 * s, -0.15, 1.6,
-    1.9 * s, -0.45, 0.9,
+    1.9 * s * span, -0.45, 0.9,
     0.5 * s, -0.2, 0.55,
   ]);
   g.setAttribute("position", new THREE.BufferAttribute(verts, 3));

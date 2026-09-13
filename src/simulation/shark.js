@@ -1,4 +1,5 @@
 import { CONFIG, clampHabitatY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
+import { SPECIES, VEHICLE_IDS, vehicleCfg } from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 
@@ -22,7 +23,7 @@ export class Shark {
   constructor(opts = {}) {
     this.id = opts.id ?? 0;
     this.kind = opts.kind || "shark";
-    this.cfg = CONFIG[this.kind] || CONFIG.shark;
+    this.cfg = opts.cfg || vehicleCfg(this.kind);
     this.scale = opts.scale ?? 1;
     this.aggression = opts.aggression ?? 1;
     this.tint = opts.tint ?? null;
@@ -121,7 +122,7 @@ export class Shark {
     if (this.dead) return;
     const cfg = this.cfg || CONFIG.shark;
     if (this.controlled) this._player(dt, input, cfg);
-    else this._ai(dt, school, cfg, pack);
+    else this._ai(dt, school, cfg, pack, look);
 
     this.lungeT -= dt;
     if (this.lungeT <= 0) this.lunging = false;
@@ -161,6 +162,7 @@ export class Shark {
 
     const drain = cfg.energyDrain * (this.lunging ? 2.4 : this.aiMode === "strike" ? 1.6 : 1);
     this.energy = Math.max(0, this.energy - drain * dt);
+    this._filterFeed(dt, school, look, cfg);
     this.mateT = Math.max(0, this.mateT - dt);
     if (this.energy < cfg.starveAt) this.starveT += dt;
     else this.starveT = Math.max(0, this.starveT - dt * 1.8);
@@ -201,6 +203,16 @@ export class Shark {
       this.eatEvents[i].t += dt;
       if (this.eatEvents[i].t > 0.7) this.eatEvents.splice(i, 1);
     }
+  }
+
+  _filterFeed(dt, school, look, cfg) {
+    const diet = cfg.diet || "bite";
+    if (diet !== "filter" && diet !== "both") return;
+    const bloom = school?._plankton;
+    if (!bloom || !(cfg.filterGraze > 0)) return;
+    const ov = bloom.overlap(look, this.y);
+    const taken = bloom.graze(this.x, this.z, cfg.filterGraze * dt * ov);
+    if (taken > 0) this.energy = Math.min(1, this.energy + taken * (cfg.filterGain ?? 0.4));
   }
 
   _avoidPack(pack, dt) {
@@ -301,10 +313,48 @@ export class Shark {
     this._steer(desX, desY, desZ, this.lunging ? cfg.lungeForce : cfg.maxForce, dt);
   }
 
-  _ai(dt, school, cfg, pack) {
+  _aiFilter(dt, school, cfg, look) {
+    if (this.aiT <= 0) {
+      this.aiMode = "patrol";
+      this.aiT = 5 + Math.random() * 5;
+      this._pickRoam();
+    }
+    const bloom = school?._plankton;
+    const fy = bloom?.forageDepth(look) ?? cfg.minDepth - 10;
+    const rdx = this.roamX - this.x;
+    const rdz = this.roamZ - this.z;
+    if (rdx * rdx + rdz * rdz < 28 * 28) this._pickRoam();
+    let tx = this.roamX;
+    let ty = fy;
+    let tz = this.roamZ;
+    const maxSpd = cfg.cruiseSpeed * 0.62 * this.cruiseMul;
+    const force = cfg.maxForce * 0.42;
+    this.thrust = 0.34;
+    this.bursting = cfg.gait === "ram";
+    this.speedCap = maxSpd;
+
+    const tGround = seafloorHeight(tx, tz);
+    ty = Math.min(ty, cfg.minDepth - 0.4);
+    ty = Math.max(ty, tGround + cfg.floorClearance + 1.2);
+    tz = Math.min(tz, waterMaxZ() - 36);
+
+    const follow = 1 - Math.exp(-dt * 2.2);
+    this.seekX += (tx - this.seekX) * follow;
+    this.seekY += (ty - this.seekY) * follow;
+    this.seekZ += (tz - this.seekZ) * follow;
+    const des = this._desired(this.seekX, this.seekY, this.seekZ, maxSpd, 22);
+    this._steer(des.x, des.y, des.z, force, dt);
+  }
+
+  _ai(dt, school, cfg, pack, look) {
     this.aiT -= dt;
     this._tickLocomotion(dt);
-    const target = school.targetFor(this);
+    const diet = cfg.diet || "bite";
+    if (diet === "filter") {
+      this._aiFilter(dt, school, cfg, look);
+      return;
+    }
+    const target = school.targetFor(this) || school.centroid;
     const cx = target.x;
     const cy = target.y;
     const cz = target.z;
@@ -339,8 +389,8 @@ export class Shark {
     let arriveR = 14;
     if (this.aiMode === "strike") {
       const prey =
-        school.nearestFish(this.mouthX, this.mouthY, this.mouthZ, 7.2) ||
-        school.nearestFish(this.x, this.y, this.z, 7.2);
+        school.nearestFish(this.mouthX, this.mouthY, this.mouthZ, 7.2, cfg.huntTaxa) ||
+        school.nearestFish(this.x, this.y, this.z, 7.2, cfg.huntTaxa);
       if (prey) {
         const lead = 0.16;
         tx = prey.x + prey.vx * lead;
@@ -502,6 +552,12 @@ export class Shark {
   }
 
   _nextMode(school, dist, holdR, pack) {
+    if ((this.cfg.diet || "bite") === "filter") {
+      this.aiMode = "patrol";
+      this.aiT = 5 + Math.random() * 4;
+      this._pickRoam();
+      return;
+    }
     const hungry = this.energy < (this.cfg.hungry ?? CONFIG.shark.hungry) / this.aggression;
     const satiated = this.energy > (this.cfg.satiated ?? CONFIG.shark.satiated);
     if (this.aiMode === "recover") {
@@ -630,21 +686,9 @@ export class Shark {
 }
 
 export function createShark(i, count, school, kind = "shark") {
-  const kindCfg = CONFIG[kind] || CONFIG.shark;
-  const kindTint =
-    kind === "tuna"
-      ? [
-          { scale: 1.02, aggression: 1.08, tint: { r: 0.55, g: 0.72, b: 0.95 } },
-          { scale: 0.88, aggression: 1.15, tint: { r: 0.7, g: 0.82, b: 0.4 } },
-          { scale: 1.12, aggression: 0.95, tint: { r: 0.45, g: 0.62, b: 0.88 } },
-        ]
-      : kind === "cod"
-        ? [
-            { scale: 1.05, aggression: 0.82, tint: { r: 0.72, g: 0.62, b: 0.42 } },
-            { scale: 0.9, aggression: 0.9, tint: { r: 0.55, g: 0.5, b: 0.38 } },
-            { scale: 1.18, aggression: 0.78, tint: { r: 0.8, g: 0.7, b: 0.48 } },
-          ]
-        : KINDS;
+  const kindCfg = vehicleCfg(kind);
+  const tints = SPECIES[kind]?.vehicle?.tints;
+  const kindTint = tints && tints.length ? tints : KINDS;
   const variant = kindTint[i % kindTint.length];
   const n = Math.max(1, count | 0);
   const sex = i === 0 ? 0 : i === 1 ? 1 : Math.random() < 0.5 ? 0 : 1;
@@ -658,11 +702,11 @@ export function createShark(i, count, school, kind = "shark") {
     tint: variant.tint,
   });
   const ang = (i / n) * Math.PI * 2 + 0.55;
-  const r = (kind === "cod" ? 28 : 46) + i * (kind === "tuna" ? 14 : 22);
+  const r = (kindCfg.gait === "benthic" ? 28 : 46) + i * (kindCfg.gait === "ram" ? 14 : 22);
   shark.x = school.centroid.x + Math.cos(ang) * r;
   shark.z = school.centroid.z + Math.sin(ang) * r * 0.85;
   shark.y =
-    kind === "cod"
+    kindCfg.gait === "benthic"
       ? seafloorHeight(shark.x, shark.z) + kindCfg.floorClearance + 2
       : school.centroid.y - 2.5 - i * 1.8;
   shark.yaw = ang + Math.PI;
@@ -694,9 +738,9 @@ function nearestOpposite(self, pack) {
 
 export function tryBreed(pack) {
   const year = yearSeconds();
-  for (const kind of ["shark", "tuna", "cod"]) {
+  for (const kind of VEHICLE_IDS) {
     if (!faunaPresent(kind)) continue;
-    const cfg = CONFIG[kind];
+    const cfg = vehicleCfg(kind);
     const group = pack.filter((p) => p.kind === kind && !p.dead);
     if (group.length >= cfg.max) continue;
     for (let i = 0; i < group.length; i++) {
@@ -740,7 +784,7 @@ export function birthShark(mother, father, id) {
   pup.fwdX = mother.fwdX;
   pup.fwdY = 0;
   pup.fwdZ = mother.fwdZ;
-  pup.energy = (CONFIG[mother.kind] || CONFIG.shark).pupEnergy;
+  pup.energy = vehicleCfg(mother.kind).pupEnergy;
   pup.huntIndex = mother.huntIndex;
   pup.flankSign = -side;
   pup.seekX = pup.x;
@@ -757,14 +801,10 @@ export function spawnSharks(n, school) {
 
 export function spawnPredators(school, counts = {}) {
   const pack = [];
-  const kinds = [
-    ["shark", counts.shark ?? CONFIG.shark.count],
-    ["tuna", counts.tuna ?? CONFIG.tuna.count],
-    ["cod", counts.cod ?? CONFIG.cod.count],
-  ];
-  for (const [kind, raw] of kinds) {
+  for (const kind of VEHICLE_IDS) {
     if (!faunaPresent(kind)) continue;
-    const cfg = CONFIG[kind];
+    const cfg = vehicleCfg(kind);
+    const raw = counts[kind] !== undefined ? counts[kind] : cfg.count;
     const count = Math.max(0, Math.min(cfg.max ?? raw, raw | 0));
     for (let i = 0; i < count; i++) pack.push(createShark(i, count, school, kind));
   }

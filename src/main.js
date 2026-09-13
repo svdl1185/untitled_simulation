@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { CONFIG, anySchoolPresent, columnZones, faunaPresent, zoneAt } from "./config.js";
+import { SPECIES, speciesLabel } from "./world/fauna.js";
 import { School } from "./simulation/school.js";
 import { spawnPredators, resetSharks, createShark, tryBreed } from "./simulation/shark.js";
 import { DayCycle } from "./simulation/day.js";
@@ -168,8 +169,6 @@ function rebuildLife() {
   rebuildFishLayers();
   sharks = spawnPredators(school, {
     shark: faunaPresent("shark") ? Number(hud?.get("sharks") ?? CONFIG.shark.count) : 0,
-    tuna: faunaPresent("tuna") ? CONFIG.tuna.count : 0,
-    cod: faunaPresent("cod") ? CONFIG.cod.count : 0,
   });
   shark = sharks[0] || null;
   for (const s of sharks) {
@@ -200,7 +199,10 @@ function bindWorld() {
 }
 
 function addSharkMesh(s) {
-  const mesh = createSharkMesh(uniforms, { tint: s.tint });
+  const mesh = createSharkMesh(uniforms, {
+    tint: s.tint,
+    form: SPECIES[s.kind]?.vehicle?.mesh || "shark",
+  });
   mesh.userData.fear.visible = fearVisible;
   scene.add(mesh);
   sharkMeshes.push(mesh);
@@ -527,19 +529,12 @@ function weatherText() {
 }
 
 function predatorHud() {
-  let sharksN = 0;
-  let tunaN = 0;
-  let codN = 0;
+  const n = {};
   for (const s of sharks) {
     const k = s.kind || "shark";
-    if (k === "tuna") tunaN++;
-    else if (k === "cod") codN++;
-    else sharksN++;
+    n[k] = (n[k] || 0) + 1;
   }
-  const parts = [];
-  if (sharksN) parts.push(`${sharksN} shark`);
-  if (tunaN) parts.push(`${tunaN} tuna`);
-  if (codN) parts.push(`${codN} cod`);
+  const parts = Object.keys(n).map((k) => `${n[k]} ${speciesLabel(k)}`);
   return parts.length ? parts.join(" · ") : "0";
 }
 

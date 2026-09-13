@@ -26,7 +26,7 @@ Write the diet anyway. Then wire what exists.
 - **What limits it.** Shared bloom mean for school fish; catch rate and energy drain for vehicles; a cap in `CONFIG`. New life must eat something and be limited by something.
 - **Missing prey.** If the food is not in the model yet, do not fake fullness with a constant. Either leave the species out, or have it starve / sit at carrying-capacity zero, and note the missing field here.
 
-Current school grazers: herring, capelin, menhaden, sardine, pilchard, anchovy, sardinella, mackerel, flying fish — all Type II on `z`, competing where ranges overlap. Predators: sharks and tuna bite any school fish; cod bite school fish near the shelf floor.
+Current school grazers: herring, capelin, menhaden, sardine, pilchard, anchovy, sardinella, mackerel, sprat, sand lance, polar cod, Antarctic silverfish (Type II on `z`); flying fish and Pacific saury (`loose` surface); market squid (`scatter`, DVM). Predators: blue shark, great white, tiger, hammerhead, skipjack, yellowfin, bluefin, mahi, barracuda, sailfish, orca, humpback, Humboldt squid bite school fish; sperm whale bites market squid only; whale shark filters `z`; minke filters `z` and bites; cod bites near the shelf floor.
 
 ## 3. Predators (even if they are not simulated yet)
 
@@ -34,7 +34,7 @@ Current school grazers: herring, capelin, menhaden, sardine, pilchard, anchovy, 
 - **How that changes behaviour.** DVM, school tightness, beach avoidance, vertical refuge.
 - **Missing predator.** Still encode the refuge the predator would create. Herring go deeper by day *because* visual hunters exist, including ones we have not meshed.
 
-Current: sharks and tuna eat school fish; cod eat them on the shelf. Surface hunters (gannet, seal) are not agents yet; forage DVM is the placeholder for that pressure. Tuna and sharks may occupy the same warm cell.
+Current: named sharks, tunas, orca, humpback, Humboldt squid eat school fish; sperm whales eat market squid; whale sharks filter `z`; minke do both. Cod eat on the shelf. Surface hunters (gannet, seal) are still not agents; forage DVM is the placeholder for that pressure. Tropical cells can hold skipjack, yellowfin, mahi, and sailfish together because depth and gait partition them.
 
 ## 4. Depth and diel migration
 
@@ -58,14 +58,13 @@ Current herring: night ≈ −20 m, day ≈ −110 m, max ≈ −180 m. Flying f
 
 - Hull or grid in `src/world/ranges.js`. Independent flags, not a single winner.
 - `CONFIG.presence[id]` on `applyPatch` (every catalog id). Spawn gated with `faunaPresent(id)`.
-- Trophic dependents: if no school prey is in the cell, sharks and tuna are absent. Cod also need herring or capelin, and a shelf (not an abyssal floor).
+- Trophic dependents: if no school prey is in the cell, bite-predators are absent. Cod also need herring or capelin, and a shelf. Sperm whales need market squid. Whale sharks and minke eat the bloom, so they can occupy a cell with no school fish.
 
 ## 7. Behaviour (the actual program)
 
 Spell out the loop, not the vibe.
 
-- Locomotion (boid pancake, burst-and-glide, ram, sit).
-- Social (school split/merge same-species only, pack spacing, solitary).
+- **Social.** `polarized` (herring pancake), `loose` (aggregation, flying fish), or `scatter` (nearly independent). Only tight-knit schooling fish should be `polarized`. The hashed grid is shared; the program is not.
 - Hunt / forage / mill / flee / recover.
 - Reproduction (energy threshold, season, pup cost) and death (starve, eaten, recycle biomass).
 - Sex / size if it changes the loop (female herring larger; female sharks pup).
@@ -100,4 +99,4 @@ One cell may eventually list hundreds of sharks, squid, kelp, coral, whales. Tha
 
 ## When you add a feature, add a bullet
 
-Examples of future rows: temperature niche, dissolved oxygen, deep-scattering layer, benthic carbon, photophores, school-as-density beyond the camera frustum, squid, krill as a field, named shark species, coral as a `field` agent.
+Examples of future rows: temperature niche, dissolved oxygen, deep-scattering layer, benthic carbon, photophores, school-as-density beyond the camera frustum, krill as a field, coral as a `field` agent, lanternfish with a real mesopelagic optical story.

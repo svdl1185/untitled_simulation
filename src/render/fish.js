@@ -14,6 +14,7 @@ function prepare(g) {
 
 export function createFishGeometry(speciesId = "herring") {
   const look = lookFor(speciesId);
+  if (look.shape === "squid") return createSquidGeometry(look);
   const body = _latheBody(look);
   const pecScale = look.pec ?? 1;
   const dorsal = _fin(0.0, 0.12, -0.08, -0.16, 0.14, look);
@@ -27,6 +28,62 @@ export function createFishGeometry(speciesId = "herring") {
   const geo = mergeGeometries([body, dorsal, tail, pec, pec2].map(prepare), false);
   geo.computeVertexNormals();
   return geo;
+}
+
+function createSquidGeometry(look) {
+  const profile = [
+    new THREE.Vector2(0.001, -0.55),
+    new THREE.Vector2(0.11, -0.42),
+    new THREE.Vector2(0.13, -0.1),
+    new THREE.Vector2(0.1, 0.22),
+    new THREE.Vector2(0.05, 0.42),
+    new THREE.Vector2(0.012, 0.5),
+  ];
+  const mantle = new THREE.LatheGeometry(profile, 8);
+  mantle.rotateX(-Math.PI / 2);
+  const bs = look.body || [0.38, 0.85, 1.35];
+  mantle.scale(bs[0], bs[1], bs[2]);
+  const col = new Float32Array(mantle.attributes.position.count * 3);
+  const pos = mantle.attributes.position;
+  const back = look.back || [0.42, 0.38, 0.28];
+  const belly = look.belly || [0.62, 0.52, 0.38];
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    const t = THREE.MathUtils.clamp((y + 0.12) / 0.28, 0, 1);
+    col[i * 3] = back[0] * (1 - t) + belly[0] * t;
+    col[i * 3 + 1] = back[1] * (1 - t) + belly[1] * t;
+    col[i * 3 + 2] = back[2] * (1 - t) + belly[2] * t;
+  }
+  mantle.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  const fin = _fin(0.0, 0.02, 0.12, 0.18, 0.16, look);
+  const fin2 = fin.clone();
+  fin2.rotateZ(Math.PI);
+  const arms = _tentacles(look);
+  const geo = mergeGeometries([mantle, fin, fin2, arms].map(prepare), false);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function _tentacles(look) {
+  const g = new THREE.BufferGeometry();
+  const s = 0.04;
+  const verts = new Float32Array([
+    -s, 0, -0.48, s, 0, -0.48, 0.08, 0, -0.92,
+    s, 0, -0.48, -s, 0, -0.48, -0.08, 0, -0.92,
+    -s * 0.6, 0.02, -0.46, s * 0.6, 0.02, -0.46, 0, -0.04, -0.78,
+    -0.03, -0.02, -0.46, 0.03, -0.02, -0.46, 0.05, 0.06, -0.7,
+  ]);
+  g.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+  g.setIndex([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  const f = look.fin || [0.48, 0.4, 0.3];
+  const col = new Float32Array(12 * 3);
+  for (let i = 0; i < 12; i++) {
+    col[i * 3] = f[0];
+    col[i * 3 + 1] = f[1];
+    col[i * 3 + 2] = f[2];
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  return g;
 }
 
 function _latheBody(look) {

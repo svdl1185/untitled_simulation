@@ -7,7 +7,7 @@
  * Predators still need prey in the cell (trophic gate), not a lat split.
  */
 
-import { emptyPresence, SCHOOL_IDS } from "./fauna.js";
+import { emptyPresence, SCHOOL_IDS, SPECIES, VEHICLE_IDS, speciesLabel } from "./fauna.js";
 
 const HERRING_HULL = [
   [-76, 41],
@@ -174,6 +174,12 @@ const SARDINELLA_HULLS = [
     [-60, 8],
   ],
   [
+    [-10, -8],
+    [-10, 10],
+    [14, 10],
+    [14, -8],
+  ],
+  [
     [38, 24],
     [38, -8],
     [78, -18],
@@ -218,6 +224,225 @@ const MACKEREL_HULLS = [
   ],
 ];
 
+const SPRAT_HULLS = [
+  [
+    [-12, 48],
+    [-8, 62],
+    [12, 66],
+    [30, 60],
+    [28, 52],
+    [12, 50],
+    [0, 48],
+  ],
+];
+
+const SANDLANCE_HULLS = [
+  [
+    [-76, 36],
+    [-70, 52],
+    [-44, 62],
+    [-8, 66],
+    [18, 62],
+    [22, 50],
+    [8, 42],
+    [-20, 38],
+    [-60, 36],
+  ],
+  [
+    [-170, 48],
+    [-155, 62],
+    [-140, 58],
+    [-122, 50],
+    [-122, 36],
+    [-128, 34],
+    [-160, 42],
+  ],
+  [
+    [128, 36],
+    [128, 52],
+    [150, 50],
+    [148, 36],
+  ],
+];
+
+const POLARCOD_HULLS = [
+  [
+    [-180, 66],
+    [-180, 84],
+    [180, 84],
+    [180, 66],
+  ],
+];
+
+const SILVERFISH_HULLS = [
+  [
+    [-180, -80],
+    [-180, -54],
+    [0, -54],
+    [0, -80],
+  ],
+  [
+    [0, -80],
+    [0, -54],
+    [180, -54],
+    [180, -80],
+  ],
+];
+
+const SAURY_HULLS = [
+  [
+    [140, 30],
+    [140, 48],
+    [180, 50],
+    [180, 32],
+  ],
+  [
+    [-180, 32],
+    [-180, 50],
+    [-122, 48],
+    [-122, 30],
+  ],
+];
+
+const MARKETSQUID_HULLS = [
+  [
+    [-126, 26],
+    [-126, 46],
+    [-116, 46],
+    [-116, 26],
+  ],
+  [
+    [-12, 36],
+    [-8, 58],
+    [12, 58],
+    [20, 44],
+    [8, 36],
+  ],
+  [
+    [128, 30],
+    [128, 44],
+    [146, 44],
+    [146, 30],
+  ],
+  [
+    [-6, 30],
+    [8, 44],
+    [36, 42],
+    [36, 32],
+    [10, 30],
+  ],
+];
+
+const GREATWHITE_HULLS = [
+  [
+    [-126, 24],
+    [-126, 42],
+    [-116, 42],
+    [-116, 24],
+  ],
+  [
+    [-76, 32],
+    [-76, 46],
+    [-64, 46],
+    [-64, 32],
+  ],
+  [
+    [-78, -28],
+    [-78, -42],
+    [-70, -42],
+    [-70, -28],
+  ],
+  [
+    [110, -28],
+    [110, -40],
+    [154, -40],
+    [154, -28],
+  ],
+  [
+    [128, 30],
+    [128, 42],
+    [146, 42],
+    [146, 30],
+  ],
+  [
+    [-10, 30],
+    [-8, 44],
+    [16, 44],
+    [16, 32],
+  ],
+  [
+    [14, -28],
+    [14, -36],
+    [28, -36],
+    [28, -28],
+  ],
+];
+
+const HUMPBACK_HULLS = [
+  [
+    [-170, 50],
+    [-140, 62],
+    [-120, 50],
+    [-122, 36],
+    [-150, 36],
+  ],
+  [
+    [-76, 36],
+    [-70, 52],
+    [-44, 64],
+    [-8, 70],
+    [20, 68],
+    [24, 52],
+    [8, 42],
+    [-20, 38],
+  ],
+  [
+    [-84, -2],
+    [-84, -48],
+    [-70, -48],
+    [-70, -2],
+  ],
+  [
+    [140, -16],
+    [140, -64],
+    [180, -64],
+    [180, -16],
+  ],
+  [
+    [-180, -16],
+    [-180, -64],
+    [-160, -64],
+    [-160, -16],
+  ],
+  [
+    [-180, -52],
+    [-180, -70],
+    [0, -70],
+    [0, -52],
+  ],
+  [
+    [0, -52],
+    [0, -70],
+    [180, -70],
+    [180, -52],
+  ],
+  [
+    [18, -30],
+    [18, -42],
+    [32, -42],
+    [32, -30],
+  ],
+];
+
+const HUMBOLDT_HULLS = [
+  [
+    [-120, 32],
+    [-120, -42],
+    [-70, -42],
+    [-70, 32],
+  ],
+];
+
 export function pointInPolygon(lon, lat, ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -254,7 +479,31 @@ const RANGES = [
   { id: "anchovy", hulls: ANCHOVY_HULLS },
   { id: "sardinella", hulls: SARDINELLA_HULLS },
   { id: "mackerel", hulls: MACKEREL_HULLS },
+  { id: "sprat", hulls: SPRAT_HULLS },
+  { id: "sandlance", hulls: SANDLANCE_HULLS },
+  { id: "polarcod", hulls: POLARCOD_HULLS },
+  { id: "silverfish", hulls: SILVERFISH_HULLS },
+  { id: "saury", hulls: SAURY_HULLS },
+  { id: "marketsquid", hulls: MARKETSQUID_HULLS },
+  { id: "greatwhite", hulls: GREATWHITE_HULLS },
+  { id: "humpback", hulls: HUMPBACK_HULLS },
+  { id: "humboldtsquid", hulls: HUMBOLDT_HULLS },
 ];
+
+function schoolPreyCount(p) {
+  let n = 0;
+  for (const id of SCHOOL_IDS) if (p[id] > 0.05) n += 1;
+  return n;
+}
+
+function preySatisfied(spec, p) {
+  const prey = spec?.prey;
+  if (!prey || !prey.length) return true;
+  if (prey.includes("bloom")) return true;
+  if (prey.includes("school")) return schoolPreyCount(p) > 0;
+  for (const id of prey) if ((p[id] ?? 0) > 0.05) return true;
+  return false;
+}
 
 export function herringSuitability(lat, lon) {
   return pointInPolygon(wrapLon(lon), lat, HERRING_HULL) ? 1 : 0;
@@ -268,12 +517,27 @@ export function presenceAt(lat, lon) {
   }
   if (Math.abs(lat) < 32.5) p.flyingfish = 1;
 
-  let prey = 0;
-  for (const id of SCHOOL_IDS) if (p[id] > 0.05) prey += 1;
-  if (prey && Math.abs(lat) < 62) p.shark = 1;
+  const prey = schoolPreyCount(p);
+  if (prey && lat < 58 && lat > -48) p.shark = 1;
   if (prey && Math.abs(lat) < 40) p.tuna = 1;
   if ((p.herring || p.capelin) && lat > 42 && lat < 78 && lon > -76 && lon < 52) {
     p.cod = 1;
+  }
+  if (prey && Math.abs(lat) < 28) p.tigershark = 1;
+  if (prey && Math.abs(lat) < 32) p.hammerhead = 1;
+  if (Math.abs(lat) < 30) p.whaleshark = 1;
+  if (Math.abs(lat) > 32) p.minke = 1;
+  if (p.marketsquid && Math.abs(lat) < 55) p.spermwhale = 1;
+  if (prey) p.orca = 1;
+  if (prey && Math.abs(lat) < 32) p.mahi = 1;
+  if (prey && Math.abs(lat) < 28) p.barracuda = 1;
+  if (prey && Math.abs(lat) < 32) p.yellowfin = 1;
+  if (prey && Math.abs(lat) >= 24 && Math.abs(lat) <= 60) p.bluefin = 1;
+  if (prey && Math.abs(lat) < 32) p.sailfish = 1;
+
+  for (const id of VEHICLE_IDS) {
+    if ((p[id] ?? 0) <= 0.05) continue;
+    if (!preySatisfied(SPECIES[id], p)) p[id] = 0;
   }
   return p;
 }
@@ -288,23 +552,9 @@ export function faunaIdsPresent(lat, lon) {
 }
 
 export function presentLabel(presence) {
-  const names = {
-    herring: "herring",
-    capelin: "capelin",
-    menhaden: "menhaden",
-    sardine: "sardine",
-    pilchard: "pilchard",
-    anchovy: "anchovy",
-    sardinella: "sardinella",
-    mackerel: "mackerel",
-    flyingfish: "flying fish",
-    shark: "shark",
-    tuna: "tuna",
-    cod: "cod",
-  };
   const who = [];
   for (const id of Object.keys(presence || {})) {
-    if ((presence[id] ?? 0) > 0.05) who.push(names[id] || id);
+    if ((presence[id] ?? 0) > 0.05) who.push(speciesLabel(id));
   }
   return who.length ? who.join(", ") : "no implemented fauna";
 }

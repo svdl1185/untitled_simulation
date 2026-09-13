@@ -1,5 +1,5 @@
 import { CONFIG, bindCellFauna, bindColumnHabitat } from "../config.js";
-import { emptyPresence } from "./fauna.js";
+import { emptyPresence, SPECIES } from "./fauna.js";
 
 export const PATCH_SIZE_M = 1000;
 export const ELEV_NX = 80;
@@ -212,7 +212,7 @@ export function makeSyntheticPatch() {
     synthetic: true,
     statics: true,
     current: { u: 0, v: 0 },
-    presence: { herring: 1, mackerel: 1, shark: 1, cod: 1 },
+    presence: { herring: 1, mackerel: 1, sprat: 1, sandlance: 1, shark: 1, cod: 1 },
     note: "Synthetic North Sea shelf (offline fallback).",
     name: "Coastal shelf",
     region: "North Sea–style inner shelf",
@@ -255,7 +255,9 @@ export function applyPatch(patch) {
   const next = emptyPresence();
   const src = patch.presence || {};
   for (const id of Object.keys(next)) next[id] = src[id] ?? 0;
-  if (next.cod && patch.floorY < -280) next.cod = 0;
+  for (const id of Object.keys(next)) {
+    if (next[id] && SPECIES[id]?.guild === "demersal" && patch.floorY < -280) next[id] = 0;
+  }
   CONFIG.presence = next;
   CONFIG.flow.meanU = patch.current?.u ?? 0;
   CONFIG.flow.meanV = patch.current?.v ?? 0;
