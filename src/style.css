@@ -560,6 +560,13 @@ kbd {
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85);
 }
 
+.ocean-map-readout {
+  max-width: min(28rem, 62vw);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ocean-map-status {
   color: var(--accent);
 }

@@ -146,6 +146,8 @@ export class School {
     this.bornOf = new Uint32Array(this._tmax);
     this.starvedOf = new Uint32Array(this._tmax);
     this.eatenOf = new Uint32Array(this._tmax);
+    this.yDeep = new Float32Array(this._tmax);
+    this.yShallow = new Float32Array(this._tmax);
 
     for (let s = 0; s < this.maxSchools; s++) {
       this.centroids.push({
@@ -220,6 +222,8 @@ export class School {
         born: this.bornOf[t],
         starved: this.starvedOf[t],
         eaten: this.eatenOf[t],
+        yDeep: this.yDeep[t] < 1e8 ? this.yDeep[t] : 0,
+        yShallow: this.yShallow[t] > -1e8 ? this.yShallow[t] : 0,
       };
     }
     return out;
@@ -270,6 +274,8 @@ export class School {
     this.bornOf.fill(0);
     this.starvedOf.fill(0);
     this.eatenOf.fill(0);
+    this.yDeep.fill(1e9);
+    this.yShallow.fill(-1e9);
     this._splitLock.fill(0);
     this.alarm.fill(0);
     this._alarm.fill(0);
@@ -1324,6 +1330,8 @@ export class School {
       vel[i3] = nvx;
       vel[i3 + 1] = nvy;
       vel[i3 + 2] = nvz;
+      if (nyPos < this.yDeep[ti]) this.yDeep[ti] = nyPos;
+      if (nyPos > this.yShallow[ti]) this.yShallow[ti] = nyPos;
 
       sumX[sid] += nxPos;
       sumY[sid] += nyPos;

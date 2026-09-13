@@ -42,7 +42,7 @@ export function createOceanMap({ onEnter, onLab }) {
   const btnLab = root.querySelector("#ocean-map-lab");
   const ctx = canvas.getContext("2d", { alpha: false });
   const sheet = document.createElement("canvas");
-  const sheetCtx = sheet.getContext("2d", { alpha: false });
+  const sheetCtx = sheet.getContext("2d", { alpha: false, willReadFrequently: true });
   const restyle = document.createElement("canvas");
   const restyleCtx = restyle.getContext("2d", { willReadFrequently: true });
 
@@ -79,7 +79,7 @@ export function createOceanMap({ onEnter, onLab }) {
     canvas.height = h;
     canvas.style.width = `${root.clientWidth}px`;
     canvas.style.height = `${root.clientHeight}px`;
-    canvas.style.cursor = "crosshair";
+    canvas.style.cursor = "default";
     dirty = true;
     bake();
     draw();
@@ -225,24 +225,42 @@ export function createOceanMap({ onEnter, onLab }) {
     }
   }
 
-  function setHover(geo) {
-    hover = geo;
-    if (!geo) {
-      readout.textContent = "Hover water for coordinates and fauna in range";
+  function sampleLand(px, py) {
+    const w = sheet.width;
+    const h = sheet.height;
+    if (!w || !h) return false;
+    const dpr = w / Math.max(1, root.clientWidth);
+    const x = Math.max(0, Math.min(w - 1, (px * dpr) | 0));
+    const y = Math.max(0, Math.min(h - 1, (py * dpr) | 0));
+    const p = sheetCtx.getImageData(x, y, 1, 1).data;
+    return p[0] <= 6 && p[1] <= 8 && p[2] <= 12;
+  }
+
+  function setHover(geo, landHit) {
+    if (!geo || landHit) {
+      hover = null;
+      canvas.style.cursor = "default";
+      readout.textContent = landHit
+        ? "Land · pick water"
+        : "Hover water for coordinates and fauna in range";
       draw();
       return;
     }
+    hover = geo;
+    canvas.style.cursor = "crosshair";
     const fauna = presenceAt(geo.lat, geo.lon);
-    const who = presentLabel(fauna);
+    const who = presentLabel(fauna, 4);
     readout.textContent = `${formatLatLon(geo.lat, geo.lon)} · ${who}`;
     draw();
   }
 
   canvas.addEventListener("pointermove", (e) => {
     const rect = root.getBoundingClientRect();
-    setHover(xyToLonLat(e.clientX - rect.left, e.clientY - rect.top));
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    setHover(xyToLonLat(px, py), sampleLand(px, py));
   });
-  canvas.addEventListener("pointerleave", () => setHover(null));
+  canvas.addEventListener("pointerleave", () => setHover(null, false));
   btnLab?.addEventListener("click", async (e) => {
     e.stopPropagation();
     if (loading || !onLab) return;
@@ -263,7 +281,13 @@ export function createOceanMap({ onEnter, onLab }) {
   canvas.addEventListener("click", async (e) => {
     if (loading) return;
     const rect = root.getBoundingClientRect();
-    const geo = xyToLonLat(e.clientX - rect.left, e.clientY - rect.top);
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    if (sampleLand(px, py)) {
+      status.textContent = "That's land.";
+      return;
+    }
+    const geo = xyToLonLat(px, py);
     loading = true;
     status.textContent = "Loading 1 km cell…";
     draw();

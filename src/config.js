@@ -100,6 +100,12 @@ export const CONFIG = {
     excrete: 0.36,
     detritus: 0.24,
   },
+
+  /** Headcount / energy / meal recorder for the headless viability suite. */
+  viability: {
+    sampleDt: 2,
+    maxSamples: 1800,
+  },
 };
 
 export function yearSeconds() {

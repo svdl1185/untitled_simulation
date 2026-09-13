@@ -77,6 +77,8 @@ export class Shark {
     this.dead = false;
     this.mateT = opts.mateT ?? (0.4 + Math.random() * 0.6) * yearSeconds();
     this.energy = 0.55 + Math.random() * 0.28;
+    this.yDeep = this.y;
+    this.yShallow = this.y;
     this.fearRadius = this.cfg.fearRadius;
     this.fearStrength = CONFIG.fish.fearWeight;
     this.biteRadius = this.cfg.biteRadius;
@@ -188,6 +190,8 @@ export class Shark {
     this.x = pushed.x;
     this.y = pushed.y;
     this.z = pushed.z;
+    if (this.y < this.yDeep) this.yDeep = this.y;
+    if (this.y > this.yShallow) this.yShallow = this.y;
 
     const ground = this._keepInWater(cfg, dt, false);
 
@@ -989,6 +993,8 @@ export function resetSharks(pack, school) {
       s.cfg?.gait === "benthic"
         ? seafloorHeight(s.x, s.z) + (s.cfg.floorClearance ?? 3) + 2
         : school.centroid.y - 2.5 - i * 1.8;
+    s.yDeep = s.y;
+    s.yShallow = s.y;
     s.vx = 0;
     s.vy = 0;
     s.vz = -5;
