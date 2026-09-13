@@ -2,6 +2,9 @@ name = "untitled-simulation"
 main = "workers/atlas.js"
 compatibility_date = "2026-09-13"
 
+[placement]
+mode = "smart"
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"

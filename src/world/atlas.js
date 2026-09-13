@@ -23,6 +23,12 @@ async function fetchText(url, ms = 14000) {
     const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) throw new AtlasError("http", `${res.status} ${url}`);
     return await res.text();
+  } catch (err) {
+    if (err instanceof AtlasError) throw err;
+    if (err?.name === "AbortError") {
+      throw new AtlasError("timeout", "The bathymetry service did not answer in time.");
+    }
+    throw err;
   } finally {
     clearTimeout(t);
   }
@@ -107,7 +113,8 @@ function parseEsriAscii(text) {
   };
 }
 
-export async function fetchElevationGrid(west, south, east, north, resolution = "max") {
+/** `high` is ~100 m — enough for a 1 km cell resampled to 80². `max` is slower on GMRT. */
+export async function fetchElevationGrid(west, south, east, north, resolution = "high") {
   const pad = resolution === "max" ? 0.002 : 0;
   const q =
     `/gmrt/services/GridServer?west=${west - pad}&east=${east + pad}` +
