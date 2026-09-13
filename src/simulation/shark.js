@@ -68,6 +68,10 @@ export class Shark {
     this.eatEvents = [];
     this.eaten = 0;
     this.pups = 0;
+    this.filterTaken = 0;
+    this.filterMeals = 0;
+    this.energyIn = 0;
+    this.cause = null;
     this.biteT = 0;
     this.starveT = 0;
     this.dead = false;
@@ -104,7 +108,9 @@ export class Shark {
   }
 
   feed() {
-    this.energy = Math.min(1, this.energy + (this.cfg.eatEnergy ?? CONFIG.shark.eatEnergy));
+    const add = this.cfg.eatEnergy ?? CONFIG.shark.eatEnergy;
+    this.energy = Math.min(1, this.energy + add);
+    this.energyIn = (this.energyIn || 0) + add;
   }
 
   startLunge() {
@@ -125,6 +131,8 @@ export class Shark {
     const cfg = this.cfg || CONFIG.shark;
     if (this.controlled) this._player(dt, input, cfg);
     else this._ai(dt, school, cfg, pack, look);
+
+    if (pack) this._fleeHunted(pack, dt);
 
     this.lungeT -= dt;
     if (this.lungeT <= 0) this.lunging = false;
@@ -169,7 +177,10 @@ export class Shark {
     this._tickBreath(dt, cfg);
     if (this.energy < cfg.starveAt) this.starveT += dt;
     else this.starveT = Math.max(0, this.starveT - dt * 1.8);
-    if (this.starveT >= cfg.starveDays * CONFIG.time.dayLength) this.dead = true;
+    if (this.starveT >= cfg.starveDays * CONFIG.time.dayLength) {
+      this.cause = this.cause || "starve";
+      this.dead = true;
+    }
 
     this._keepInWater(cfg, dt, true);
 
@@ -208,6 +219,52 @@ export class Shark {
     }
   }
 
+  _eatVehicles(pack, plankton) {
+    const kinds = this.cfg?.huntKinds;
+    if (!kinds?.length || this.dead) return;
+    if ((this.biteT ?? 0) > 0) return;
+    if ((this.cfg.diet || "bite") === "filter") return;
+    const r = this.biteRadius;
+    for (let i = 0; i < pack.length; i++) {
+      const o = pack[i];
+      if (o === this || o.dead) continue;
+      if (!kinds.includes(o.kind)) continue;
+      const hit = r + (o.cfg?.length ?? 1) * (o.scale || 1) * 0.4;
+      const dx = o.x - this.mouthX;
+      const dy = o.y - this.mouthY;
+      const dz = o.z - this.mouthZ;
+      if (dx * dx + dy * dy + dz * dz >= hit * hit) continue;
+      o.cause = "eaten";
+      o.dead = true;
+      const meal = this.cfg.eatVehicleEnergy ?? (this.cfg.eatEnergy ?? 0.08) * 2.2;
+      this.energy = Math.min(1, this.energy + meal);
+      this.energyIn = (this.energyIn || 0) + meal;
+      this.biteT =
+        this.lunging || this.aiMode === "strike"
+          ? this.cfg?.lungeBiteCooldown ?? CONFIG.shark.lungeBiteCooldown
+          : this.cfg?.biteCooldown ?? CONFIG.shark.biteCooldown;
+      this.onEat(o.x, o.y, o.z);
+      return;
+    }
+  }
+
+  _fleeHunted(pack, dt) {
+    for (let i = 0; i < pack.length; i++) {
+      const o = pack[i];
+      if (o === this || o.dead) continue;
+      if (!o.cfg?.huntKinds?.includes(this.kind)) continue;
+      const dx = this.x - o.x;
+      const dy = this.y - o.y;
+      const dz = this.z - o.z;
+      const d = Math.hypot(dx, dy, dz);
+      if (d < 0.4 || d > 85) continue;
+      const w = ((1 - d / 85) ** 2) * 26;
+      this.vx += (dx / d) * w * dt;
+      this.vy += (dy / d) * w * dt * 0.4;
+      this.vz += (dz / d) * w * dt;
+    }
+  }
+
   _filterFeed(dt, school, look, cfg) {
     const diet = cfg.diet || "bite";
     if (diet !== "filter" && diet !== "both") return;
@@ -215,7 +272,13 @@ export class Shark {
     if (!bloom || !(cfg.filterGraze > 0)) return;
     const ov = bloom.overlap(look, this.y);
     const taken = bloom.graze(this.x, this.z, cfg.filterGraze * dt * ov);
-    if (taken > 0) this.energy = Math.min(1, this.energy + taken * (cfg.filterGain ?? 0.4));
+    if (taken > 0) {
+      const gain = taken * (cfg.filterGain ?? 0.4);
+      this.energy = Math.min(1, this.energy + gain);
+      this.filterTaken = (this.filterTaken || 0) + taken;
+      this.filterMeals = (this.filterMeals || 0) + 1;
+      this.energyIn = (this.energyIn || 0) + gain;
+    }
   }
 
   _tickBreath(dt, cfg) {
@@ -380,7 +443,18 @@ export class Shark {
       this._aiFilter(dt, school, cfg, look);
       return;
     }
-    const target = school.targetFor(this) || school.centroid;
+    const targetSchool = school.targetFor(this) || school.centroid;
+    const preyV = nearestHuntKind(this, pack, cfg.huntKinds);
+    let target = targetSchool;
+    let huntVehicle = null;
+    if (preyV) {
+      const vd = Math.hypot(preyV.x - this.x, preyV.y - this.y, preyV.z - this.z);
+      const sd = Math.hypot(targetSchool.x - this.x, targetSchool.y - this.y, targetSchool.z - this.z);
+      if (vd < 120 || vd < sd * 0.9 || this.energy < cfg.hungry) {
+        target = { x: preyV.x, y: preyV.y, z: preyV.z, vx: preyV.vx, vy: preyV.vy, vz: preyV.vz };
+        huntVehicle = preyV;
+      }
+    }
     const cx = target.x;
     const cy = target.y;
     const cz = target.z;
@@ -415,6 +489,7 @@ export class Shark {
     let arriveR = 14;
     if (this.aiMode === "strike") {
       const prey =
+        huntVehicle ||
         school.nearestFish(this.mouthX, this.mouthY, this.mouthZ, 7.2, cfg.huntTaxa) ||
         school.nearestFish(this.x, this.y, this.z, 7.2, cfg.huntTaxa);
       if (prey) {
@@ -780,6 +855,23 @@ export function createShark(i, count, school, kind = "shark") {
   return shark;
 }
 
+function nearestHuntKind(self, pack, kinds) {
+  if (!kinds?.length || !pack) return null;
+  let best = null;
+  let bestD = Infinity;
+  for (let i = 0; i < pack.length; i++) {
+    const o = pack[i];
+    if (o === self || o.dead) continue;
+    if (!kinds.includes(o.kind)) continue;
+    const d = Math.hypot(o.x - self.x, o.y - self.y, o.z - self.z);
+    if (d < bestD) {
+      bestD = d;
+      best = o;
+    }
+  }
+  return best;
+}
+
 function nearestOpposite(self, pack) {
   let best = null;
   let bestD = Infinity;
@@ -876,6 +968,10 @@ export function resetSharks(pack, school) {
     const s = pack[i];
     s.eaten = 0;
     s.pups = 0;
+    s.filterTaken = 0;
+    s.filterMeals = 0;
+    s.energyIn = 0;
+    s.cause = null;
     s.energy = 0.55 + Math.random() * 0.25;
     s.biteT = 0;
     s.starveT = 0;

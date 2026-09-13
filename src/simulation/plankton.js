@@ -15,7 +15,8 @@ const _grad = { x: 0, z: 0 };
  *
  * Future guilds should only touch this class:
  *   sampleLayer / grazeLayer / depositLayer / recycle / overlap / forageDepth
- * School fish graze `z`, carcasses and excretion return mass to `n` and `d`.
+ * School fish graze `z` unless a taxon sets `grazeOn: "p"` (krill).
+ * Carcasses and excretion return mass to `n` and `d`.
  * Keep new species on that API so the NPZD budget stays closed as the
  * ecosystem grows.
  */
@@ -208,13 +209,13 @@ export class Plankton {
     return deep + (clampHabitatY(-7.2, CONFIG.fish.maxDepth) - deep) * rise;
   }
 
-  graze(x, z, amount) {
+  graze(x, z, amount, layer = TROPHIC.Z) {
     if (amount <= 0) return 0;
     const { nx, nz, wet } = this;
     const { fx, fz } = this._indexWorld(x, z);
     const ix = Math.round(fx);
     const iz = Math.round(fz);
-    const taken = this._take(this.z, wet, nx, nz, ix, iz, amount);
+    const taken = this._take(this._field(layer), wet, nx, nz, ix, iz, amount);
     if (taken > 0) {
       const cfg = CONFIG.plankton;
       this._give(this.n, wet, nx, nz, ix, iz, taken * cfg.excrete);

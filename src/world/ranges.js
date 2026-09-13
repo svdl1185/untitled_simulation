@@ -443,6 +443,66 @@ const HUMBOLDT_HULLS = [
   ],
 ];
 
+const JACKMACKEREL_HULLS = [
+  [
+    [-126, 22],
+    [-126, 48],
+    [-116, 48],
+    [-110, 32],
+    [-110, 22],
+  ],
+  [
+    [-84, 8],
+    [-84, -46],
+    [-70, -46],
+    [-70, 8],
+  ],
+  [
+    [128, 28],
+    [128, 44],
+    [148, 44],
+    [148, 28],
+  ],
+  [
+    [165, -48],
+    [165, -32],
+    [180, -32],
+    [180, -48],
+  ],
+  [
+    [-180, -48],
+    [-180, -32],
+    [-170, -32],
+    [-170, -48],
+  ],
+];
+
+const ILLEX_HULLS = [
+  [
+    [-76, 35],
+    [-76, 52],
+    [-40, 52],
+    [-40, 35],
+  ],
+  [
+    [-70, -55],
+    [-70, -32],
+    [-40, -32],
+    [-40, -55],
+  ],
+];
+
+const KRILL_NA_HULLS = [
+  [
+    [-70, 42],
+    [-70, 72],
+    [20, 76],
+    [32, 58],
+    [8, 48],
+    [-24, 42],
+  ],
+];
+
 export function pointInPolygon(lon, lat, ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -485,6 +545,10 @@ const RANGES = [
   { id: "silverfish", hulls: SILVERFISH_HULLS },
   { id: "saury", hulls: SAURY_HULLS },
   { id: "marketsquid", hulls: MARKETSQUID_HULLS },
+  { id: "jackmackerel", hulls: JACKMACKEREL_HULLS },
+  { id: "illex", hulls: ILLEX_HULLS },
+  { id: "krill", hulls: [...SILVERFISH_HULLS, ...KRILL_NA_HULLS] },
+  { id: "toothfish", hulls: SILVERFISH_HULLS },
   { id: "greatwhite", hulls: GREATWHITE_HULLS },
   { id: "humpback", hulls: HUMPBACK_HULLS },
   { id: "humboldtsquid", hulls: HUMBOLDT_HULLS },
@@ -516,11 +580,12 @@ export function presenceAt(lat, lon) {
     if (inAny(x, lat, spec.hulls)) p[spec.id] = 1;
   }
   if (Math.abs(lat) < 32.5) p.flyingfish = 1;
+  if (Math.abs(lat) < 52) p.lanternfish = 1;
 
   const prey = schoolPreyCount(p);
   if (prey && lat < 58 && lat > -48) p.shark = 1;
   if (prey && Math.abs(lat) < 40) p.tuna = 1;
-  if ((p.herring || p.capelin) && lat > 42 && lat < 78 && lon > -76 && lon < 52) {
+  if ((p.herring || p.capelin || p.sandlance) && lat > 42 && lat < 78 && lon > -76 && lon < 52) {
     p.cod = 1;
   }
   if (prey && Math.abs(lat) < 28) p.tigershark = 1;
@@ -534,6 +599,7 @@ export function presenceAt(lat, lon) {
   if (prey && Math.abs(lat) < 32) p.yellowfin = 1;
   if (prey && Math.abs(lat) >= 24 && Math.abs(lat) <= 60) p.bluefin = 1;
   if (prey && Math.abs(lat) < 32) p.sailfish = 1;
+  if (prey && Math.abs(lat) < 40) p.commondolphin = 1;
 
   for (const id of VEHICLE_IDS) {
     if ((p[id] ?? 0) <= 0.05) continue;

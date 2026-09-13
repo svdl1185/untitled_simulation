@@ -3,6 +3,7 @@ import { allocateSchoolCounts } from "../world/fauna.js";
 import { UniformGrid3D } from "./grid.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
+import { TROPHIC } from "./plankton.js";
 
 function packOf(sharks) {
   return Array.isArray(sharks) ? sharks : sharks ? [sharks] : [];
@@ -137,6 +138,14 @@ export class School {
     this._hungryN = 0;
     this.meanEnergy = 0.6;
     this._plankton = null;
+    this._tmax = 48;
+    this._tn = new Uint32Array(this._tmax);
+    this._te = new Float64Array(this._tmax);
+    this._th = new Uint32Array(this._tmax);
+    this.grazeTaken = new Float64Array(this._tmax);
+    this.bornOf = new Uint32Array(this._tmax);
+    this.starvedOf = new Uint32Array(this._tmax);
+    this.eatenOf = new Uint32Array(this._tmax);
 
     for (let s = 0; s < this.maxSchools; s++) {
       this.centroids.push({
@@ -197,6 +206,25 @@ export class School {
     return this._tcfg[this.anchors[s]?.taxon ?? 0] || CONFIG.fish;
   }
 
+  /** Per-taxon headcount, energy, graze, births, and deaths since last respawn. */
+  taxonTally() {
+    const out = {};
+    for (let t = 0; t < this.taxa.length; t++) {
+      const id = this.taxa[t].id;
+      const n = this._tn[t];
+      out[id] = {
+        n,
+        energy: n ? this._te[t] / n : 0,
+        hungry: this._th[t],
+        graze: this.grazeTaken[t],
+        born: this.bornOf[t],
+        starved: this.starvedOf[t],
+        eaten: this.eatenOf[t],
+      };
+    }
+    return out;
+  }
+
   _home(s) {
     const n = Math.max(1, this.initialSchools);
     const a = (s / n) * Math.PI * 2 + 0.31;
@@ -235,6 +263,13 @@ export class School {
     this._recruitAcc = 0;
     this._starveAcc = 0;
     this._harvestDebt = 0;
+    this._tn.fill(0);
+    this._te.fill(0);
+    this._th.fill(0);
+    this.grazeTaken.fill(0);
+    this.bornOf.fill(0);
+    this.starvedOf.fill(0);
+    this.eatenOf.fill(0);
     this._splitLock.fill(0);
     this.alarm.fill(0);
     this._alarm.fill(0);
@@ -427,6 +462,9 @@ export class School {
   }
 
   remove(i, harvested = true) {
+    const t = this.taxon[i];
+    if (harvested) this.eatenOf[t]++;
+    else this.starvedOf[t]++;
     const last = this.count - 1;
     if (i !== last) {
       const i3 = i * 3;
@@ -549,6 +587,7 @@ export class School {
     this._wanderAnchors(dt, pack, look);
     this.grid.rebuild(this.pos, this.count);
     this._eat(pack, plankton);
+    for (let p = 0; p < pack.length; p++) pack[p]._eatVehicles?.(pack, plankton);
     this._flock(dt, pack, look);
     this._reorganize(dt, pack, look);
     if (plankton) {
@@ -578,7 +617,11 @@ export class School {
       a.modeT -= dt;
       const bloom = this._plankton;
       const hunger = this.schoolHunger[s];
-      const food = bloom ? bloom.sample(c.x, c.z) * bloom.overlap(look, c.y) : 0;
+      const grazeP = scfg.grazeOn === "p";
+      const food = bloom
+        ? bloom.sampleLayer(grazeP ? TROPHIC.P : TROPHIC.Z, c.x, c.z) *
+          (grazeP ? 1 : bloom.overlap(look, c.y))
+        : 0;
 
       let hx = a.hx;
       let hz = a.hz;
@@ -639,7 +682,7 @@ export class School {
       a.hx += flowA.x * 0.07;
       a.hz += flowA.z * 0.07;
       if (bloom) {
-        const g = bloom.gradient(c.x, c.z);
+        const g = grazeP ? bloom.gradientLayer(TROPHIC.P, c.x, c.z) : bloom.gradient(c.x, c.z);
         let pull = 0.18 + hunger * 1.2;
         if (food < 0.14) pull += 0.45;
         if (food > 0.42 && hunger < 0.36) pull *= 0.12;
@@ -767,6 +810,9 @@ export class School {
     this.schoolFem.fill(0);
     this.schoolMal.fill(0);
     this._hungryN = 0;
+    this._tn.fill(0);
+    this._te.fill(0);
+    this._th.fill(0);
     const halfSat = CONFIG.plankton.halfSat;
     const grazeRate = CONFIG.plankton.graze;
 
@@ -1070,12 +1116,16 @@ export class School {
       if (alarm < 0.82 && shore.urgency < 0.45) {
         const bloom = this._plankton;
         if (bloom) {
-          const zFood = bloom.sample(px, pz) * bloom.overlap(look, py);
+          const grazeP = cfg.grazeOn === "p";
+          const zFood =
+            bloom.sampleLayer(grazeP ? TROPHIC.P : TROPHIC.Z, px, pz) *
+            (grazeP ? 1 : bloom.overlap(look, py));
           const hunger = 1 - e;
           const sat = zFood / (zFood + halfSat);
           const panic = alarm * 0.7;
           const demand = grazeRate * (cfg.grazeMul ?? 1) * sat * dt * (0.4 + hunger * 0.9) * (1 - panic);
-          bloom.graze(px, pz, demand);
+          const taken = bloom.graze(px, pz, demand, grazeP ? TROPHIC.P : TROPHIC.Z);
+          this.grazeTaken[this.taxon[i]] += taken;
           e += sat * forageGain * dt * (1.08 - e) * (1 - alarm * 0.6);
           const pull = cfg.forageWeight * (0.18 + hunger * 1.25);
           cruiseX += anchor.gx * pull;
@@ -1086,7 +1136,13 @@ export class School {
       if (e < 0) e = 0;
       else if (e > 1) e = 1;
       this.energy[i] = e;
-      if (e < cfg.starveAt) this._hungryN++;
+      const ti = this.taxon[i];
+      this._tn[ti]++;
+      this._te[ti] += e;
+      if (e < cfg.starveAt) {
+        this._hungryN++;
+        this._th[ti]++;
+      }
 
       let fleeX = 0;
       let fleeY = 0;
@@ -1650,7 +1706,7 @@ export class School {
     this._harvestDebt = Math.max(0, this._harvestDebt + this.eatenThisFrame);
     const target = Math.min(this.cap, Math.max(ceiling, this.count + this._harvestDebt));
     if (this.count >= target || this.count >= this.max) return;
-    if (plankton.meanZ < 0.045 || this.meanEnergy < CONFIG.fish.recruitEnergy * 0.55) return;
+    if (Math.max(plankton.meanZ, plankton.meanP) < 0.045 || this.meanEnergy < CONFIG.fish.recruitEnergy * 0.55) return;
     let breeders = 0;
     for (let s = 0; s < this.maxSchools; s++) {
       if (this.schoolFem[s] < 4 || this.schoolMal[s] < 4) continue;
@@ -1676,7 +1732,8 @@ export class School {
       if (this.schoolFem[s] < 4 || this.schoolMal[s] < 4) continue;
       if (this.schoolHunger[s] > 0.52) continue;
       const c = this.centroids[s];
-      const food = plankton.sample(c.x, c.z);
+      const grazeP = this.shoalCfg(s).grazeOn === "p";
+      const food = grazeP ? plankton.sampleLayer(TROPHIC.P, c.x, c.z) : plankton.sample(c.x, c.z);
       const score = food * (1.15 - this.schoolHunger[s]) * this.schoolFem[s];
       if (score > best) {
         best = score;
@@ -1716,6 +1773,7 @@ export class School {
     this.energy[i] = CONFIG.fish.spawnEnergy * (0.85 + Math.random() * 0.3);
     this.count = i + 1;
     this.totalBorn++;
+    this.bornOf[this.taxon[i]]++;
     if (female) this.schoolFem[sid]++;
     else this.schoolMal[sid]++;
     this.schoolN[sid]++;

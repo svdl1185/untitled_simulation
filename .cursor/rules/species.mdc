@@ -26,7 +26,7 @@ Write the diet anyway. Then wire what exists.
 - **What limits it.** Shared bloom mean for school fish; catch rate and energy drain for vehicles; a cap in `CONFIG`. New life must eat something and be limited by something.
 - **Missing prey.** If the food is not in the model yet, do not fake fullness with a constant. Do not keep the animal shallow as a stand-in. Either leave it out, or let it perform the natural loop and starve / sit at carrying-capacity zero. List the gap in `FAUNA[id].missing` — the card shows that as **Not in the model**, a separate section, not buried in Program.
 
-Current school grazers: herring, capelin, menhaden, sardine, pilchard, anchovy, sardinella, mackerel, sprat, sand lance, polar cod, Antarctic silverfish (Type II on `z`); flying fish and Pacific saury (`loose` surface); market squid (`scatter`, DVM). Predators: blue shark, great white, tiger, hammerhead, skipjack, yellowfin, bluefin, mahi, barracuda, sailfish, orca, humpback, Humboldt squid bite school fish; sperm whale prefers market squid (`huntTaxa`); whale shark filters `z`; minke filters `z` and bites; cod bites near the shelf floor.
+Current school grazers: herring, capelin, menhaden, sardine, pilchard, anchovy, sardinella, mackerel, jack mackerel, sprat, sand lance, polar cod, Antarctic silverfish (Type II on `z`); lanternfish (`scatter`, DSL DVM); flying fish and Pacific saury (`loose` surface); market squid and Illex (`scatter`, DVM); krill (`scatter`, Type II on `p`). Predators: blue shark, great white, tiger, hammerhead, skipjack, yellowfin, bluefin, mahi, barracuda, sailfish, orca, humpback, Humboldt squid, common dolphin bite named or school fish; sperm whale prefers squid and lanternfish (`huntTaxa`) and bites Humboldt squid (`huntKinds`); whale shark filters `z`; minke filters `z` and bites (including krill); cod bites named shelf forage; toothfish bites silverfish on the Antarctic slope.
 
 ## 3. Predators (even if they are not simulated yet)
 
@@ -34,7 +34,7 @@ Current school grazers: herring, capelin, menhaden, sardine, pilchard, anchovy, 
 - **How that changes behaviour.** DVM, school tightness, beach avoidance, vertical refuge.
 - **Missing predator.** Still encode the refuge the predator would create. Herring go deeper by day *because* visual hunters exist, including ones we have not meshed. Name those hunters in `missing`.
 
-Current: named sharks, tunas, orca, humpback, Humboldt squid eat school fish; sperm whales hunt squid; whale sharks filter `z`; minke do both. Cod eat on the shelf. Surface hunters (gannet, seal) are still not agents; forage DVM is the placeholder for that pressure. Tropical cells can hold skipjack, yellowfin, mahi, and sailfish together because depth and gait partition them.
+Current: named sharks, tunas, orca, humpback, Humboldt squid, common dolphin eat school fish; sperm whales hunt squid, lanternfish, and Humboldt squid; whale sharks filter `z`; minke do both (including krill). Cod eat named shelf forage. Toothfish eat silverfish. Surface birds (gannet) are still not agents; forage DVM is the placeholder for that pressure. Tropical cells can hold skipjack, yellowfin, mahi, sailfish, and common dolphin together because depth and gait partition them.
 
 ## 4. Depth and diel migration
 
@@ -48,19 +48,19 @@ The seafloor can be kilometres down. **Guild depth is biology, then the floor �
 - **Neighbour grid.** `gridMinY(taxa)` covers the deepest *present school* species, not the abyss and not an absent lanternfish. Vehicles (sperm whale, Humboldt squid) can go to 1–2 km without enlarging the herring hashed grid.
 - **Lighting is optics, not habitat.** Sun, fog, and caustics follow `photicLimitY()` / `CONFIG.water`. A bathypelagic dive still uses the epipelagic shader until a dark optical story exists. Put that in `missing`. Do not use it to forbid the dive.
 
-Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 400 m. Flying fish stay in the top ~20 m. Humboldt squid DVM night ~−80 m, day ~−700 m, max 1200 m. Sperm whale max 2000 m, breath-hold dives to the cell floor. Cod hug the shelf floor, max 600 m, dropped if floor > ~650 m. Zooplankton: thermocline by day, photic at night.
+Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 400 m. Lanternfish night ≈ −40 m, day ≈ −280 m, max 450 m (enlarges `gridMinY` only when present). Flying fish stay in the top ~20 m. Humboldt squid DVM night ~−80 m, day ~−700 m, max 1200 m. Sperm whale max 2000 m, breath-hold dives to the cell floor. Cod hug the shelf floor, max 600 m, dropped if floor > ~650 m. Toothfish hug the Antarctic slope, max 2000 m. Zooplankton: thermocline by day, photic at night. Krill graze `p` near the surface at night.
 
 ## 5. Flow and fields
 
 - **Sample `sampleFlow`.** Advection, shear, beach-normal tide. Do not give a species its own current.
-- **NPZD / bloom.** Does it graze `z`, shade `p`, recycle to `d`? School fish graze `z`; carcasses recycle; whale shark / minke `plankton.graze` as filter.
+- **NPZD / bloom.** Does it graze `z`, shade `p`, recycle to `d`? School fish graze `z` unless `grazeOn: "p"` (krill). Carcasses recycle; whale shark / minke `plankton.graze` as filter.
 - **Later fields** (add here when they exist): temperature / Q10, light extinction for growth, nutrients, oxygen, salinity, pycnocline crossing cost.
 
 ## 6. Range and presence
 
 - Hull or grid in `src/world/ranges.js`. Independent flags, not a single winner.
 - `CONFIG.presence[id]` on `applyPatch` (every catalog id). Spawn gated with `faunaPresent(id)`.
-- Trophic dependents: if no school prey is in the cell, most bite-predators are absent. Cod also need herring or capelin, and a shelf. Whale sharks and minke eat the bloom, so they can occupy a cell with no school fish. Sperm whales are oceanic (`|lat| < 55`); they still dive if squid are missing, and they do not get free calories.
+- Trophic dependents: if no school prey is in the cell, most bite-predators are absent. Cod also need herring, capelin, or sand lance, and a shelf. Humboldt squid need named East-Pacific forage or lanternfish. Toothfish need silverfish. Common dolphin need surface forage. Whale sharks and minke eat the bloom, so they can occupy a cell with no school fish. Sperm whales are oceanic (`|lat| < 55`); they still dive if squid are missing, and they do not get free calories.
 
 ## 7. Behaviour (the actual program)
 
@@ -101,4 +101,4 @@ One cell may eventually list hundreds of sharks, squid, kelp, coral, whales. Tha
 
 ## When you add a feature, add a bullet
 
-Examples of future rows: temperature niche, dissolved oxygen, deep-scattering layer / lanternfish, benthic carbon, photophores, school-as-density beyond the camera frustum, krill as a field, coral as a `field` agent, a bathypelagic optical story (dark water, not herring-green at 1500 m), vehicle-on-vehicle bites (sperm whale × Humboldt squid).
+Examples of future rows: temperature niche, dissolved oxygen, benthic carbon, photophores as a light field, school-as-density beyond the camera frustum, krill as a basin Eulerian field (agents are the near-camera swarm), coral as a `field` agent, a bathypelagic optical story (dark water, not herring-green at 1500 m). Vehicle-on-vehicle bites exist for sperm whale × Humboldt squid; other pairs still need `huntKinds`.

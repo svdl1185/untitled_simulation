@@ -82,6 +82,24 @@ function localizeFauna(sp) {
   if (sp.id === "minke" && lat < 0) {
     return { ...sp, latin: "Balaenoptera bonaerensis" };
   }
+  if (sp.id === "jackmackerel") {
+    if (lon < -68 && lat < 10) return { ...sp, common: "Chilean jack mackerel", latin: "Trachurus murphyi" };
+    if (lon < -100) return { ...sp, common: "Pacific jack mackerel", latin: "Trachurus symmetricus" };
+    if (lon > 120 && lat > 0) return { ...sp, common: "Japanese jack mackerel", latin: "Trachurus japonicus" };
+    if (lat < -20) return { ...sp, common: "Greenback horse mackerel", latin: "Trachurus declivis" };
+    return { ...sp, latin: "Trachurus trachurus" };
+  }
+  if (sp.id === "illex") {
+    if (lat < 0) return { ...sp, common: "Argentine shortfin squid", latin: "Illex argentinus" };
+    return { ...sp, common: "Northern shortfin squid", latin: "Illex illecebrosus" };
+  }
+  if (sp.id === "krill") {
+    if (lat < 0) return { ...sp, common: "Antarctic krill", latin: "Euphausia superba" };
+    return { ...sp, common: "Northern krill", latin: "Meganyctiphanes norvegica" };
+  }
+  if (sp.id === "toothfish" && lat > -58) {
+    return { ...sp, common: "Patagonian toothfish", latin: "Dissostichus eleginoides" };
+  }
   if (sp.id === "bluefin") {
     if (lat < -20) return { ...sp, common: "Southern bluefin", latin: "Thunnus maccoyii" };
     if (lon < -100 || lon > 120) return { ...sp, common: "Pacific bluefin", latin: "Thunnus orientalis" };
@@ -92,13 +110,16 @@ function localizeFauna(sp) {
 
 const CENSUS_GUILD_ORDER = [
   "Pelagic forage fish",
+  "Mesopelagic forage fish",
   "Benthopelagic forage fish",
   "Surface forage fish",
+  "Euphausiid",
   "Pelagic cephalopod",
   "Pelagic predator",
   "Coastal pelagic predator",
   "Surface pelagic predator",
   "Demersal predator",
+  "Slope predator",
   "Filter-feeding shark",
   "Pelagic cephalopod predator",
   "Mysticete",

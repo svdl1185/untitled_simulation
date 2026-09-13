@@ -130,7 +130,7 @@ export const FAUNA = {
       "Loose social mode on the shared grid: metres of spacing, weak alignment, individual darts instead of a turn-wave. Type II graze on z. Large pectorals are the mesh, not a flight integrator.",
     missing: [
       "Aerial gliding is not simulated.",
-      "Surface hunters (birds) are not agents.",
+      "Gannets and other birds are not agents; common dolphin and mahi are the surface bites that exist.",
     ],
   },
   sprat: {
@@ -185,10 +185,10 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "The pelagic forage of the Southern Ocean, typically 10–25 cm. Lives throughout the water column over the Antarctic slope; recorded to about 700 m. Eaten by penguins, toothfish, minke, and orca.",
-    program: "Polarized shoal. Type II graze on z. Fills cells south of about 54°S that no northern clupeid covers.",
+    program: "Polarized shoal. Type II graze on z. Fills cells south of about 54°S that no northern clupeid covers. Toothfish hunt this taxon.",
     missing: [
-      "Antarctic krill is not a separate field — graze is still z.",
-      "Penguins and toothfish are not agents.",
+      "Penguins are not agents.",
+      "Krill is now a school taxon where hulls overlap; silverfish still graze z, not krill bites.",
     ],
   },
   saury: {
@@ -213,12 +213,71 @@ export const FAUNA = {
     about:
       "Temperate loliginids (California Doryteuthis opalescens, European Loligo, Japanese Todarodes-adjacent market squid). Typically 12–30 cm mantle. Night near the surface; day tens to a few hundred metres. Recorded to about 400 m. Short-lived; spawn and die. Prey for sperm whales, sea lions, and fish.",
     program:
-      "Scatter social mode on the shared hashed grid — nearly independent, not a fish shoal. Type II graze on z. Mesh is a mantle. Sperm whales prefer this taxon when it is present.",
+      "Scatter social mode on the shared hashed grid — nearly independent, not a fish shoal. Type II graze on z. Mesh is a mantle. Sperm whales prefer this taxon (with Illex and lanternfish) when it is present.",
     missing: [
       "Piscivory on small fish is not a bite.",
       "Spawning aggregations and die-off are not a season.",
       "Sea lions are not agents.",
     ],
+  },
+  lanternfish: {
+    id: "lanternfish",
+    common: "Lanternfish",
+    latin: "Myctophidae",
+    guild: "Mesopelagic forage fish",
+    diet: "Zooplankton",
+    sex: "Female / male. Females are drawn slightly larger.",
+    about:
+      "The deep-scattering layer. Typically 3–15 cm. Night in the upper 100 m; day a few hundred metres down. Recorded to about 450 m for the taxa we mesh. Photophores are real; the shader is still epipelagic. Food for Humboldt squid, sperm whales, and tunas.",
+    program:
+      "Scatter shoal on the shared hashed grid. Type II graze on z. Own DVM (night ~−40 m, day ~−280 m, max −450 m). Modest catalog share so it does not fill the 20k budget. Presence is oceanic (|lat| < 52°), not a hull. Enlarges gridMinY only when this taxon is in the cell.",
+    missing: [
+      "A true mesopelagic optical story (dark water, photophore lighting) is not in the shader.",
+      "Oxygen-minimum habitat is not a field.",
+      "Family is one catalog id, not thirty myctophid species.",
+    ],
+  },
+  krill: {
+    id: "krill",
+    common: "Krill",
+    latin: "Euphausiidae",
+    guild: "Euphausiid",
+    diet: "Phytoplankton (p)",
+    sex: "Female / male.",
+    about:
+      "Swarming euphausiids. Antarctic krill (Euphausia superba) south of about 54°S; northern krill (Meganyctiphanes) in the North Atlantic. Typically 2–6 cm. Night near the surface on phytoplankton; day tens of metres down. Food for minke, humpback, and silverfish in nature.",
+    program:
+      "Scatter swarm on the shared grid. Type II graze on phytoplankton p (not z). Recruits when p or z can carry the mixed school budget. Mysticetes bite this taxon like any other school agent.",
+    missing: [
+      "Krill as a basin-scale density field is not this agent set.",
+      "Ice-edge blooms are not a season.",
+    ],
+  },
+  jackmackerel: {
+    id: "jackmackerel",
+    common: "Jack mackerel",
+    latin: "Trachurus",
+    guild: "Pelagic forage fish",
+    diet: "Zooplankton; small fish",
+    sex: "Female / male. Females are drawn slightly larger.",
+    about:
+      "Carangid forage of eastern-boundary currents, typically 20–50 cm. Deeper and larger than sardine. Humboldt (murphyi), California (symmetricus), Japan (japonicus), New Zealand (declivis). Usually the upper 150 m; recorded near 300 m. Prey for tunas and Humboldt squid.",
+    program:
+      "Polarized shoal, not a Scomber clone: different hulls, a deeper day band, and a Humboldt-squid huntTaxa slot. Type II graze on z.",
+    missing: ["Piscivory on anchoveta is not a school-on-school bite."],
+  },
+  illex: {
+    id: "illex",
+    common: "Shortfin squid",
+    latin: "Illex",
+    guild: "Pelagic cephalopod",
+    diet: "Zooplankton; small fish",
+    sex: "Female / male.",
+    about:
+      "Ommastrephid squid of the Atlantic. Northern shortfin (illecebrosus) from the Grand Banks to the Mid-Atlantic; Argentine shortfin (argentinus) on the Patagonian shelf. Typically 20–40 cm mantle. Night near the surface; day a few hundred metres. Recorded to about 600 m. The Atlantic squid sperm whales actually meet.",
+    program:
+      "Scatter school squid, same programme as market squid but an Atlantic hull and a deeper day refuge. Type II graze on z. Sperm huntTaxa includes this id.",
+    missing: ["Shelf-break spawning and the fishery are not a season."],
   },
   shark: {
     id: "shark",
@@ -232,7 +291,7 @@ export const FAUNA = {
     program:
       "Burst-and-glide vehicle. Patrol → stalk → strike-from-below → recover. Bites any school fish in mouth radius. Pack spacing; different hunt indices. Roam uses the full column this cell allows, not a herring-only band.",
     missing: [
-      "Squid other than school market squid are not a bite (Humboldt is a vehicle, not prey).",
+      "Humboldt squid are a vehicle sperm whales hunt; blue sharks do not bite vehicles.",
       "Carrion and seabirds are not food items.",
     ],
   },
@@ -259,10 +318,26 @@ export const FAUNA = {
     about:
       "North Atlantic shelf gadid, typically 40–120 cm. Lives on the sand and in the lower column, usually 10–400 m; recorded to about 600 m. Not an abyssal fish. Eats herring, capelin, sand lance, and benthos.",
     program:
-      "Slow benthic vehicle: seafloor + a few metres. Small fear radius. Bites school fish that enter mouth range. Dropped if the cell floor is deeper than about 650 m — that is slope/abyss, not shelf.",
+      "Slow benthic vehicle: seafloor + a few metres. Small fear radius. Bites herring, capelin, sand lance, sprat, and polar cod (huntTaxa). Dropped if the cell floor is deeper than about 650 m — that is slope/abyss, not shelf.",
     missing: [
-      "Benthos and crabs are not agents, so energy is only from school-fish bites.",
+      "Benthos and crabs are not agents, so energy is only from named school-fish bites.",
       "Fishing mortality is not in the budget.",
+    ],
+  },
+  toothfish: {
+    id: "toothfish",
+    common: "Antarctic toothfish",
+    latin: "Dissostichus mawsoni",
+    guild: "Slope predator",
+    diet: "Antarctic silverfish, other notothenioids",
+    sex: "Female / male.",
+    about:
+      "The large demersal predator of the Southern Ocean slope, typically 1–2 m. Lives from the shelf break to about 2000 m. Not a North Sea cod. Eats silverfish. Antarctic toothfish (mawsoni) on this hull; Patagonian toothfish is a later range.",
+    program:
+      "Benthic vehicle on the Antarctic slope. huntTaxa silverfish only. Biological max 2000 m; the seafloor still wins. Not dropped at 650 m — that gate is for Atlantic cod. Starves if silverfish are missing.",
+    missing: [
+      "Patagonian toothfish (D. eleginoides) is not a second hull yet.",
+      "Icefish and other notothenioids are not school taxa.",
     ],
   },
   greatwhite: {
@@ -333,10 +408,10 @@ export const FAUNA = {
     about:
       "Small rorqual, typically 7–10 m. Northern (acutorostrata) and Antarctic (bonaerensis) minke share this id. Usually feeds in the upper 100 m; recorded to about 400 m. Must surface to breathe. Lunge-feeds on krill and forage fish.",
     program:
-      "Ram vehicle, diet both: filter-graze z and bite school fish. Air-breather: surface, then dive as deep as min(400 m, this cell's floor). Time is compressed so the dive can finish in one breath-hold on screen.",
+      "Ram vehicle, diet both: filter-graze z and bite school fish, including krill swarms when that taxon is present. Air-breather: surface, then dive as deep as min(400 m, this cell's floor). Time is compressed so the dive can finish in one breath-hold on screen.",
     missing: [
-      "Krill is not a separate field — bloom z stands in.",
       "Lunge-feeding bubble nets are not a hydrodynamics model.",
+      "Ice-edge krill super-swarms are still a school patch, not a basin field.",
     ],
   },
   humpback: {
@@ -349,10 +424,10 @@ export const FAUNA = {
     about:
       "Coastal migratory rorqual, typically 12–16 m. Feeds in high-latitude summers, winters in tropics. Lunge-feeds; recorded to about 500 m, usually much shallower. Must surface to breathe.",
     program:
-      "Burst vehicle with a huge bite radius. Hunts school fish. Air-breather: surface, then dive to min(500 m, this cell's floor). Coastal migratory hulls. Needs school prey in the cell.",
+      "Burst vehicle with a huge bite radius. Hunts school fish and krill. Air-breather: surface, then dive to min(500 m, this cell's floor). Coastal migratory hulls. Needs school prey in the cell.",
     missing: [
-      "Krill as a field is not wired — forage fish stand in for a lunge patch.",
       "Song and breeding lagoons are not a season.",
+      "Bubble-net hydrodynamics are not a field.",
     ],
   },
   spermwhale: {
@@ -365,10 +440,9 @@ export const FAUNA = {
     about:
       "The deep-diving toothed whale. Females ~11 m, males ~16 m. Cosmopolitan in ice-free oceans. Typical foraging dives 400–1200 m for 40–50 minutes; recorded beyond 2000 m. Hunts squid by echolocation. Must return to the surface to breathe.",
     program:
-      "Burst vehicle. Air-breather: brief surface, then a foraging dive to min(2000 m, this cell's floor). In a 1500 m cell that is ~1500 m, not a photic cap. Prefers market-squid shoals when they exist (huntTaxa). Time is compressed so the descent is fast enough to reach that floor in one breath-hold. Does not bite herring.",
+      "Burst vehicle. Air-breather: brief surface, then a foraging dive to min(2000 m, this cell's floor). In a 1500 m cell that is ~1500 m, not a photic cap. Prefers market squid, Illex, and lanternfish (huntTaxa). Bites Humboldt squid when that vehicle is in mouth range (huntKinds). Time is compressed so the descent is fast enough to reach that floor in one breath-hold. Does not bite herring.",
     missing: [
-      "Deep-sea squid (Architeuthis, Gonatus, Histioteuthis, the deep-scattering layer) are not agents. The whale still dives; it does not get free calories from empty water.",
-      "Humboldt squid are a separate vehicle — vehicle-on-vehicle bites are not wired.",
+      "Giant and glass squid (Architeuthis, Histioteuthis) are not agents. The whale still dives; it does not get free calories from empty water.",
       "Echolocation clicks are not a sense or a sound field.",
       "Lighting below the photic zone is still the epipelagic shader. That is an optical gap, not a reason to keep the whale shallow.",
     ],
@@ -390,6 +464,22 @@ export const FAUNA = {
       "Pod culture / dialect is not a state.",
     ],
   },
+  commondolphin: {
+    id: "commondolphin",
+    common: "Common dolphin",
+    latin: "Delphinus delphis",
+    guild: "Odontocete",
+    diet: "Flying fish, sardinella, anchovy, sardine",
+    sex: "Female / male.",
+    about:
+      "Small oceanic dolphin, typically 1.7–2.4 m. Tropical and warm-temperate. Hunts surface forage, often with tunas. Usually the upper 200 m; recorded near 300 m. Must surface to breathe.",
+    program:
+      "Ram vehicle, dolphin mesh, smaller than orca. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather. Present |lat| < 40° when that prey exists.",
+    missing: [
+      "Tuna-dolphin associations are not a cue.",
+      "Long-beaked D. capensis is not a second id.",
+    ],
+  },
   humboldtsquid: {
     id: "humboldtsquid",
     common: "Humboldt squid",
@@ -400,10 +490,10 @@ export const FAUNA = {
     about:
       "East Pacific jumbo flying squid, typically 0.8–2 m. Famous DVM: night in the upper 100 m, day 200–700 m, recorded to about 1200 m in the oxygen minimum. Hunts anchoveta, sardine, and lanternfish. Cannibalistic.",
     program:
-      "Ram / jet vehicle, not a school scatter. Follows its own DVM band (not the herring pancake). Bites school fish. Fast energy drain. East Pacific hull.",
+      "Ram / jet vehicle, not a school scatter. Follows its own DVM band (not the herring pancake). Bites anchovy, sardine, mackerel, lanternfish, and jack mackerel (huntTaxa). Flees sperm whales. Fast energy drain. East Pacific hull. Sperm whales bite this vehicle.",
     missing: [
-      "Lanternfish and the oxygen-minimum zone are not fields.",
-      "Cannibalism and sperm-whale predation on this vehicle are not bites.",
+      "The oxygen-minimum zone is not a field.",
+      "Cannibalism is not a huntKinds loop on this pack.",
     ],
   },
   mahi: {
@@ -452,7 +542,7 @@ export const FAUNA = {
     about:
       "Temperate giant tuna. Atlantic, Pacific, and southern bluefin share this id (latin follows hemisphere). Typically 1.5–3 m. Endothermic; hunts from the surface to about 1000 m. Needs named temperate forage, not a flying-fish-only cell.",
     program:
-      "Ram gait. Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard). Uses the column down to min(1000 m, this cell's floor).",
+      "Ram gait. Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel). Uses the column down to min(1000 m, this cell's floor).",
     missing: [
       "Regional endothermy is not a temperature field.",
       "Spawning in the Gulf of Mexico / Mediterranean is not a migration.",
