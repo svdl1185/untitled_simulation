@@ -531,7 +531,7 @@ export const FAUNA = {
     about:
       "Small rorqual, typically 7–10 m. Northern (acutorostrata) and Antarctic (bonaerensis) minke share this id. Usually feeds in the upper 100 m; recorded to about 400 m. Must surface to breathe. Lunge-feeds on krill and forage fish.",
     program:
-      "Ram vehicle, diet both: filter-graze z and bite school fish, including krill swarms when that taxon is present. Air-breather: surface, then dive as deep as min(400 m, this cell's floor). Time is compressed so the dive can finish in one breath-hold on screen.",
+      "Ram vehicle, diet both: filter-graze z and bite school fish, including krill swarms when that taxon is present. Air-breather: surface, then a foraging dive toward prey or typical forage ~50 m, clamped by min(400 m, this cell's floor). Time is compressed so a deep chase can finish in one breath-hold on screen.",
     missing: [
       "Lunge-feeding bubble nets are not a hydrodynamics model.",
       "Ice-edge krill super-swarms are still a school patch, not a basin field.",
@@ -551,7 +551,7 @@ export const FAUNA = {
     about:
       "Coastal migratory rorqual, typically 12–16 m. Feeds in high-latitude summers, winters in tropics. Lunge-feeds; recorded to about 500 m, usually much shallower. Must surface to breathe.",
     program:
-      "Burst vehicle with a huge bite radius. Hunts school fish and krill. Air-breather: surface, then dive to min(500 m, this cell's floor). Coastal migratory hulls. Needs school prey in the cell.",
+      "Burst vehicle with a huge bite radius. Hunts school fish and krill. Air-breather: surface, then a foraging dive toward prey or typical forage ~60 m, clamped by min(500 m, this cell's floor). Coastal migratory hulls. Needs school prey in the cell.",
     missing: [
       "Song and breeding lagoons are not a season.",
       "Bubble-net hydrodynamics are not a field.",
@@ -573,7 +573,7 @@ export const FAUNA = {
     about:
       "The deep-diving toothed whale. Females ~11 m, males ~16 m. Cosmopolitan in ice-free oceans. Typical foraging dives 400–1200 m for 40–50 minutes; recorded beyond 2000 m. Hunts squid by echolocation. Must return to the surface to breathe.",
     program:
-      "Burst vehicle. Air-breather: brief surface, then a foraging dive to min(2000 m, this cell's floor). In a 1500 m cell that is ~1500 m, not a photic cap. Prefers market squid, Illex, and lanternfish (huntTaxa). Bites Humboldt squid and giant squid when those vehicles are in mouth range (huntKinds). Time is compressed so the descent is fast enough to reach that floor in one breath-hold. Does not bite herring.",
+      "Burst vehicle. Air-breather: brief surface, then a foraging dive toward live squid/lanternfish or typical forage ~700 m — not a commute to 2000 m. maxDepth 2000 m is the clamp; in a 1500 m cell the floor wins first. Prefers market squid, Illex, and lanternfish (huntTaxa). Bites Humboldt squid and giant squid when those vehicles are in mouth range (huntKinds). Time is compressed so a deep chase can finish in one breath-hold. Does not bite herring. Missing named prey still produces the dive; it does not get free calories.",
     missing: [
       "Glass squid (Histioteuthis) are not agents. The whale still dives; it does not get free calories from empty water.",
       "Echolocation clicks are not a sense or a sound field.",
@@ -596,7 +596,7 @@ export const FAUNA = {
     about:
       "Cosmopolitan dolphin, typically 5–8 m. Fish-eating (resident-type) ecotypes hunt herring, salmon, and other fish, usually in the upper 100–200 m; recorded to about 800 m. Must surface to breathe. Mammal-eating (transient) ecotypes hunt seals and whales.",
     program:
-      "Ram vehicle, tight pack, large fear radius. Bites school fish. Air-breather: surface, then dive to min(800 m, this cell's floor). This is the fish-eating programme.",
+      "Ram vehicle, tight pack, large fear radius. Bites school fish. Air-breather: surface, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). This is the fish-eating programme.",
     missing: [
       "Mammal-eating ecotypes are not wired — seals and other whales are not prey.",
       "Salmon are not a school taxon.",
@@ -619,7 +619,7 @@ export const FAUNA = {
     about:
       "Small oceanic dolphin, typically 1.7–2.4 m. Tropical and warm-temperate. Hunts surface forage, often with tunas. Usually the upper 200 m; recorded near 300 m. Must surface to breathe.",
     program:
-      "Ram vehicle, dolphin mesh, smaller than orca. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather. Present |lat| < 40° when that prey exists.",
+      "Ram vehicle, dolphin mesh, smaller than orca. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather: surface, then a foraging dive toward that prey or typical forage ~18 m, clamped by min(300 m, this cell's floor). Present |lat| < 40° when that prey exists.",
     missing: [
       "Tuna-dolphin associations are not a cue.",
       "Long-beaked D. capensis is not a second id.",

@@ -248,13 +248,14 @@ function livePredator(s) {
   const sex = sexLabel(s.sex).toLowerCase();
   const floor = depthText(CONFIG.floorY);
   const cap = depthText(Math.max(CONFIG.floorY + (cfg.floorClearance ?? 4), cfg.maxDepth));
+  const forage = cfg.forageDepth != null ? depthText(cfg.forageDepth) : cap;
   if (s.controlled) return `This ${sex} is piloted. Energy still drains and eating still restores it.`;
   if (s.energy < cfg.starveAt) return `This ${sex} is starving. Without a meal it will die and recycle into the water column.`;
   if (cfg.breathes && s.surfacing) {
-    return `This ${sex} is at the surface to breathe. Next dive can go to ${cap} in this cell (floor ${floor}; biological max ${depthText(cfg.maxDepth)}).`;
+    return `This ${sex} is at the surface to breathe. Next dive goes toward prey or typical forage ${forage}, clamped by ${cap} in this cell (floor ${floor}; biological max ${depthText(cfg.maxDepth)}).`;
   }
   if (cfg.breathes && !s.surfacing) {
-    return `This ${sex} is on a foraging dive toward ${cap}. The seafloor at ${floor} wins if it is shallower than the biological max of ${depthText(cfg.maxDepth)}. Time is compressed, so the descent is sped up enough to actually reach that depth.`;
+    return `This ${sex} is on a foraging dive toward prey or typical forage ${forage}. ${cap} is the clamp in this cell (floor ${floor}; biological max ${depthText(cfg.maxDepth)}), not the resting depth. Time is compressed so a deep chase can finish in one breath-hold.`;
   }
   if (s.sex === 0 && s.mateT <= 0 && s.energy >= cfg.mateEnergy) {
     return `This female is courting: the year-timer has elapsed and energy is high enough to seek a male.`;
@@ -303,6 +304,9 @@ function cellDepthBlurb(id) {
   let dvm = "";
   if (cfg.nightDepth != null && cfg.dayDepth != null) {
     dvm = ` DVM in this build: night ${depthText(cfg.nightDepth)}, day ${depthText(cfg.dayDepth)}.`;
+  }
+  if (cfg.breathes && cfg.forageDepth != null) {
+    dvm += ` Typical forage ${depthText(cfg.forageDepth)}; maxDepth is the clamp, not the commute.`;
   }
   return `Biological max ${depthText(cfg.maxDepth)}. This cell's floor is ${depthText(floor)}, so the deepest it can go here is ${depthText(cap)}.${dvm}`;
 }

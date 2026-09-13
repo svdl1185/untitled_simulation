@@ -1,6 +1,6 @@
 import { attenuationKd, samplePAR, surfacePAR } from "./light.js";
 import { climatologySST, columnQ10, meanSST, q10Factor, sampleTemp } from "./temperature.js";
-import { CONFIG, photicLimitY } from "../config.js";
+import { CONFIG, breathTargetY, photicLimitY } from "../config.js";
 import { Plankton, TROPHIC } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
 import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
@@ -99,4 +99,40 @@ function assert(cond, msg) {
   assert(I1 < I0, "storms should cut surface PAR");
 }
 
-console.log("column physics: 9 checks ok");
+{
+  const floor = -2000;
+  const dive = breathTargetY({
+    surfacing: false,
+    huntY: -280,
+    forageDepth: -700,
+    minDepth: -1.2,
+    floor,
+  });
+  assert(dive === -280, `hungry dive should follow prey, got ${dive}`);
+  const empty = breathTargetY({
+    surfacing: false,
+    huntY: -700,
+    forageDepth: -700,
+    minDepth: -1.2,
+    floor,
+  });
+  assert(empty === -700, `empty-water dive should sit at typical forage, got ${empty}`);
+  const surface = breathTargetY({
+    surfacing: true,
+    huntY: -700,
+    forageDepth: -700,
+    minDepth: -1.2,
+    floor,
+  });
+  assert(surface === -1.2, `breathing should pin to minDepth, got ${surface}`);
+  const clamped = breathTargetY({
+    surfacing: false,
+    huntY: -2500,
+    forageDepth: -700,
+    minDepth: -1.2,
+    floor,
+  });
+  assert(clamped === -2000, `maxDepth/floor should clamp a too-deep hunt, got ${clamped}`);
+}
+
+console.log("column physics: 10 checks ok");

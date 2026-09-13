@@ -1,4 +1,4 @@
-import { CONFIG, clampHabitatY, dvmY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
+import { CONFIG, breathTargetY, clampHabitatY, dvmY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
 import { SPECIES, VEHICLE_IDS, vehicleCfg } from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
@@ -318,10 +318,13 @@ export class Shark {
   }
 
   _breathTargetY(tx, tz, huntY, cfg) {
-    const deep = this._columnFloor(tx, tz, cfg);
-    if (this.surfacing) return cfg.minDepth ?? -1.2;
-    if (this.aiMode === "strike") return Math.max(huntY, deep);
-    return deep;
+    return breathTargetY({
+      surfacing: this.surfacing,
+      huntY,
+      forageDepth: cfg.forageDepth,
+      minDepth: cfg.minDepth,
+      floor: this._columnFloor(tx, tz, cfg),
+    });
   }
 
   _avoidPack(pack, dt) {
@@ -615,6 +618,15 @@ export class Shark {
     }
 
     if (cfg.breathes) {
+      const followPrey = this.aiMode === "strike" || (hasHuntPrey(this, school, pack, cfg) && !satiated);
+      if (!followPrey) {
+        const rdx = this.roamX - this.x;
+        const rdz = this.roamZ - this.z;
+        if (rdx * rdx + rdz * rdz < 22 * 22) this._pickRoam();
+        tx = this.roamX;
+        ty = this.roamY;
+        tz = this.roamZ;
+      }
       ty = this._breathTargetY(tx, tz, ty, cfg);
     }
 
@@ -683,7 +695,7 @@ export class Shark {
       cfg.gait === "benthic"
         ? deep
         : cfg.breathes
-          ? deep
+          ? roamForageY(cfg, hi, deep, this.energy)
           : hi + Math.random() * (deep - hi);
   }
 
@@ -876,6 +888,28 @@ export function createShark(i, count, school, kind = "shark") {
   shark.seekY = shark.y;
   shark.seekZ = shark.z;
   return shark;
+}
+
+function hasHuntPrey(self, school, pack, cfg) {
+  if (nearestHuntKind(self, pack, cfg.huntKinds)) return true;
+  const want = cfg.huntTaxa;
+  if (!want?.length) return (school?.count ?? 0) > 8;
+  if (!school) return false;
+  for (let s = 0; s < school.maxSchools; s++) {
+    if (school.schoolN[s] < 8) continue;
+    const id = school.taxa[school.anchors[s]?.taxon ?? 0]?.id;
+    if (want.includes(id)) return true;
+  }
+  return false;
+}
+
+/** Typical forage band for an air-breather. Never the biological max. */
+function roamForageY(cfg, hi, deep, energy) {
+  const typical = Math.max(deep, Math.min(hi - 0.4, cfg.forageDepth ?? hi + (deep - hi) * 0.35));
+  const satiated = energy > (cfg.satiated ?? 0.82);
+  const center = satiated ? (typical + hi) * 0.5 : typical;
+  const span = Math.max(8, Math.abs(typical - hi) * (satiated ? 0.25 : 0.18));
+  return Math.max(deep, Math.min(hi - 0.4, center + (Math.random() - 0.5) * 2 * span));
 }
 
 function nearestHuntKind(self, pack, kinds) {

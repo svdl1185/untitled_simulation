@@ -41,14 +41,14 @@ Current: named sharks, tunas, orca, humpback, Humboldt squid, common dolphin eat
 The seafloor can be kilometres down. **Guild depth is biology, then the floor — never a photic convenience cap.**
 
 - **`maxDepth` is the biological maximum** (more negative = deeper). Herring ~400 m, blue shark ~1000 m, sperm whale ~2000 m, whale shark ~1920 m. Do not clamp an animal to −220 m because the shader is still epipelagic.
-- **The seafloor always wins.** `clampHabitatY` / vehicle `_keepInWater` use `max(floor + clearance, maxDepth)`. In a 71 m North Sea cell a sperm whale hits the sand. In a 1500 m cell it dives toward 1500 m.
+- **The seafloor always wins.** `clampHabitatY` / vehicle `_keepInWater` use `max(floor + clearance, maxDepth)`. In a 71 m North Sea cell a sperm whale hits the sand. In a 1500 m cell the clamp is 1500 m; typical forage is still ~700 m unless prey is deeper.
 - **DVM** (`nightDepth`, `dayDepth`, …) is the *typical* schedule, not the cap. Hungry animals may leave it toward food; air-breathers leave it to surface.
-- **Air-breathers** (`vehicle.breathes`): surface for `surfaceTime`, then a foraging dive to `min(maxDepth, floor)`. Time is compressed (8 min ≈ 1 day), so `diveSpeed` is raised enough that a kilometre-scale dive can finish in one on-screen breath-hold. That speed-up is a clock, not a depth cap. Document it on the card.
-- **Forage coupling.** Hungry animals may rise/sink toward food (`forageDepth`, school centroids, bloom). Satiated animals sit in refuge or roam the column their `maxDepth` allows.
+- **Air-breathers** (`vehicle.breathes`): surface for `surfaceTime`, then a foraging dive toward live prey or typical `forageDepth`, clamped by `min(maxDepth, floor)`. `maxDepth` is the record, not a hangout. Time is compressed (8 min ≈ 1 day), so `diveSpeed` is raised enough that a kilometre-scale chase can finish in one on-screen breath-hold. That speed-up is a clock, not a reason to sit at the record. Document it on the card.
+- **Forage coupling.** Hungry animals may rise/sink toward food (`forageDepth`, school centroids, bloom). Satiated animals sit in refuge or roam the typical band — not the biological max unless prey is actually there.
 - **Neighbour grid.** `gridMinY(taxa)` covers the deepest *present school* species, not the abyss and not an absent lanternfish. Vehicles (sperm whale, Humboldt squid) can go to 1–2 km without enlarging the herring hashed grid.
 - **Lighting is optics, not habitat.** Sun, fog, and caustics follow `photicLimitY()` / `CONFIG.water`. A bathypelagic dive still uses the epipelagic shader until a dark optical story exists. Put that in `missing`. Do not use it to forbid the dive.
 
-Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 400 m. Lanternfish night ≈ −40 m, day ≈ −280 m, max 450 m (enlarges `gridMinY` only when present). Flying fish stay in the top ~20 m. Humboldt squid DVM night ~−80 m, day ~−700 m, max 1200 m. Sperm whale max 2000 m, breath-hold dives to the cell floor. Cod hug the shelf floor, max 600 m, dropped if floor > ~650 m. Toothfish hug the Antarctic slope, max 2000 m. Zooplankton: thermocline by day, photic at night. Krill graze `p` near the surface at night.
+Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 400 m. Lanternfish night ≈ −40 m, day ≈ −280 m, max 450 m (enlarges `gridMinY` only when present). Flying fish stay in the top ~20 m. Humboldt squid DVM night ~−80 m, day ~−700 m, max 1200 m. Sperm whale typical forage ~−700 m, max 2000 m; breath-hold dives follow squid/lanternfish when present, otherwise that typical band — never a commute to the record. Cod hug the shelf floor, max 600 m, dropped if floor > ~650 m. Toothfish hug the Antarctic slope, max 2000 m. Zooplankton: thermocline by day, photic at night. Krill graze `p` near the surface at night.
 
 ## 5. Flow and fields
 
@@ -95,7 +95,7 @@ One cell may eventually list hundreds of sharks, squid, kelp, coral, whales. Tha
 | Guild | Pelagic forage | Pelagic predator | Odontocete |
 | Eats | Zooplankton (`z`) | School fish | Squid (`huntTaxa` market squid when present) |
 | Eaten by | Sharks/tuna/cod (seals/gannets not meshed; DVM stands in) | Nothing yet | Nothing yet |
-| Depth | DVM night −20 / day −110; **max 400 m** | Usually photic; **max 260 m** | Surface to breathe, then dive; **max 2000 m** or the cell floor |
+| Depth | DVM night −20 / day −110; **max 400 m** | Usually photic; **max 260 m** | Surface to breathe, then forage ~700 m; **max 2000 m** or the cell floor |
 | Flow | `sampleFlow` + bloom gradient | `sampleFlow` while hunting | `sampleFlow` on the commute |
 | Temperature | Q10 on graze / metabolism; niche 0–20 °C | Q10 on drain; tropic SST gate on skipjack | Q10 on drain; oceanic, not SST-gated |
 | Light | Overlap with the photic / DVM column | Optics only | Optics only; still dives in the dark |

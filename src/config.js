@@ -187,6 +187,19 @@ export function clampHabitatY(y, maxDepth) {
   return y;
 }
 
+/**
+ * Air-breather vertical target. `floor` is already
+ * max(seafloor + clearance, maxDepth) — a clamp, not a commute.
+ * Surface to breathe; otherwise dive toward `huntY` (prey or typical
+ * forage). Empty water does not send the animal to the record.
+ */
+export function breathTargetY({ surfacing, huntY, forageDepth, minDepth, floor }) {
+  const ceil = minDepth ?? -1.2;
+  if (surfacing) return ceil;
+  const y = Number.isFinite(huntY) ? huntY : forageDepth ?? ceil - 8;
+  return Math.max(floor, Math.min(ceil, y));
+}
+
 export function dvmY(hour, depths = CONFIG.fish) {
   const f = depths;
   const keys = [
