@@ -1,4 +1,5 @@
-import { CONFIG, bindColumnHabitat } from "../config.js";
+import { CONFIG, bindCellFauna, bindColumnHabitat } from "../config.js";
+import { emptyPresence } from "./fauna.js";
 
 export const PATCH_SIZE_M = 1000;
 export const ELEV_NX = 80;
@@ -177,7 +178,7 @@ export function makeElevationPatch(id, originLat, originLon, elevation, nx, nz, 
     synthetic: false,
     statics: false,
     current: extra.current || { u: 0, v: 0 },
-    presence: extra.presence || { herring: 0, shark: 0 },
+    presence: extra.presence || emptyPresence(),
     note: extra.note || "",
     name: extra.name || formatPlaceName(originLat, originLon),
     region: extra.region || formatLatLon(originLat, originLon),
@@ -211,7 +212,7 @@ export function makeSyntheticPatch() {
     synthetic: true,
     statics: true,
     current: { u: 0, v: 0 },
-    presence: { herring: 1, shark: 1 },
+    presence: { herring: 1, mackerel: 1, shark: 1, cod: 1 },
     note: "Synthetic North Sea shelf (offline fallback).",
     name: "Coastal shelf",
     region: "North Sea–style inner shelf",
@@ -251,8 +252,11 @@ export function applyPatch(patch) {
   CONFIG.world.lon = patch.originLon;
   CONFIG.world.synthetic = !!patch.synthetic;
   CONFIG.world.statics = !!patch.statics;
-  CONFIG.presence.herring = patch.presence?.herring ?? 0;
-  CONFIG.presence.shark = patch.presence?.shark ?? 0;
+  const next = emptyPresence();
+  const src = patch.presence || {};
+  for (const id of Object.keys(next)) next[id] = src[id] ?? 0;
+  if (next.cod && patch.floorY < -280) next.cod = 0;
+  CONFIG.presence = next;
   CONFIG.flow.meanU = patch.current?.u ?? 0;
   CONFIG.flow.meanV = patch.current?.v ?? 0;
 
@@ -267,6 +271,7 @@ export function applyPatch(patch) {
     CONFIG.thermoY = STOCK.thermoY;
     CONFIG.fish.preferredDepth = STOCK.preferredDepth;
     CONFIG.water.turbidity = 1;
+    bindCellFauna();
     return patch;
   }
 
@@ -291,5 +296,6 @@ export function applyPatch(patch) {
     CONFIG.beach.shoreY = 0.18;
     CONFIG.beach.duneY = 6.4;
   }
+  bindCellFauna();
   return patch;
 }

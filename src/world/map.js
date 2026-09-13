@@ -1,6 +1,6 @@
 import { formatLatLon } from "./patch.js";
 import { gebcoMapUrl, fetchCurrentField } from "./atlas.js";
-import { presenceAt } from "./ranges.js";
+import { presenceAt, presentLabel } from "./ranges.js";
 import { topoPolygons } from "./topo.js";
 
 const INK = "#e7f4f2";
@@ -229,7 +229,7 @@ export function createOceanMap({ onEnter }) {
       return;
     }
     const fauna = presenceAt(geo.lat, geo.lon);
-    const who = fauna.herring ? "herring" : "no herring";
+    const who = presentLabel(fauna);
     readout.textContent = `${formatLatLon(geo.lat, geo.lon)} · ${who}`;
     draw();
   }

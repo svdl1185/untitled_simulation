@@ -113,7 +113,7 @@ const KEY_HELP = [
   ["O", "Ocean map"],
   ["Return", "Reopen the last world map"],
   ["K", "Lamp (night fill)"],
-  ["Click", "Select a shark, herring, or school"],
+  ["Click", "Select a predator, fish, or school"],
   ["I", "Open or close field notes"],
   ["Drag", "Look around · orbit when following"],
   ["Scroll", "Zoom or dolly"],

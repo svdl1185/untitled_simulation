@@ -10,12 +10,12 @@ const _grad = { x: 0, z: 0 };
  * Four 2D layers, not agents:
  *   n  dissolved nutrients
  *   p  phytoplankton (light × nutrients)
- *   z  zooplankton   (herring forage)
+ *   z  zooplankton   (school forage)
  *   d  detritus      (awaiting a benthic grazer)
  *
  * Future guilds should only touch this class:
  *   sampleLayer / grazeLayer / depositLayer / recycle / overlap / forageDepth
- * Herring graze `z`, carcasses and excretion return mass to `n` and `d`.
+ * School fish graze `z`, carcasses and excretion return mass to `n` and `d`.
  * Keep new species on that API so the NPZD budget stays closed as the
  * ecosystem grows.
  */

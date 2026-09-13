@@ -21,6 +21,8 @@ const KINDS = [
 export class Shark {
   constructor(opts = {}) {
     this.id = opts.id ?? 0;
+    this.kind = opts.kind || "shark";
+    this.cfg = CONFIG[this.kind] || CONFIG.shark;
     this.scale = opts.scale ?? 1;
     this.aggression = opts.aggression ?? 1;
     this.tint = opts.tint ?? null;
@@ -28,7 +30,7 @@ export class Shark {
     this.cruiseMul = 0.78 + this.scale * 0.22;
     this.turnMul = 1.55 - this.scale * 0.48;
     this.x = 8;
-    this.y = clampHabitatY(CONFIG.fish.preferredDepth, CONFIG.shark.maxDepth);
+    this.y = clampHabitatY(CONFIG.fish.preferredDepth, this.cfg.maxDepth);
     this.z = 28;
     this.vx = 0;
     this.vy = 0;
@@ -61,7 +63,7 @@ export class Shark {
     this.seekY = this.y;
     this.seekZ = this.z;
     this.wanderTheta = Math.random() * Math.PI * 2;
-    this.speedCap = CONFIG.shark.cruiseSpeed;
+    this.speedCap = this.cfg.cruiseSpeed;
     this.eatEvents = [];
     this.eaten = 0;
     this.pups = 0;
@@ -70,9 +72,9 @@ export class Shark {
     this.dead = false;
     this.mateT = opts.mateT ?? (0.4 + Math.random() * 0.6) * yearSeconds();
     this.energy = 0.55 + Math.random() * 0.28;
-    this.fearRadius = CONFIG.shark.fearRadius;
+    this.fearRadius = this.cfg.fearRadius;
     this.fearStrength = CONFIG.fish.fearWeight;
-    this.biteRadius = CONFIG.shark.biteRadius;
+    this.biteRadius = this.cfg.biteRadius;
     this.bursting = true;
     this.burstT = 1.2 + Math.random() * 1.8;
     this.glideT = 0;
@@ -99,12 +101,12 @@ export class Shark {
   }
 
   feed() {
-    this.energy = Math.min(1, this.energy + CONFIG.shark.eatEnergy);
+    this.energy = Math.min(1, this.energy + (this.cfg.eatEnergy ?? CONFIG.shark.eatEnergy));
   }
 
   startLunge() {
     if (this.lunging && this.lungeT > 0.35) return;
-    const lungeT = CONFIG.shark.lungeTime;
+    const lungeT = this.cfg.lungeTime;
     this.lunging = true;
     this.lungeT = lungeT;
     this.bursting = true;
@@ -117,7 +119,7 @@ export class Shark {
 
   update(dt, input, school, look, pack = null) {
     if (this.dead) return;
-    const cfg = CONFIG.shark;
+    const cfg = this.cfg || CONFIG.shark;
     if (this.controlled) this._player(dt, input, cfg);
     else this._ai(dt, school, cfg, pack);
 
@@ -209,7 +211,7 @@ export class Shark {
       const dy = this.y - o.y;
       const dz = this.z - o.z;
       const d = Math.hypot(dx, dy, dz);
-      const minD = CONFIG.shark.spacing * (0.55 + 0.28 * (this.scale + o.scale));
+      const minD = (this.cfg.spacing ?? CONFIG.shark.spacing) * (0.55 + 0.28 * (this.scale + o.scale));
       if (d < 0.4 || d > minD) continue;
       const w = ((minD - d) / minD) ** 2;
       const push = (18 + (this.huntIndex === o.huntIndex ? 10 : 0)) * w;
@@ -434,6 +436,10 @@ export class Shark {
       this.thrust *= 0.7;
     }
 
+    if (this.cfg.gait === "benthic") {
+      ty = seafloorHeight(tx, tz) + cfg.floorClearance + 1.6;
+    }
+
     const tGround = seafloorHeight(tx, tz);
     ty = Math.min(ty, cfg.minDepth - 0.4);
     ty = Math.max(ty, tGround + cfg.floorClearance + 1.2);
@@ -456,6 +462,10 @@ export class Shark {
   }
 
   _tickLocomotion(dt) {
+    if (this.cfg.gait === "ram") {
+      this.bursting = true;
+      return;
+    }
     if (this.lunging || this.aiMode === "strike") {
       this.bursting = true;
       return;
@@ -484,14 +494,16 @@ export class Shark {
     this.roamX = Math.max(-CONFIG.halfX + 24, Math.min(CONFIG.halfX - 24, this.roamX));
     this.roamZ = Math.max(-CONFIG.halfZ + 24, Math.min(waterMaxZ() - 24, this.roamZ));
     this.roamY = clampHabitatY(
-      CONFIG.fish.preferredDepth + (Math.random() - 0.5) * 12,
-      CONFIG.shark.maxDepth
+      this.cfg.gait === "benthic"
+        ? seafloorHeight(this.roamX, this.roamZ) + (this.cfg.floorClearance ?? 3)
+        : CONFIG.fish.preferredDepth + (Math.random() - 0.5) * 12,
+      this.cfg.maxDepth
     );
   }
 
   _nextMode(school, dist, holdR, pack) {
-    const hungry = this.energy < CONFIG.shark.hungry / this.aggression;
-    const satiated = this.energy > CONFIG.shark.satiated;
+    const hungry = this.energy < (this.cfg.hungry ?? CONFIG.shark.hungry) / this.aggression;
+    const satiated = this.energy > (this.cfg.satiated ?? CONFIG.shark.satiated);
     if (this.aiMode === "recover") {
       if (hungry && school.count > 8) {
         this.aiMode = "stalk";
@@ -586,8 +598,8 @@ export class Shark {
       this.vx *= s;
       this.vy *= s;
       this.vz *= s;
-    } else if (!this.controlled && spd < 4.4) {
-      const s = 4.4 / (spd || 1);
+    } else if (!this.controlled && spd < (this.cfg.minSpeed ?? 4.4)) {
+      const s = (this.cfg.minSpeed ?? 4.4) / (spd || 1);
       this.vx *= s;
       this.vy *= s * 0.4;
       this.vz *= s;
@@ -617,23 +629,42 @@ export class Shark {
   }
 }
 
-export function createShark(i, count, school) {
-  const kind = KINDS[i % KINDS.length];
+export function createShark(i, count, school, kind = "shark") {
+  const kindCfg = CONFIG[kind] || CONFIG.shark;
+  const kindTint =
+    kind === "tuna"
+      ? [
+          { scale: 1.02, aggression: 1.08, tint: { r: 0.55, g: 0.72, b: 0.95 } },
+          { scale: 0.88, aggression: 1.15, tint: { r: 0.7, g: 0.82, b: 0.4 } },
+          { scale: 1.12, aggression: 0.95, tint: { r: 0.45, g: 0.62, b: 0.88 } },
+        ]
+      : kind === "cod"
+        ? [
+            { scale: 1.05, aggression: 0.82, tint: { r: 0.72, g: 0.62, b: 0.42 } },
+            { scale: 0.9, aggression: 0.9, tint: { r: 0.55, g: 0.5, b: 0.38 } },
+            { scale: 1.18, aggression: 0.78, tint: { r: 0.8, g: 0.7, b: 0.48 } },
+          ]
+        : KINDS;
+  const variant = kindTint[i % kindTint.length];
   const n = Math.max(1, count | 0);
   const sex = i === 0 ? 0 : i === 1 ? 1 : Math.random() < 0.5 ? 0 : 1;
   const dimorph = sex === 0 ? 1.08 : 0.94;
   const shark = new Shark({
     id: i,
+    kind,
     sex,
-    scale: kind.scale * dimorph * (0.97 + Math.random() * 0.06),
-    aggression: kind.aggression * (sex === 0 ? 0.96 : 1.05),
-    tint: kind.tint,
+    scale: variant.scale * dimorph * (0.97 + Math.random() * 0.06),
+    aggression: variant.aggression * (sex === 0 ? 0.96 : 1.05),
+    tint: variant.tint,
   });
   const ang = (i / n) * Math.PI * 2 + 0.55;
-  const r = 46 + i * 22;
+  const r = (kind === "cod" ? 28 : 46) + i * (kind === "tuna" ? 14 : 22);
   shark.x = school.centroid.x + Math.cos(ang) * r;
-  shark.y = school.centroid.y - 2.5 - i * 1.8;
   shark.z = school.centroid.z + Math.sin(ang) * r * 0.85;
+  shark.y =
+    kind === "cod"
+      ? seafloorHeight(shark.x, shark.z) + kindCfg.floorClearance + 2
+      : school.centroid.y - 2.5 - i * 1.8;
   shark.yaw = ang + Math.PI;
   shark.yawLook = shark.yaw;
   shark.fwdX = Math.sin(shark.yaw);
@@ -662,20 +693,24 @@ function nearestOpposite(self, pack) {
 }
 
 export function tryBreed(pack) {
-  if (!faunaPresent("shark") || pack.length >= CONFIG.shark.max) return null;
-  const cfg = CONFIG.shark;
   const year = yearSeconds();
-  for (let i = 0; i < pack.length; i++) {
-    const a = pack[i];
-    if (a.dead || a.sex !== 0 || a.mateT > 0 || a.energy < cfg.mateEnergy) continue;
-    const b = nearestOpposite(a, pack);
-    if (!b) continue;
-    const d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
-    if (d > cfg.mateDist) continue;
-    a.energy = Math.max(cfg.hungry, a.energy - cfg.pupCost);
-    a.mateT = year;
-    a.pups++;
-    return birthShark(a, b, pack.length);
+  for (const kind of ["shark", "tuna", "cod"]) {
+    if (!faunaPresent(kind)) continue;
+    const cfg = CONFIG[kind];
+    const group = pack.filter((p) => p.kind === kind && !p.dead);
+    if (group.length >= cfg.max) continue;
+    for (let i = 0; i < group.length; i++) {
+      const a = group[i];
+      if (a.sex !== 0 || a.mateT > 0 || a.energy < cfg.mateEnergy) continue;
+      const b = nearestOpposite(a, group);
+      if (!b) continue;
+      const d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+      if (d > cfg.mateDist) continue;
+      a.energy = Math.max(cfg.hungry, a.energy - cfg.pupCost);
+      a.mateT = year;
+      a.pups++;
+      return birthShark(a, b, pack.length);
+    }
   }
   return null;
 }
@@ -686,6 +721,7 @@ export function birthShark(mother, father, id) {
   const parentScale = 0.55 * mother.scale + 0.45 * (father?.scale ?? mother.scale);
   const pup = new Shark({
     id,
+    kind: mother.kind || "shark",
     sex,
     scale: parentScale * (0.55 + Math.random() * 0.08) * (sex === 0 ? 1.06 : 0.95),
     aggression: kind.aggression * (sex === 0 ? 0.96 : 1.05),
@@ -704,7 +740,7 @@ export function birthShark(mother, father, id) {
   pup.fwdX = mother.fwdX;
   pup.fwdY = 0;
   pup.fwdZ = mother.fwdZ;
-  pup.energy = CONFIG.shark.pupEnergy;
+  pup.energy = (CONFIG[mother.kind] || CONFIG.shark).pupEnergy;
   pup.huntIndex = mother.huntIndex;
   pup.flankSign = -side;
   pup.seekX = pup.x;
@@ -716,10 +752,22 @@ export function birthShark(mother, father, id) {
 }
 
 export function spawnSharks(n, school) {
-  if (!faunaPresent("shark")) return [];
-  const count = Math.max(0, Math.min(CONFIG.shark.max ?? n, n | 0));
+  return spawnPredators(school, { shark: n });
+}
+
+export function spawnPredators(school, counts = {}) {
   const pack = [];
-  for (let i = 0; i < count; i++) pack.push(createShark(i, count, school));
+  const kinds = [
+    ["shark", counts.shark ?? CONFIG.shark.count],
+    ["tuna", counts.tuna ?? CONFIG.tuna.count],
+    ["cod", counts.cod ?? CONFIG.cod.count],
+  ];
+  for (const [kind, raw] of kinds) {
+    if (!faunaPresent(kind)) continue;
+    const cfg = CONFIG[kind];
+    const count = Math.max(0, Math.min(cfg.max ?? raw, raw | 0));
+    for (let i = 0; i < count; i++) pack.push(createShark(i, count, school, kind));
+  }
   return pack;
 }
 
@@ -740,8 +788,11 @@ export function resetSharks(pack, school) {
     const ang = (i / pack.length) * Math.PI * 2 + 0.55;
     const r = 46 + i * 22;
     s.x = school.centroid.x + Math.cos(ang) * r;
-    s.y = school.centroid.y - 2.5 - i * 1.8;
     s.z = school.centroid.z + Math.sin(ang) * r * 0.85;
+    s.y =
+      s.cfg?.gait === "benthic"
+        ? seafloorHeight(s.x, s.z) + (s.cfg.floorClearance ?? 3) + 2
+        : school.centroid.y - 2.5 - i * 1.8;
     s.vx = 0;
     s.vy = 0;
     s.vz = -5;

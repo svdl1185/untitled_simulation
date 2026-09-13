@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { CONFIG, columnZones, faunaPresent, zoneAt } from "./config.js";
+import { CONFIG, anySchoolPresent, columnZones, faunaPresent, zoneAt } from "./config.js";
 import { School } from "./simulation/school.js";
-import { spawnSharks, resetSharks, createShark, tryBreed } from "./simulation/shark.js";
+import { spawnPredators, resetSharks, createShark, tryBreed } from "./simulation/shark.js";
 import { DayCycle } from "./simulation/day.js";
 import { Plankton } from "./simulation/plankton.js";
 import { createFishGeometry, createFishMaterial } from "./render/fish.js";
@@ -62,7 +62,7 @@ let plankton = new Plankton();
 school.clipToBloom(plankton);
 let bloom = createPlanktonMesh(plankton, uniforms);
 scene.add(bloom.mesh);
-let sharks = spawnSharks(CONFIG.shark.count, school);
+let sharks = spawnPredators(school);
 let shark = sharks[0];
 
 camera.position.set(
@@ -72,18 +72,30 @@ camera.position.set(
 );
 camera.lookAt(school.centroid.x, school.centroid.y - 4, school.centroid.z);
 
-const fishGeo = createFishGeometry();
-const fishMat = createFishMaterial(uniforms);
-const fishMesh = new THREE.InstancedMesh(fishGeo, fishMat, CONFIG.maxFish);
-fishMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-fishMesh.frustumCulled = false;
-fishMesh.geometry.setAttribute(
-  "aPhase",
-  new THREE.InstancedBufferAttribute(school.phase, 1)
-);
-scene.add(fishMesh);
+const fishLayers = [];
 
-window.__sim = { school, shark, sharks, plankton, camera, fishMesh, day, outcrops, renderer, getCam: () => camMode, setCam: (m) => applyCamera(m) };
+function rebuildFishLayers() {
+  while (fishLayers.length) {
+    const layer = fishLayers.pop();
+    disposeTree(layer.mesh);
+  }
+  for (const t of school.taxa) {
+    const geo = createFishGeometry(t.id);
+    const mat = createFishMaterial(uniforms, t.id);
+    const mesh = new THREE.InstancedMesh(geo, mat, CONFIG.maxFish);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.frustumCulled = false;
+    const phase = new Float32Array(CONFIG.maxFish);
+    const phaseAttr = new THREE.InstancedBufferAttribute(phase, 1);
+    mesh.geometry.setAttribute("aPhase", phaseAttr);
+    scene.add(mesh);
+    fishLayers.push({ id: t.id, mesh, phase, phaseAttr });
+  }
+}
+
+rebuildFishLayers();
+
+window.__sim = { school, shark, sharks, plankton, camera, fishLayers, day, outcrops, renderer, getCam: () => camMode, setCam: (m) => applyCamera(m) };
 
 const sharkMeshes = [];
 let fearVisible = false;
@@ -144,7 +156,7 @@ function rebuildPlace() {
 
 function rebuildLife() {
   while (sharks.length) removeLastShark();
-  const fishN = faunaPresent("herring") ? Number(hud?.get("fish") ?? CONFIG.initialFish) : 0;
+  const fishN = anySchoolPresent() ? Number(hud?.get("fish") ?? CONFIG.initialFish) : 0;
   school = new School(fishN);
   school.colliders = outcrops.colliders;
   school.colliderCount = outcrops.colliderCount;
@@ -153,9 +165,12 @@ function rebuildLife() {
   disposeTree(bloom?.mesh);
   bloom = createPlanktonMesh(plankton, uniforms);
   scene.add(bloom.mesh);
-  fishMesh.geometry.setAttribute("aPhase", new THREE.InstancedBufferAttribute(school.phase, 1));
-  const sharkN = faunaPresent("shark") ? Number(hud?.get("sharks") ?? CONFIG.shark.count) : 0;
-  sharks = spawnSharks(sharkN, school);
+  rebuildFishLayers();
+  sharks = spawnPredators(school, {
+    shark: faunaPresent("shark") ? Number(hud?.get("sharks") ?? CONFIG.shark.count) : 0,
+    tuna: faunaPresent("tuna") ? CONFIG.tuna.count : 0,
+    cod: faunaPresent("cod") ? CONFIG.cod.count : 0,
+  });
   shark = sharks[0] || null;
   for (const s of sharks) {
     bindShark(s);
@@ -167,6 +182,7 @@ function rebuildLife() {
   window.__sim.plankton = plankton;
   window.__sim.outcrops = outcrops;
   window.__sim.patch = getActivePatch();
+  window.__sim.fishLayers = fishLayers;
 }
 
 function bindWorld() {
@@ -232,9 +248,14 @@ function removeSharkAt(i) {
 function applySharkCount(n) {
   if (!faunaPresent("shark")) n = 0;
   const next = Math.max(0, Math.min(CONFIG.shark.max, n | 0));
-  while (sharks.length > next) removeLastShark();
-  while (sharks.length < next) {
-    const s = createShark(sharks.length, next, school);
+  const isShark = (s) => (s.kind || "shark") === "shark";
+  while (sharks.filter(isShark).length > next) {
+    const i = sharks.findLastIndex(isShark);
+    if (i < 0) break;
+    removeSharkAt(i);
+  }
+  while (sharks.filter(isShark).length < next) {
+    const s = createShark(sharks.filter(isShark).length, next, school, "shark");
     bindShark(s);
     sharks.push(s);
     addSharkMesh(s);
@@ -258,8 +279,14 @@ const _s = new THREE.Vector3(1, 1, 1);
 const _m = new THREE.Matrix4();
 
 function syncFish() {
-  const { pos, vel, scale, count } = school;
+  const { pos, vel, scale, count, taxon } = school;
+  const nT = fishLayers.length;
+  const used = new Uint32Array(nT);
   for (let i = 0; i < count; i++) {
+    const t = taxon[i];
+    const layer = fishLayers[t];
+    if (!layer) continue;
+    const k = used[t]++;
     const i3 = i * 3;
     _dir.set(vel[i3], vel[i3 + 1], vel[i3 + 2]);
     const len = _dir.length();
@@ -271,11 +298,15 @@ function syncFish() {
     const sc = scale[i] * (0.9 + 0.1 * school.energy[i]);
     _s.set(sc, sc, sc);
     _m.compose(_p, _q, _s);
-    fishMesh.setMatrixAt(i, _m);
+    layer.mesh.setMatrixAt(k, _m);
+    layer.phase[k] = school.phase[i];
   }
-  fishMesh.count = count;
-  fishMesh.instanceMatrix.needsUpdate = true;
-  fishMesh.geometry.attributes.aPhase.needsUpdate = true;
+  for (let t = 0; t < nT; t++) {
+    const layer = fishLayers[t];
+    layer.mesh.count = used[t];
+    layer.mesh.instanceMatrix.needsUpdate = true;
+    layer.phaseAttr.needsUpdate = true;
+  }
 }
 
 const CAM_NAME = CAMERA_MODES;
@@ -328,7 +359,7 @@ hud.on("fear", (on) => {
   for (const mesh of sharkMeshes) mesh.userData.fear.visible = on;
 });
 hud.on("reset", () => {
-  school.respawn(faunaPresent("herring") ? Number(hud.get("fish")) : 0);
+  school.respawn(anySchoolPresent() ? Number(hud.get("fish")) : 0);
   plankton.seed();
   school.clipToBloom(plankton);
   resetSharks(sharks, school);
@@ -495,6 +526,23 @@ function weatherText() {
   return "Calm";
 }
 
+function predatorHud() {
+  let sharksN = 0;
+  let tunaN = 0;
+  let codN = 0;
+  for (const s of sharks) {
+    const k = s.kind || "shark";
+    if (k === "tuna") tunaN++;
+    else if (k === "cod") codN++;
+    else sharksN++;
+  }
+  const parts = [];
+  if (sharksN) parts.push(`${sharksN} shark`);
+  if (tunaN) parts.push(`${tunaN} tuna`);
+  if (codN) parts.push(`${codN} cod`);
+  return parts.length ? parts.join(" · ") : "0";
+}
+
 function hudView() {
   // Append another { id, label, value } when a new world or species
   // readout exists. bindStats reuses DOM nodes by id.
@@ -512,9 +560,9 @@ function hudView() {
     { id: "time", label: "Time", value: clockText(day.hour) },
     { id: "day", label: "Day", value: String((day.dayIndex | 0) + 1) },
     { id: "weather", label: "Weather", value: weatherText() },
-    { id: "fish", label: "Herring", value: `${school.count.toLocaleString()} · ${foodCap.toLocaleString()}` },
+    { id: "fish", label: "Forage", value: `${school.count.toLocaleString()} · ${foodCap.toLocaleString()}` },
     { id: "spawned", label: "Spawned", value: school.totalBorn.toLocaleString() },
-    { id: "sharks", label: "Sharks", value: String(sharks.length) },
+    { id: "sharks", label: "Predators", value: predatorHud() },
     { id: "bloom", label: "P / Z", value: `${Math.round((plankton.meanP ?? 0) * 100)} · ${Math.round((plankton.meanZ ?? 0) * 100)}` },
     { id: "schools", label: "Schools", value: String(school.occupied) },
     { id: "camera", label: "Camera", value: cameraLabel() },
@@ -793,7 +841,7 @@ function frame(now) {
     school.update(dt, sharks, tod, plankton);
     for (let i = sharks.length - 1; i >= 0; i--) {
       if (!sharks[i].dead) continue;
-      plankton.recycle(sharks[i].x, sharks[i].z, CONFIG.shark.carcass);
+      plankton.recycle(sharks[i].x, sharks[i].z, sharks[i].cfg?.carcass ?? CONFIG.shark.carcass);
       removeSharkAt(i);
     }
     const pup = tryBreed(sharks);

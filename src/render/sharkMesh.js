@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { attachWorldShading } from "./caustics.js";
+import { CONFIG } from "../config.js";
 
 function prepare(g) {
   g.computeVertexNormals();
@@ -208,7 +209,9 @@ export function syncSharkMesh(group, shark) {
   const bob = Math.sin(shark.swimT + 0.6) * 0.018 * (0.4 + amp);
   group.position.set(shark.x, shark.y, shark.z);
   group.rotation.set(shark.pitch + bob, shark.yaw + wag, shark.roll + wag * 0.35, "YXZ");
-  group.scale.setScalar(shark.scale);
+  group.scale.setScalar(
+    shark.scale * ((shark.cfg?.length ?? CONFIG.shark.length) / CONFIG.shark.length)
+  );
   const fear = group.userData.fear;
   if (fear.visible) {
     const r = shark.fearRadius / Math.max(shark.scale, 0.01);

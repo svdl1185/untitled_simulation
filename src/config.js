@@ -1,3 +1,10 @@
+import {
+  FISH_DEFAULTS,
+  dominantSchoolId,
+  knobsFor,
+  schoolTaxaFromPresence,
+} from "./world/fauna.js";
+
 export const CONFIG = {
   location: "north-sea-shelf",
 
@@ -5,6 +12,7 @@ export const CONFIG = {
   initialFish: 12000,
   schoolCount: 2,
   maxSchools: 16,
+  forageId: "herring",
 
   surfaceY: 0,
   floorY: -110,
@@ -22,7 +30,17 @@ export const CONFIG = {
 
   presence: {
     herring: 1,
+    capelin: 0,
+    menhaden: 0,
+    sardine: 0,
+    pilchard: 0,
+    anchovy: 0,
+    sardinella: 0,
+    mackerel: 0,
+    flyingfish: 0,
     shark: 1,
+    tuna: 0,
+    cod: 1,
   },
 
   beach: {
@@ -53,55 +71,7 @@ export const CONFIG = {
     turbidity: 1,
   },
 
-  fish: {
-    restSpacing: 1.48,
-    sepRadius: 2.25,
-    yMul: 1.08,
-    aliRadius: 6.8,
-    cohRadius: 8.4,
-    sepWeight: 2.15,
-    aliWeight: 1.7,
-    cohWeight: 0.5,
-    holdWeight: 3.4,
-    fearWeight: 5.2,
-    boundsWeight: 1.6,
-    cruiseWeight: 0.68,
-    depthWeight: 0.55,
-    forageWeight: 3.6,
-    forageGain: 0.16,
-    metabolism: 0.012,
-    starveAt: 0.07,
-    recruitEnergy: 0.52,
-    spawnEnergy: 0.42,
-    noiseWeight: 1.15,
-    pitchDamp: 2.15,
-    pitchLimit: 0.48,
-    lead: 20,
-    preferredDepth: -38,
-    nightDepth: -20,
-    dawnDepth: -70,
-    dayDepth: -110,
-    duskDepth: -45,
-    maxDepth: -180,
-    surfaceClearance: 1.35,
-    floorClearance: 2.2,
-    minWater: 12,
-    beachTurnWater: 24,
-    beachLook: 42,
-    minSpeed: 2.8,
-    maxSpeed: 10.8,
-    fleeSpeed: 22,
-    maxAccel: 24,
-    maxTurn: 1.35,
-    length: 0.95,
-    schoolRadius: 34,
-    schoolHeight: 6.4,
-    splitDistance: 78,
-    mergeDistance: 24,
-    minSchoolFrac: 0.04,
-    minSchoolSize: 280,
-    joinSlack: 1.55,
-  },
+  fish: { ...FISH_DEFAULTS },
 
   shark: {
     count: 3,
@@ -140,6 +110,90 @@ export const CONFIG = {
     pupCost: 0.22,
     pupEnergy: 0.48,
     carcass: 0.55,
+    gait: "burst",
+    minSpeed: 4.4,
+  },
+
+  tuna: {
+    count: 6,
+    max: 12,
+    spacing: 22,
+    length: 0.82,
+    cruiseSpeed: 12.4,
+    boostSpeed: 18,
+    lungeSpeed: 22,
+    maxForce: 11,
+    lungeForce: 20,
+    turnSmooth: 5.2,
+    mouseTurn: 0.78,
+    maxMouseStep: 0.06,
+    minDepth: -1.8,
+    maxDepth: -120,
+    floorClearance: 4.2,
+    minWater: 10,
+    beachTurnWater: 20,
+    fearRadius: 28,
+    lungeFearRadius: 32,
+    biteRadius: 1.35,
+    lungeBiteRadius: 2.6,
+    mouthOffset: 0.42,
+    lungeTime: 1.45,
+    biteCooldown: 0.12,
+    lungeBiteCooldown: 0.08,
+    energyDrain: 0.0024,
+    eatEnergy: 0.07,
+    hungry: 0.4,
+    satiated: 0.84,
+    starveAt: 0.06,
+    starveDays: 2.4,
+    mateEnergy: 0.7,
+    mateDist: 16,
+    pupCost: 0.16,
+    pupEnergy: 0.5,
+    carcass: 0.28,
+    gait: "ram",
+    minSpeed: 6.2,
+  },
+
+  cod: {
+    count: 8,
+    max: 14,
+    spacing: 16,
+    length: 1.12,
+    cruiseSpeed: 2.6,
+    boostSpeed: 5.4,
+    lungeSpeed: 7.2,
+    maxForce: 6.2,
+    lungeForce: 11,
+    turnSmooth: 3.2,
+    mouseTurn: 0.55,
+    maxMouseStep: 0.04,
+    minDepth: -6,
+    maxDepth: -200,
+    floorClearance: 2.4,
+    minWater: 8,
+    beachTurnWater: 18,
+    fearRadius: 9,
+    lungeFearRadius: 12,
+    biteRadius: 1.15,
+    lungeBiteRadius: 1.8,
+    mouthOffset: 0.48,
+    lungeTime: 1.1,
+    biteCooldown: 0.22,
+    lungeBiteCooldown: 0.14,
+    energyDrain: 0.0014,
+    eatEnergy: 0.1,
+    hungry: 0.46,
+    satiated: 0.86,
+    starveAt: 0.06,
+    starveDays: 5,
+    mateEnergy: 0.72,
+    mateDist: 14,
+    pupCost: 0.18,
+    pupEnergy: 0.46,
+    carcass: 0.4,
+    gait: "benthic",
+    minSpeed: 1.15,
   },
 
   flow: {
@@ -196,6 +250,29 @@ export function faunaPresent(id) {
   return (CONFIG.presence?.[id] ?? 0) > 0.05;
 }
 
+export function activeForageId() {
+  return dominantSchoolId(CONFIG.presence);
+}
+
+export function cellSchoolTaxa() {
+  return schoolTaxaFromPresence(CONFIG.presence);
+}
+
+export function anySchoolPresent() {
+  return cellSchoolTaxa().length > 0;
+}
+
+export function bindCellFauna() {
+  const id = dominantSchoolId(CONFIG.presence);
+  Object.assign(CONFIG.fish, knobsFor(id || "herring"));
+  CONFIG.forageId = id || null;
+  return CONFIG.forageId;
+}
+
+export function bindForageSpecies(id) {
+  return bindCellFauna();
+}
+
 /** Pelagic habitat for this floor — never a fraction of the abyss. */
 export function bindColumnHabitat(floorY, hasLand) {
   const floor = floorY + 8;
@@ -226,8 +303,8 @@ export function clampHabitatY(y, maxDepth) {
   return y;
 }
 
-export function herringDvmY(hour) {
-  const f = CONFIG.fish;
+export function dvmY(hour, depths = CONFIG.fish) {
+  const f = depths;
   const keys = [
     [0, f.nightDepth],
     [4.8, f.nightDepth],
@@ -246,6 +323,10 @@ export function herringDvmY(hour) {
   const t = Math.min(1, Math.max(0, (hour - a[0]) / span));
   const s = t * t * (3 - 2 * t);
   return clampHabitatY(a[1] + (b[1] - a[1]) * s, f.maxDepth);
+}
+
+export function herringDvmY(hour) {
+  return dvmY(hour, CONFIG.fish);
 }
 
 const ZONE_CATALOG = [
@@ -284,7 +365,15 @@ export function zoneAt(y) {
   return best;
 }
 
-export function gridMinY() {
-  const pelagic = Math.min(CONFIG.fish.maxDepth ?? -180, CONFIG.fish.dayDepth ?? -95) - 50;
+export function gridMinY(taxa = null) {
+  const list = taxa && taxa.length ? taxa : cellSchoolTaxa();
+  let deep = CONFIG.fish.maxDepth ?? -180;
+  let day = CONFIG.fish.dayDepth ?? -95;
+  for (const t of list) {
+    const c = t.cfg || knobsFor(t.id);
+    if ((c.maxDepth ?? 0) < deep) deep = c.maxDepth;
+    if ((c.dayDepth ?? 0) < day) day = c.dayDepth;
+  }
+  const pelagic = Math.min(deep, day) - 50;
   return Math.max(CONFIG.floorY, pelagic);
 }

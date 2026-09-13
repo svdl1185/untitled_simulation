@@ -5,26 +5,28 @@ alwaysApply: true
 
 # Adding a species
 
-This is a living list. When the simulation gains a new field, budget, or sensory cue, add a row here. Do not clone herring and retint the mesh. Two species that eat the same thing at the same depth are one species too many.
+This is a living list. When the simulation gains a new field, budget, or sensory cue, add a row here. Do not clone herring and retint the mesh. A second animal needs a guild, a food, a range, and a reason it is not the first.
 
 The camera is a window. A new animal must change a budget, a habitat, or a sensory cue.
 
+**Coexistence is habitat, not a bug.** If two real ranges cover the same kilometre, both species are present. Humboldt can hold anchoveta and sardine; the North Sea can hold herring, mackerel, sharks, and cod. Do not winner-take-cell forage just to keep the list short. The hashed-grid school is one agent set with a shared bloom-capped budget, split by catalog `share`. Adding the hundredth fish later must not start a second 20k boid loop.
+
 ## 1. Identity
 
-- **Common name, Latin name, guild.** Guild is the job (pelagic forage, pelagic predator, benthos, surface hunter), not the texture.
-- **Why this cell.** Range polygon or presence field (`src/world/ranges.js`, `CONFIG.presence`). Empty is honest.
-- **Notes** in `src/species.js` (`LOCATIONS` fauna entry): diet, sex, program, about. Field notes read this.
+- **Common name, Latin name, guild.** Guild is the job (pelagic forage, surface, pelagic predator, demersal, later: benthos, gelatinous, mammal, reef).
+- **Catalog row** in `src/world/fauna.js` (`SPECIES`): `agent` (`school` | `vehicle`, later `density` / `field`), `share` for school budget, fish knobs, look. Field-note prose in `src/species.js` (`FAUNA`).
+- **Why this cell.** Range hulls in `src/world/ranges.js`. `presenceAt` ORs every covering hull. `CONFIG.presence[id]` on `applyPatch`. Spawn is gated with `faunaPresent(id)`. Empty is honest.
 
 ## 2. Food (even if the prey is not simulated yet)
 
 Write the diet anyway. Then wire what exists.
 
-- **What it eats.** Taxon or field (zooplankton `p`/`z`, herring agents, detritus, benthos, light-driven phytoplankton).
-- **How it eats.** Type II grazing, bites, filter, sit-and-wait. Name the function (`plankton.graze`, shark bite radius).
-- **What limits it.** Bloom mean, catch rate, energy drain, a cap in `CONFIG`. New life must eat something and be limited by something.
+- **What it eats.** Taxon or field (zooplankton `p`/`z`, school agents, detritus, benthos, light-driven phytoplankton).
+- **How it eats.** Type II grazing, bites, filter, sit-and-wait. Name the function (`plankton.graze`, predator bite radius).
+- **What limits it.** Shared bloom mean for school fish; catch rate and energy drain for vehicles; a cap in `CONFIG`. New life must eat something and be limited by something.
 - **Missing prey.** If the food is not in the model yet, do not fake fullness with a constant. Either leave the species out, or have it starve / sit at carrying-capacity zero, and note the missing field here.
 
-Current: herring graze zooplankton; sharks bite herring. Nothing else is on the table.
+Current school grazers: herring, capelin, menhaden, sardine, pilchard, anchovy, sardinella, mackerel, flying fish — all Type II on `z`, competing where ranges overlap. Predators: sharks and tuna bite any school fish; cod bite school fish near the shelf floor.
 
 ## 3. Predators (even if they are not simulated yet)
 
@@ -32,38 +34,38 @@ Current: herring graze zooplankton; sharks bite herring. Nothing else is on the 
 - **How that changes behaviour.** DVM, school tightness, beach avoidance, vertical refuge.
 - **Missing predator.** Still encode the refuge the predator would create. Herring go deeper by day *because* visual hunters exist, including ones we have not meshed.
 
-Current: sharks eat herring. Surface hunters (gannet, seal) are not agents yet; herring DVM is the placeholder for that pressure.
+Current: sharks and tuna eat school fish; cod eat them on the shelf. Surface hunters (gannet, seal) are not agents yet; forage DVM is the placeholder for that pressure. Tuna and sharks may occupy the same warm cell.
 
 ## 4. Depth and diel migration
 
 The seafloor can be kilometres down. **Guild depth is not a fraction of the water column.**
 
-- **Night depth, day depth, max depth** as knobs in `src/config.js`. Clamp with `clampHabitatY` so a shelf floor wins and an abyss does not drag pelagic animals to 2 km.
-- **DVM schedule** from hour of day (`herringDvmY`), not from `floorY * 0.4`.
+- **Night depth, day depth, max depth** as knobs on the species (`SPECIES[id].fish` or `CONFIG.shark` / `tuna` / `cod`). Clamp with `clampHabitatY` so a shelf floor wins and an abyss does not drag pelagic animals to 2 km.
+- **DVM schedule** from hour of day (`dvmY(hour, depths)`), per shoal taxon, not from `floorY * 0.4`.
 - **Forage coupling.** Hungry animals may rise/sink toward their food’s `forageDepth`; satiated animals sit in refuge.
-- **Neighbour grid.** `gridMinY()` covers the species band, not the abyss. Do not enlarge the hashed grid through unused water.
+- **Neighbour grid.** `gridMinY(taxa)` covers the deepest *present* school species, not the abyss and not absent lanternfish.
 - **Lighting.** Sun, fog, and caustics follow `photicLimitY()` / `CONFIG.water`, not the abyssal floor. A bathypelagic species needs a different optical story, not herring shaders in the dark.
 
-Current herring: night ≈ −20 m, day ≈ −110 m, max ≈ −180 m. Sharks track that band (`shark.maxDepth` ≈ −220 m). Zooplankton: thermocline by day, photic at night.
+Current herring: night ≈ −20 m, day ≈ −110 m, max ≈ −180 m. Flying fish stay in the top ~16 m. Sharks track the forage band (`maxDepth` ≈ −220 m). Tuna stay photic (≈ −120 m). Cod hug the shelf floor. Zooplankton: thermocline by day, photic at night.
 
 ## 5. Flow and fields
 
 - **Sample `sampleFlow`.** Advection, shear, beach-normal tide. Do not give a species its own current.
-- **NPZD / bloom.** Does it graze `z`, shade `p`, recycle to `d`?
+- **NPZD / bloom.** Does it graze `z`, shade `p`, recycle to `d`? School fish graze `z`; carcasses recycle.
 - **Later fields** (add here when they exist): temperature / Q10, light extinction for growth, nutrients, oxygen, salinity, pycnocline crossing cost.
 
 ## 6. Range and presence
 
-- Hull or grid in `src/world/ranges.js`.
-- `CONFIG.presence[id]` on `applyPatch`. Spawn is gated with `faunaPresent(id)`.
-- Trophic dependents: if the prey is absent, the predator is absent unless it has another food in this cell.
+- Hull or grid in `src/world/ranges.js`. Independent flags, not a single winner.
+- `CONFIG.presence[id]` on `applyPatch` (every catalog id). Spawn gated with `faunaPresent(id)`.
+- Trophic dependents: if no school prey is in the cell, sharks and tuna are absent. Cod also need herring or capelin, and a shelf (not an abyssal floor).
 
 ## 7. Behaviour (the actual program)
 
 Spell out the loop, not the vibe.
 
 - Locomotion (boid pancake, burst-and-glide, ram, sit).
-- Social (school split/merge, pack spacing, solitary).
+- Social (school split/merge same-species only, pack spacing, solitary).
 - Hunt / forage / mill / flee / recover.
 - Reproduction (energy threshold, season, pup cost) and death (starve, eaten, recycle biomass).
 - Sex / size if it changes the loop (female herring larger; female sharks pup).
@@ -72,8 +74,8 @@ Match existing module style in `src/simulation/`. No new frameworks. Keep the ha
 
 ## 8. Rendering and UI
 
-- Mesh under `src/render/`. Countershade; do not invent glow that is not a biological photophore.
-- Knobs in `src/config.js`. Toggles/sliders in `MENU` (`src/ui.js`), start **off**, wire with `hud.on` in `src/main.js`.
+- Mesh under `src/render/`. Countershade; do not invent glow that is not a biological photophore. School looks live on `SPECIES[id].look`.
+- Knobs in `src/config.js` / `SPECIES[id].fish`. Toggles/sliders in `MENU` (`src/ui.js`), start **off**, wire with `hud.on` in `src/main.js`.
 - Prefer a physical control (depth, turbidity, nutrient) over a cosmetic one.
 - Field-notes card in `src/species.js`. HUD readout only if it is a real state (counts, energy, zone).
 
@@ -81,19 +83,21 @@ Match existing module style in `src/simulation/`. No new frameworks. Keep the ha
 
 Do not simulate the global ocean as more boids. Near the camera: agents. Kilometres out: super-individuals or density. Basin: Eulerian fields. Stream chunks; do not enlarge `halfX` until streaming exists.
 
+One cell may eventually list hundreds of sharks, squid, kelp, coral, whales. That is still one catalog plus presence plus a budget. It is not hundreds of independent 20k loops.
+
 ## 10. Worked examples in this repo
 
-| | Atlantic herring | Pelagic shark |
-| --- | --- | --- |
-| Guild | Pelagic forage | Pelagic predator |
-| Eats | Zooplankton (`z`) | Herring agents |
-| Eaten by | Sharks (seals/gannets not meshed; DVM stands in) | Nothing yet (note it) |
-| Depth | Epipelagic DVM, max −180 m | Tracks herring, max −220 m |
-| Flow | `sampleFlow` + bloom gradient | `sampleFlow` while hunting |
-| Range | North Atlantic hull | Follows herring presence |
-| Budget | Type II graze, bloom caps N, starve recycles | Bite restores energy, starve recycles, pup costs energy |
-| Grid | `gridMinY` = day depth − 50 m, not the floor | Same pelagic band |
+| | Atlantic herring | Skipjack tuna | Atlantic cod |
+| --- | --- | --- | --- |
+| Guild | Pelagic forage | Pelagic predator | Demersal predator |
+| Eats | Zooplankton (`z`) | School fish | School fish near the floor |
+| Eaten by | Sharks/tuna/cod (seals/gannets not meshed; DVM stands in) | Nothing yet | Nothing yet |
+| Depth | Epipelagic DVM, max −180 m | Photic ram, max −120 m | Shelf floor, max −200 m |
+| Flow | `sampleFlow` + bloom gradient | `sampleFlow` while hunting | `sampleFlow` on the sand |
+| Range | North Atlantic hull | \|lat\| < 40° and prey present | NA shelf; dropped if floor > ~280 m |
+| Budget | Type II graze, shared bloom cap | Bite restores energy, starve recycles | Bite restores energy, slow drain |
+| Grid | Shared school grid; `gridMinY` from deepest present taxon | Vehicle, not boids | Vehicle, not boids |
 
 ## When you add a feature, add a bullet
 
-Examples of future rows: temperature niche, dissolved oxygen, deep-scattering layer, benthic carbon, photophores, school-as-density beyond the camera frustum, a second pelagic that *partitions* depth with herring.
+Examples of future rows: temperature niche, dissolved oxygen, deep-scattering layer, benthic carbon, photophores, school-as-density beyond the camera frustum, squid, krill as a field, named shark species, coral as a `field` agent.

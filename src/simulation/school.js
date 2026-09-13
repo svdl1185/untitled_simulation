@@ -1,4 +1,5 @@
-import { CONFIG, faunaPresent, gridMinY, hasBeach, waterMaxZ } from "../config.js";
+import { CONFIG, cellSchoolTaxa, dvmY, gridMinY, hasBeach, waterMaxZ } from "../config.js";
+import { allocateSchoolCounts } from "../world/fauna.js";
 import { UniformGrid3D } from "./grid.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
@@ -63,7 +64,13 @@ const N27Z = new Int8Array(27);
 }
 
 /**
- * Herring schools on a shared uniform grid.
+ * Mixed pelagic school on a shared uniform grid.
+ *
+ * Every school species present in the cell occupies this one agent set.
+ * Individuals carry a taxon index; shoals stay species-pure; the hashed
+ * neighbour cap is unchanged. Headcount is a shared bloom-capped budget,
+ * split by catalog `share` — adding a later forage fish does not start a
+ * second 20k boid loop.
  *
  * Spacing is nearest-neighbor packing (project + spring on the K closest
  * fish), not a crowd of cancelling forces. Alignment is same-school only
@@ -74,13 +81,14 @@ const N27Z = new Int8Array(27);
  *
  * Trophic: each fish has energy, grazes zooplankton with a Type II
  * response, and the school hunts or mills on that field. Starvation and
- * shark kills recycle biomass back into the NPZD water column so later
- * guilds can share the same budget.
+ * predator kills recycle biomass back into the NPZD water column.
  */
 export class School {
-  constructor(count) {
+  constructor(count, opts = {}) {
     const max = CONFIG.maxFish;
     this.max = max;
+    this.taxa = opts.taxa || cellSchoolTaxa();
+    this._tcfg = this.taxa.map((t) => t.cfg);
     this.maxSchools = CONFIG.maxSchools;
     this.initialSchools = CONFIG.schoolCount;
     this.schoolCount = CONFIG.schoolCount;
@@ -95,6 +103,7 @@ export class School {
     this.energy = new Float32Array(max);
     this.sex = new Uint8Array(max);
     this.schoolId = new Uint8Array(max);
+    this.taxon = new Uint8Array(max);
     this._compact = new Float32Array(this.maxSchools);
     this.schoolHunger = new Float32Array(this.maxSchools);
 
@@ -152,12 +161,13 @@ export class School {
         mill: 0,
         wantMill: 0,
         modeT: 6 + s * 2.1,
+        taxon: 0,
       });
     }
 
     this.grid = new UniformGrid3D({
       minX: -CONFIG.halfX,
-      minY: gridMinY(),
+      minY: gridMinY(this.taxa),
       minZ: -CONFIG.halfZ,
       maxX: CONFIG.halfX,
       maxY: CONFIG.surfaceY + 4,
@@ -175,36 +185,57 @@ export class School {
     return n;
   }
 
+  taxonId(i) {
+    return this.taxa[this.taxon[i]]?.id || this.taxa[0]?.id || "herring";
+  }
+
+  taxonCfg(i) {
+    return this._tcfg[this.taxon[i]] || CONFIG.fish;
+  }
+
+  shoalCfg(s) {
+    return this._tcfg[this.anchors[s]?.taxon ?? 0] || CONFIG.fish;
+  }
+
   _home(s) {
     const n = Math.max(1, this.initialSchools);
     const a = (s / n) * Math.PI * 2 + 0.31;
     const rx = CONFIG.halfX * 0.49;
     const rz = CONFIG.halfZ * 0.31;
     const zOff = hasBeach() ? -CONFIG.halfZ * 0.32 : 0;
+    const cfg = this.shoalCfg(s);
     return {
       x: Math.cos(a) * rx,
-      y: CONFIG.fish.preferredDepth + (s % 2 === 0 ? -2 : 2.5),
+      y: (cfg.preferredDepth ?? CONFIG.fish.preferredDepth) + (s % 2 === 0 ? -2 : 2.5),
       z: Math.sin(a) * rz + zOff,
       heading: a + Math.PI * 0.5,
     };
   }
 
   respawn(count) {
-    const n = faunaPresent("herring")
-      ? Math.max(0, Math.min(this.max, count | 0))
-      : 0;
-    this.count = n;
+    const n = this.taxa.length ? Math.max(0, Math.min(this.max, count | 0)) : 0;
+    this.count = 0;
     this.cap = n;
     this.totalEaten = 0;
     this.totalBorn = 0;
     this._recruitAcc = 0;
     this._starveAcc = 0;
     this._harvestDebt = 0;
-    this.schoolCount = this.initialSchools;
     this._splitLock.fill(0);
+    this.alarm.fill(0);
+    this._alarm.fill(0);
+    this.schoolHunger.fill(0.4);
+
+    const nTaxa = Math.max(1, this.taxa.length);
+    const shoalsPer = Math.max(1, Math.min(3, (this.maxSchools / nTaxa) | 0));
+    this.initialSchools = Math.min(this.maxSchools, nTaxa * shoalsPer);
+    this.schoolCount = this.initialSchools;
+
     for (let s = 0; s < this.maxSchools; s++) {
-      const home = this._home(s % this.initialSchools);
+      const t = this.taxa.length ? Math.min(this.taxa.length - 1, (s / shoalsPer) | 0) : 0;
       const a = this.anchors[s];
+      a.taxon = t;
+      const home = this._home(s % Math.max(1, this.initialSchools));
       a.x = home.x;
       a.y = home.y;
       a.z = home.z;
@@ -222,52 +253,56 @@ export class School {
       this.schoolN[s] = 0;
     }
 
-    const rest = CONFIG.fish.restSpacing;
-    const per = Math.ceil(n / Math.max(1, this.initialSchools));
+    const alloc = allocateSchoolCounts(n, this.taxa);
     const nY = 5;
-    const nSide = Math.max(5, Math.round(Math.sqrt(per / nY) * 0.62));
-    const nAlong = Math.max(8, Math.ceil(per / (nY * nSide)));
-
-    this.alarm.fill(0);
-    this._alarm.fill(0);
-    for (let i = 0; i < n; i++) {
-      const i3 = i * 3;
-      const sid = i % this.initialSchools;
-      this.schoolId[i] = sid;
-      const home = this._home(sid);
-      const k = (i / this.initialSchools) | 0;
-      const layer = k % nY;
-      const plane = (k / nY) | 0;
-      const sideI = plane % nSide;
-      const alongI = (plane / nSide) | 0;
-      const jitter = rest * 0.42;
-      const side =
-        (sideI + (alongI & 1) * 0.5 - (nSide - 1) * 0.5) * rest +
-        (Math.random() - 0.5) * jitter;
-      const along =
-        (alongI - (nAlong - 1) * 0.5) * rest * 0.92 +
-        (Math.random() - 0.5) * jitter;
-      const up =
-        (layer - (nY - 1) * 0.5) * rest * 0.72 +
-        (Math.random() - 0.5) * jitter * 0.7;
-      const hx = Math.sin(home.heading);
-      const hz = Math.cos(home.heading);
-      this.pos[i3] = home.x + hx * along - hz * side;
-      this.pos[i3 + 1] = home.y + up;
-      this.pos[i3 + 2] = home.z + hz * along + hx * side;
-      const heading = home.heading + (Math.random() - 0.5) * 0.22;
-      const spd = 6.2 + Math.random() * 1.8;
-      this.vel[i3] = Math.sin(heading) * spd;
-      this.vel[i3 + 1] = (Math.random() - 0.5) * 0.08;
-      this.vel[i3 + 2] = Math.cos(heading) * spd;
-      this.phase[i] = Math.random() * Math.PI * 2;
-      const female = Math.random() < 0.5;
-      this.sex[i] = female ? 0 : 1;
-      this.scale[i] = (0.84 + Math.random() * 0.32) * (female ? 1.05 : 0.96);
-      this.pref[i] = 0.86 + Math.random() * 0.28;
-      this.energy[i] = 0.52 + Math.random() * 0.28;
+    let i = 0;
+    for (let t = 0; t < alloc.length; t++) {
+      const want = alloc[t].n;
+      const cfg = this._tcfg[t] || CONFIG.fish;
+      const rest = cfg.restSpacing;
+      const baseSid = t * shoalsPer;
+      const per = Math.ceil(want / shoalsPer);
+      const nSide = Math.max(5, Math.round(Math.sqrt(per / nY) * 0.62));
+      const nAlong = Math.max(8, Math.ceil(per / (nY * nSide)));
+      for (let k = 0; k < want && i < n; k++, i++) {
+        const sid = baseSid + (k % shoalsPer);
+        const i3 = i * 3;
+        this.taxon[i] = t;
+        this.schoolId[i] = sid;
+        const home = this._home(sid);
+        const layer = k % nY;
+        const plane = (k / nY) | 0;
+        const sideI = plane % nSide;
+        const alongI = (plane / nSide) | 0;
+        const jitter = rest * 0.42;
+        const side =
+          (sideI + (alongI & 1) * 0.5 - (nSide - 1) * 0.5) * rest +
+          (Math.random() - 0.5) * jitter;
+        const along =
+          (alongI - (nAlong - 1) * 0.5) * rest * 0.92 +
+          (Math.random() - 0.5) * jitter;
+        const up =
+          (layer - (nY - 1) * 0.5) * rest * 0.72 +
+          (Math.random() - 0.5) * jitter * 0.7;
+        const hx = Math.sin(home.heading);
+        const hz = Math.cos(home.heading);
+        this.pos[i3] = home.x + hx * along - hz * side;
+        this.pos[i3 + 1] = home.y + up;
+        this.pos[i3 + 2] = home.z + hz * along + hx * side;
+        const heading = home.heading + (Math.random() - 0.5) * 0.22;
+        const spd = (cfg.minSpeed + cfg.maxSpeed) * 0.42 + Math.random() * 1.8;
+        this.vel[i3] = Math.sin(heading) * spd;
+        this.vel[i3 + 1] = (Math.random() - 0.5) * 0.08;
+        this.vel[i3 + 2] = Math.cos(heading) * spd;
+        this.phase[i] = Math.random() * Math.PI * 2;
+        const female = Math.random() < 0.5;
+        this.sex[i] = female ? 0 : 1;
+        this.scale[i] = (0.84 + Math.random() * 0.32) * (female ? 1.05 : 0.96);
+        this.pref[i] = 0.86 + Math.random() * 0.28;
+        this.energy[i] = 0.52 + Math.random() * 0.28;
+      }
     }
-    this.schoolHunger.fill(0.4);
+    this.count = i;
     this.meanEnergy = 0.66;
     this._refreshCentroids();
   }
@@ -281,7 +316,7 @@ export class School {
   }
 
   setCount(next) {
-    if (!faunaPresent("herring")) {
+    if (!this.taxa.length) {
       this.cap = 0;
       if (this.count !== 0) {
         this.count = 0;
@@ -311,6 +346,7 @@ export class School {
     for (let i = this.count; i < n; i++) {
       const i3 = i * 3;
       this.schoolId[i] = sid;
+      this.taxon[i] = this.anchors[sid]?.taxon ?? 0;
       this.pos[i3] = c.x + (Math.random() - 0.5) * rest * 4;
       this.pos[i3 + 1] = c.y + (Math.random() - 0.5) * rest * 2;
       this.pos[i3 + 2] = c.z + (Math.random() - 0.5) * rest * 4;
@@ -349,6 +385,7 @@ export class School {
       this.energy[i] = this.energy[last];
       this.sex[i] = this.sex[last];
       this.schoolId[i] = this.schoolId[last];
+      this.taxon[i] = this.taxon[last];
     }
     this.count = last;
     if (harvested) {
@@ -451,9 +488,9 @@ export class School {
     this.anchorT += dt * 0.11;
     const boundX = CONFIG.halfX - 32;
     const boundZ = CONFIG.halfZ - 36;
-    const depth = look?.preferredDepth ?? CONFIG.fish.preferredDepth;
-    const lead = CONFIG.fish.lead;
     for (let s = 0; s < this.maxSchools; s++) {
+      const depth = dvmY(look?.hour ?? 12, this.shoalCfg(s));
+      const lead = this.shoalCfg(s).lead ?? CONFIG.fish.lead;
       this._splitLock[s] = Math.max(0, this._splitLock[s] - dt);
       if (this.schoolN[s] === 0) {
         this.anchors[s].mill = 0;
@@ -581,8 +618,8 @@ export class School {
         wantY += (forageY - wantY) * Math.min(0.28, (hunger - 0.62) * 0.7);
       }
       a.y += (wantY - a.y) * Math.min(1, dt * 0.55);
-      const waterTop = -3.2;
-      const waterBot = Math.max(groundA + 8, CONFIG.fish.maxDepth);
+      const waterTop = this.shoalCfg(s).anchorTop ?? -3.2;
+      const waterBot = Math.max(groundA + 8, this.shoalCfg(s).maxDepth);
       if (waterBot < waterTop) {
         if (a.y < waterBot) a.y = waterBot;
         else if (a.y > waterTop) a.y = waterTop;
@@ -595,17 +632,12 @@ export class School {
   _flock(dt, pack, look) {
     const { count, pos, vel, schoolId } = this;
     const cfg = CONFIG.fish;
-    const rest = cfg.restSpacing;
-    const yMul = cfg.yMul;
-    const sepR2 = cfg.sepRadius * cfg.sepRadius;
-    const aliR2 = cfg.aliRadius * cfg.aliRadius;
-    const cohR2 = cfg.cohRadius * cfg.cohRadius;
-    const aliCap = 14;
-    const cohCap = 12;
     const { heads, next, keyOf, nx, ny, nz, mask, inv, minX, minY, minZ } = this.grid;
     const tight = look?.tight ?? 0;
     const holdR0 = cfg.schoolRadius * (look?.schoolRadiusScale ?? 1);
     const cohW = cfg.cohWeight * (1 + tight * 0.6);
+    const aliCap = 14;
+    const cohCap = 12;
     const colliders = this.colliders;
     const colliderCount = this.colliderCount;
     const nj = this._nj;
@@ -654,8 +686,6 @@ export class School {
     this._hungryN = 0;
     const halfSat = CONFIG.plankton.halfSat;
     const grazeRate = CONFIG.plankton.graze;
-    const forageGain = cfg.forageGain;
-    const metabolism = cfg.metabolism;
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
@@ -666,6 +696,15 @@ export class School {
       const vy = vel[i3 + 1];
       const vz = vel[i3 + 2];
       const sid = schoolId[i];
+      const tcfg = this._tcfg[this.taxon[i]] || cfg;
+      const cfg = tcfg;
+      const rest = cfg.restSpacing;
+      const yMul = cfg.yMul;
+      const sepR2 = cfg.sepRadius * cfg.sepRadius;
+      const aliR2 = cfg.aliRadius * cfg.aliRadius;
+      const cohR2 = cfg.cohRadius * cfg.cohRadius;
+      const forageGain = cfg.forageGain;
+      const metabolism = cfg.metabolism;
       const anchor = this.anchors[sid];
       const hold = this.centroids[sid];
 
@@ -940,7 +979,7 @@ export class School {
           const hunger = 1 - e;
           const sat = zFood / (zFood + halfSat);
           const panic = alarm * 0.7;
-          const demand = grazeRate * sat * dt * (0.4 + hunger * 0.9) * (1 - panic);
+          const demand = grazeRate * (cfg.grazeMul ?? 1) * sat * dt * (0.4 + hunger * 0.9) * (1 - panic);
           bloom.graze(px, pz, demand);
           e += sat * forageGain * dt * (1.08 - e) * (1 - alarm * 0.6);
           const pull = cfg.forageWeight * (0.18 + hunger * 1.25);
@@ -1358,6 +1397,7 @@ export class School {
       a.hz = bvz / hLen;
       a.cruise = this.anchors[s].cruise;
       a.baseCruise = this.anchors[s].baseCruise || a.cruise;
+      a.taxon = this.anchors[s].taxon;
       a.mill = 0;
       a.wantMill = 0;
       a.modeT = 10;
@@ -1403,6 +1443,7 @@ export class School {
       let bestD = dOwn2 * 0.7;
       for (let s = 0; s < this.maxSchools; s++) {
         if (s === sid || this.schoolN[s] < minS) continue;
+        if ((this.anchors[s]?.taxon ?? 0) !== (this.taxon[i] ?? 0)) continue;
         const o = this.centroids[s];
         const dx = pos[i3] - o.x;
         const dy = pos[i3 + 1] - o.y;
@@ -1447,6 +1488,7 @@ export class School {
       for (let b = a + 1; b < this.maxSchools; b++) {
         if (this.schoolN[b] < minS) continue;
         if (this._splitLock[b] > 0) continue;
+        if ((this.anchors[a]?.taxon ?? 0) !== (this.anchors[b]?.taxon ?? 0)) continue;
         const cb = this.centroids[b];
         const dx = ca.x - cb.x;
         const dy = ca.y - cb.y;
@@ -1471,7 +1513,6 @@ export class School {
   _eat(pack, plankton) {
     const { pos, count } = this;
     const carcass = CONFIG.plankton.carcass;
-    const cfg = CONFIG.shark;
     for (let i = count - 1; i >= 0; i--) {
       const i3 = i * 3;
       const x = pos[i3];
@@ -1490,8 +1531,8 @@ export class School {
           if (shark.feed) shark.feed();
           shark.biteT =
             shark.lunging || shark.aiMode === "strike"
-              ? cfg.lungeBiteCooldown
-              : cfg.biteCooldown;
+              ? shark.cfg?.lungeBiteCooldown ?? CONFIG.shark.lungeBiteCooldown
+              : shark.cfg?.biteCooldown ?? CONFIG.shark.biteCooldown;
           shark.onEat(x, y, z);
           break;
         }
@@ -1500,7 +1541,7 @@ export class School {
   }
 
   _recruit(dt, plankton) {
-    if (!faunaPresent("herring") || this.cap <= 0) return;
+    if (!this.taxa.length || this.cap <= 0) return;
     const foodCap = plankton.carryingCapacity(this.cap);
     const ceiling = Math.min(this.cap, foodCap);
     this._harvestDebt = Math.max(0, this._harvestDebt + this.eatenThisFrame);
@@ -1557,6 +1598,7 @@ export class School {
     const rest = CONFIG.fish.restSpacing;
     const female = Math.random() < 0.5;
     this.schoolId[i] = sid;
+    this.taxon[i] = this.anchors[sid]?.taxon ?? 0;
     this.pos[i3] = c.x + (Math.random() - 0.5) * rest * 3;
     this.pos[i3 + 1] = c.y + (Math.random() - 0.5) * rest * 1.4;
     this.pos[i3 + 2] = c.z + (Math.random() - 0.5) * rest * 3;
