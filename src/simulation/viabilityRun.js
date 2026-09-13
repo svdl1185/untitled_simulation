@@ -8,7 +8,7 @@
  */
 import { fileURLToPath } from "node:url";
 import { CONFIG, faunaPresent, anySchoolPresent } from "../config.js";
-import { VEHICLE_IDS, PRESENCE_IDS, vehicleCfg } from "../world/fauna.js";
+import { VEHICLE_IDS, PRESENCE_IDS, SPECIES, vehicleCfg } from "../world/fauna.js";
 import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
 import { School } from "./school.js";
 import { spawnPredators, tryBreed } from "./shark.js";
@@ -47,7 +47,7 @@ export function runViability(opts = {}) {
   day.auto = true;
   day.latitude = CONFIG.world.lat;
   const log = new ViabilityLog();
-  log.selectIds(PRESENCE_IDS.filter((id) => faunaPresent(id)));
+  log.selectIds(PRESENCE_IDS.filter((id) => faunaPresent(id) && SPECIES[id]?.agent !== "field"));
 
   const total = daysWanted * CONFIG.time.dayLength;
   let simClock = 0;

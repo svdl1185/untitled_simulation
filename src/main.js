@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG, anySchoolPresent, columnZones, faunaPresent, zoneAt } from "./config.js";
+import { CONFIG, anySchoolPresent, columnZones, faunaPresent, photicLimitY, zoneAt } from "./config.js";
 import { SPECIES, VEHICLE_IDS, vehicleCfg } from "./world/fauna.js";
 import { School } from "./simulation/school.js";
 import { spawnPredators, resetSharks, createShark, tryBreed } from "./simulation/shark.js";
@@ -12,6 +12,8 @@ import { createOutcrops } from "./render/outcrops.js";
 import { createWorldUniforms, syncWorldUniforms } from "./render/caustics.js";
 import { createEnvironment, createEatParticles } from "./render/environment.js";
 import { createPlanktonMesh } from "./render/plankton.js";
+import { samplePAR } from "./simulation/light.js";
+import { bindCellTemperature, sampleTemp } from "./simulation/temperature.js";
 import { createInput } from "./input.js";
 import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followCameraIndex } from "./camera.js";
 import { createHUD } from "./ui.js";
@@ -429,6 +431,10 @@ hud.on("lamp", (on) => {
 hud.on("turbidity", (n) => {
   CONFIG.water.turbidity = Number(n);
 });
+hud.on("sstAnomaly", (n) => {
+  CONFIG.water.sstAnomaly = Number(n);
+  bindCellTemperature();
+});
 
 function syncDepthZones() {
   if (!hud?.setSelectOptions) return;
@@ -656,6 +662,30 @@ function hudView() {
       hint: "Mean phytoplankton and zooplankton on the NPZD grid, scaled 0–100.",
     },
     {
+      id: "sst",
+      label: "SST",
+      value: `${(day.look.sst ?? sampleTemp(0, -1, 0)).toFixed(1)} °C`,
+      hint: "Climatological sea-surface temperature for this latitude and season, plus the SST-anomaly control.",
+    },
+    {
+      id: "photic",
+      label: "Photic",
+      value: `${Math.abs(photicLimitY()).toFixed(0)} m`,
+      hint: "1% light depth from turbidity. Phytoplankton grow inside this envelope.",
+    },
+    {
+      id: "par",
+      label: "PAR",
+      value: `${Math.round(samplePAR(camera.position.y, day.look) * 100)}%`,
+      hint: "Photosynthetically active radiation at the camera, as a fraction of surface PAR.",
+    },
+    {
+      id: "benthos",
+      label: "Benthos",
+      value: `${Math.round((plankton.meanB ?? 0) * 100)}`,
+      hint: "Mean seafloor carbon. Detritus sinks here; cod graze it on the bed.",
+    },
+    {
       id: "camera",
       label: "Camera",
       value: cameraLabel(),
@@ -689,7 +719,7 @@ function hudView() {
     camY: camera.position.y,
     zones: columnZones(day.look.preferredDepth),
   };
-  return { general, subject, day, census: censusList(school, sharks), placeName: loc.name || loc.region, column };
+  return { general, subject, day, census: censusList(school, sharks, plankton), placeName: loc.name || loc.region, column };
 }
 
 function pickSubject(clientX, clientY) {
@@ -806,6 +836,10 @@ function focusSpecies(id) {
   if (oceanMap.isOpen()) {
     oceanMap.setOpen(false);
     hud.set("oceanMap", false);
+  }
+  if (spec.agent === "field") {
+    jumpToDepth(CONFIG.floorY + 6);
+    return;
   }
   if (spec.agent === "vehicle") {
     const i = sharks.findIndex((s) => (s.kind || "shark") === id);

@@ -4,6 +4,7 @@ import { UniformGrid3D } from "./grid.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { TROPHIC } from "./plankton.js";
+import { columnQ10 } from "./temperature.js";
 
 function packOf(sharks) {
   return Array.isArray(sharks) ? sharks : sharks ? [sharks] : [];
@@ -626,7 +627,7 @@ export class School {
       const grazeP = scfg.grazeOn === "p";
       const food = bloom
         ? bloom.sampleLayer(grazeP ? TROPHIC.P : TROPHIC.Z, c.x, c.z) *
-          (grazeP ? 1 : bloom.overlap(look, c.y))
+          bloom.overlap(look, c.y, grazeP ? TROPHIC.P : TROPHIC.Z)
         : 0;
 
       let hx = a.hx;
@@ -821,6 +822,7 @@ export class School {
     this._th.fill(0);
     const halfSat = CONFIG.plankton.halfSat;
     const grazeRate = CONFIG.plankton.graze;
+    const q10 = columnQ10();
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
@@ -1125,11 +1127,11 @@ export class School {
           const grazeP = cfg.grazeOn === "p";
           const zFood =
             bloom.sampleLayer(grazeP ? TROPHIC.P : TROPHIC.Z, px, pz) *
-            (grazeP ? 1 : bloom.overlap(look, py));
+            bloom.overlap(look, py, grazeP ? TROPHIC.P : TROPHIC.Z);
           const hunger = 1 - e;
           const sat = zFood / (zFood + halfSat);
           const panic = alarm * 0.7;
-          const demand = grazeRate * (cfg.grazeMul ?? 1) * sat * dt * (0.4 + hunger * 0.9) * (1 - panic);
+          const demand = grazeRate * (cfg.grazeMul ?? 1) * sat * dt * (0.4 + hunger * 0.9) * (1 - panic) * q10;
           const taken = bloom.graze(px, pz, demand, grazeP ? TROPHIC.P : TROPHIC.Z);
           this.grazeTaken[this.taxon[i]] += taken;
           e += sat * forageGain * dt * (1.08 - e) * (1 - alarm * 0.6);
@@ -1138,7 +1140,7 @@ export class School {
           cruiseZ += anchor.gz * pull;
         }
       }
-      e -= metabolism * dt * (1 + alarm * 1.45 + (look?.storm ?? 0) * 0.3);
+      e -= metabolism * q10 * dt * (1 + alarm * 1.45 + (look?.storm ?? 0) * 0.3);
       if (e < 0) e = 0;
       else if (e > 1) e = 1;
       this.energy[i] = e;

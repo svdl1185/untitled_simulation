@@ -1,5 +1,6 @@
 import { CONFIG, bindCellFauna, bindColumnHabitat } from "../config.js";
 import { emptyPresence, fullPresence, SPECIES } from "./fauna.js";
+import { bindCellTemperature } from "../simulation/temperature.js";
 
 export const PATCH_SIZE_M = 1000;
 export const LAB_SIZE_M = 10000;
@@ -369,10 +370,13 @@ export function applyPatch(patch) {
   for (const id of Object.keys(next)) next[id] = src[id] ?? 0;
   if (!patch.lab) {
     for (const id of Object.keys(next)) {
-      if (next[id] && SPECIES[id]?.guild === "demersal" && patch.floorY < -650) next[id] = 0;
+      const spec = SPECIES[id];
+      if (next[id] && spec?.guild === "demersal" && patch.floorY < -650) next[id] = 0;
+      if (next[id] && spec?.minFloorY != null && patch.floorY > spec.minFloorY) next[id] = 0;
     }
   }
   CONFIG.presence = next;
+  if (!patch.boot) CONFIG.presence.benthos = 1;
   CONFIG.flow.meanU = patch.current?.u ?? 0;
   CONFIG.flow.meanV = patch.current?.v ?? 0;
   CONFIG.maxSchools = patch.lab ? 48 : 32;
@@ -393,6 +397,7 @@ export function applyPatch(patch) {
     CONFIG.beach.shoreY = 0.18;
     CONFIG.beach.duneY = Math.max(4, patch.centerY > 0 ? patch.centerY : 6);
     bindColumnHabitat(patch.floorY, true);
+    bindCellTemperature();
     CONFIG.water.turbidity = 0.72;
     bindCellFauna();
     return patch;
@@ -407,6 +412,7 @@ export function applyPatch(patch) {
     CONFIG.initialFish = 12000;
     Object.assign(CONFIG.beach, STOCK.beach);
     bindColumnHabitat(STOCK.floorY, true);
+    bindCellTemperature();
     CONFIG.thermoY = STOCK.thermoY;
     CONFIG.fish.preferredDepth = STOCK.preferredDepth;
     CONFIG.water.turbidity = 1;
@@ -421,6 +427,7 @@ export function applyPatch(patch) {
   CONFIG.shelfY = patch.shelfY;
   CONFIG.initialFish = 12000;
   bindColumnHabitat(patch.floorY, patch.hasLand);
+  bindCellTemperature();
   if (patch.hasLand) {
     CONFIG.beach.enabled = true;
     CONFIG.beach.startZ = CONFIG.halfZ * 0.12;

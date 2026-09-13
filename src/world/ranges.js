@@ -8,6 +8,8 @@
  */
 
 import { emptyPresence, SCHOOL_IDS, SPECIES, VEHICLE_IDS, speciesLabel } from "./fauna.js";
+import { inTempNiche, meanSST } from "../simulation/temperature.js";
+import { CONFIG } from "../config.js";
 
 const HERRING_HULL = [
   [-76, 41],
@@ -581,6 +583,8 @@ export function presenceAt(lat, lon) {
   }
   if (Math.abs(lat) < 32.5) p.flyingfish = 1;
   if (Math.abs(lat) < 52) p.lanternfish = 1;
+  p.benthos = 1;
+  if (Math.abs(lat) < 55) p.giantsquid = 1;
 
   const prey = schoolPreyCount(p);
   if (prey && lat < 58 && lat > -48) p.shark = 1;
@@ -604,6 +608,12 @@ export function presenceAt(lat, lon) {
   for (const id of VEHICLE_IDS) {
     if ((p[id] ?? 0) <= 0.05) continue;
     if (!preySatisfied(SPECIES[id], p)) p[id] = 0;
+  }
+
+  const sst = meanSST(lat) + (CONFIG.water?.sstAnomaly ?? 0);
+  for (const id of Object.keys(p)) {
+    if ((p[id] ?? 0) <= 0.05) continue;
+    if (!inTempNiche(sst, SPECIES[id]?.temp)) p[id] = 0;
   }
   return p;
 }

@@ -122,11 +122,12 @@ const CENSUS_GUILD_ORDER = [
   "Slope predator",
   "Filter-feeding shark",
   "Pelagic cephalopod predator",
+  "Benthos",
   "Mysticete",
   "Odontocete",
 ];
 
-export function censusList(school, sharks = []) {
+export function censusList(school, sharks = [], plankton) {
   const counts = {};
   const present = [];
   for (const spec of Object.values(FAUNA)) {
@@ -143,6 +144,9 @@ export function censusList(school, sharks = []) {
   for (const s of sharks) {
     const id = s.kind || "shark";
     counts[id] = (counts[id] || 0) + 1;
+  }
+  if (plankton && faunaPresent("benthos")) {
+    counts.benthos = Math.max(1, Math.round((plankton.meanB ?? 0) * 100));
   }
   present.sort((a, b) => {
     const ga = CENSUS_GUILD_ORDER.indexOf(a.guild);

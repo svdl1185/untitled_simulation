@@ -2,6 +2,7 @@ import { CONFIG, clampHabitatY, dvmY, faunaPresent, hasBeach, waterMaxZ, yearSec
 import { SPECIES, VEHICLE_IDS, vehicleCfg } from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
+import { columnQ10 } from "./temperature.js";
 
 const KINDS = [
   { scale: 1.02, aggression: 1.06, tint: { r: 1, g: 1, b: 1 } },
@@ -172,9 +173,10 @@ export class Shark {
     this.y += flow.y * dt * 0.45;
     this.z += flow.z * dt;
 
-    const drain = cfg.energyDrain * (this.lunging ? 2.4 : this.aiMode === "strike" ? 1.6 : 1);
+    const drain = cfg.energyDrain * (this.lunging ? 2.4 : this.aiMode === "strike" ? 1.6 : 1) * columnQ10();
     this.energy = Math.max(0, this.energy - drain * dt);
     this._filterFeed(dt, school, look, cfg);
+    this._benthosFeed(dt, school, cfg);
     this.mateT = Math.max(0, this.mateT - dt);
     this._tickBreath(dt, cfg);
     if (this.energy < cfg.starveAt) this.starveT += dt;
@@ -282,6 +284,21 @@ export class Shark {
       this.filterTaken = (this.filterTaken || 0) + taken;
       this.filterMeals = (this.filterMeals || 0) + 1;
       this.energyIn = (this.energyIn || 0) + gain;
+    }
+  }
+
+  _benthosFeed(dt, school, cfg) {
+    if (!(cfg.benthosGraze > 0)) return;
+    const bloom = school?._plankton;
+    if (!bloom) return;
+    const ground = seafloorHeight(this.x, this.z);
+    if (this.y > ground + (cfg.floorClearance ?? 4) * 2.4 + 6) return;
+    const taken = bloom.grazeBenthos(this.x, this.z, cfg.benthosGraze * dt);
+    if (taken > 0) {
+      const gain = taken * 0.55;
+      this.energy = Math.min(1, this.energy + gain);
+      this.energyIn = (this.energyIn || 0) + gain;
+      this.filterMeals = (this.filterMeals || 0) + 1;
     }
   }
 
@@ -841,6 +858,8 @@ export function createShark(i, count, school, kind = "shark") {
     shark.y = seafloorHeight(shark.x, shark.z) + kindCfg.floorClearance + 2;
   } else if (kindCfg.breathes) {
     shark.y = clampHabitatY(-4 - i * 1.4, kindCfg.maxDepth);
+  } else if (kindCfg.nightDepth != null) {
+    shark.y = clampHabitatY(dvmY(12, kindCfg), kindCfg.maxDepth);
   } else {
     shark.y = clampHabitatY(
       (kindCfg.minDepth ?? CONFIG.fish.preferredDepth) - 8 - i * 2,

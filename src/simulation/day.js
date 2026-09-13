@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { CONFIG, herringDvmY } from "../config.js";
+import { bindCellTemperature, climatologySST } from "./temperature.js";
+import { surfacePAR } from "./light.js";
 
 const PRESETS = [
   {
@@ -259,7 +261,8 @@ export class DayCycle {
     this.hour = 10.4;
     this.auto = true;
     this.dayLength = CONFIG.time.dayLength;
-    this.dayIndex = 0;
+    this.dayIndex = CONFIG.time.dayIndex ?? 180;
+    CONFIG.time.dayIndex = this.dayIndex;
     this.latitude = CONFIG.world?.lat ?? 54.2;
     this.storm = 0;
     this.stormTarget = 0;
@@ -303,7 +306,11 @@ export class DayCycle {
     if (this.auto) {
       this.dayLength = CONFIG.time.dayLength;
       const next = this.hour + (24 / this.dayLength) * dt;
-      if (next >= 24) this.dayIndex += Math.floor(next / 24);
+      if (next >= 24) {
+        this.dayIndex += Math.floor(next / 24);
+        CONFIG.time.dayIndex = this.dayIndex;
+        bindCellTemperature();
+      }
       this.hour = ((next % 24) + 24) % 24;
     }
     this.storm += (this.stormTarget - this.storm) * Math.min(1, dt * 0.55);
@@ -405,6 +412,8 @@ export class DayCycle {
     look.wavePulse = 1 + 0.045 * Math.sin(performance.now() * 0.001 * 1.15);
     look.sunI *= look.wavePulse;
     look.caustic *= look.wavePulse;
+    look.sst = climatologySST(this.latitude ?? CONFIG.world?.lat ?? 54, this.dayIndex);
+    look.par0 = surfacePAR(look);
     return look;
   }
 

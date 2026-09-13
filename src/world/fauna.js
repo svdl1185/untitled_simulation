@@ -8,7 +8,7 @@
  *
  * `agent: "school"`  — pelagic individuals in the hashed-grid school.
  * `agent: "vehicle"` — few Reynolds vehicles (sharks, tuna, cod).
- * Later: `"density"` for super-individuals, `"field"` for coral/kelp.
+ * `agent: "field"`   — Eulerian guild (benthos). Later: `"density"` for super-individuals.
  */
 
 export const FISH_DEFAULTS = {
@@ -187,6 +187,7 @@ export const SPECIES = {
     label: "herring",
     guild: "forage",
     agent: "school",
+    temp: { min: 0, max: 20 },
     social: "polarized",
     share: 1,
     fish: {},
@@ -197,6 +198,7 @@ export const SPECIES = {
     label: "capelin",
     guild: "forage",
     agent: "school",
+    temp: { min: -1.8, max: 12 },
     social: "polarized",
     share: 0.85,
     fish: {
@@ -366,6 +368,7 @@ export const SPECIES = {
     label: "sardinella",
     guild: "forage",
     agent: "school",
+    temp: { min: 16, max: 31 },
     social: "polarized",
     share: 0.9,
     fish: {
@@ -434,6 +437,7 @@ export const SPECIES = {
     label: "flying fish",
     guild: "surface",
     agent: "school",
+    temp: { min: 16, max: 31 },
     social: "loose",
     share: 0.16,
     fish: {
@@ -536,6 +540,7 @@ export const SPECIES = {
     label: "polar cod",
     guild: "forage",
     agent: "school",
+    temp: { min: -1.8, max: 6 },
     social: "polarized",
     share: 0.75,
     fish: {
@@ -570,6 +575,7 @@ export const SPECIES = {
     label: "Antarctic silverfish",
     guild: "forage",
     agent: "school",
+    temp: { min: -1.8, max: 6 },
     social: "polarized",
     share: 1,
     fish: {
@@ -820,6 +826,7 @@ export const SPECIES = {
     guild: "pelagic-predator",
     agent: "vehicle",
     prey: ["school"],
+    temp: { min: 16, max: 31 },
     vehicle: {
       count: 6,
       max: 12,
@@ -914,6 +921,7 @@ export const SPECIES = {
       mesh: "cod",
       diet: "bite",
       huntTaxa: ["herring", "capelin", "sandlance", "sprat", "polarcod"],
+      benthosGraze: 0.00045,
       tints: [
         { scale: 1.05, aggression: 0.82, tint: { r: 0.72, g: 0.62, b: 0.42 } },
         { scale: 0.9, aggression: 0.9, tint: { r: 0.55, g: 0.5, b: 0.38 } },
@@ -1065,6 +1073,7 @@ export const SPECIES = {
     guild: "filter-feeder",
     agent: "vehicle",
     prey: ["bloom"],
+    temp: { min: 18, max: 31 },
     vehicle: {
       count: 1,
       max: 2,
@@ -1207,7 +1216,7 @@ export const SPECIES = {
       diveTime: 42,
       diveSpeed: 55,
       huntTaxa: ["marketsquid", "illex", "lanternfish"],
-      huntKinds: ["humboldtsquid"],
+      huntKinds: ["humboldtsquid", "giantsquid"],
       eatVehicleEnergy: 0.38,
       tints: [{ scale: 1.05, aggression: 0.8, tint: { r: 0.55, g: 0.52, b: 0.48 } }],
     },
@@ -1291,6 +1300,44 @@ export const SPECIES = {
         { scale: 1.05, aggression: 1.2, tint: { r: 0.72, g: 0.28, b: 0.22 } },
         { scale: 0.88, aggression: 1.1, tint: { r: 0.85, g: 0.42, b: 0.2 } },
       ],
+    },
+  },
+  giantsquid: {
+    id: "giantsquid",
+    label: "giant squid",
+    guild: "cephalopod-predator",
+    agent: "vehicle",
+    minFloorY: -350,
+    prey: ["lanternfish", "marketsquid", "illex"],
+    vehicle: {
+      count: 1,
+      max: 2,
+      spacing: 48,
+      length: 8.6,
+      cruiseSpeed: 4.2,
+      boostSpeed: 9,
+      lungeSpeed: 13,
+      maxForce: 7.5,
+      minDepth: -80,
+      maxDepth: -1200,
+      nightDepth: -420,
+      dawnDepth: -620,
+      dayDepth: -850,
+      duskDepth: -580,
+      fearRadius: 28,
+      lungeFearRadius: 36,
+      biteRadius: 2.4,
+      lungeBiteRadius: 3.8,
+      mouthOffset: 3.4,
+      energyDrain: 0.0015,
+      eatEnergy: 0.12,
+      starveDays: 5.5,
+      gait: "ram",
+      minSpeed: 1.8,
+      mesh: "squid",
+      diet: "bite",
+      huntTaxa: ["lanternfish", "marketsquid", "illex"],
+      tints: [{ scale: 1.12, aggression: 0.85, tint: { r: 0.82, g: 0.55, b: 0.48 } }],
     },
   },
   commondolphin: {
@@ -1511,10 +1558,17 @@ export const SPECIES = {
       ],
     },
   },
+  benthos: {
+    id: "benthos",
+    label: "benthos",
+    guild: "benthos",
+    agent: "field",
+  },
 };
 
 export const SCHOOL_IDS = Object.keys(SPECIES).filter((id) => SPECIES[id].agent === "school");
 export const VEHICLE_IDS = Object.keys(SPECIES).filter((id) => SPECIES[id].agent === "vehicle");
+export const FIELD_IDS = Object.keys(SPECIES).filter((id) => SPECIES[id].agent === "field");
 export const FORAGE_IDS = Object.keys(SPECIES).filter((id) => SPECIES[id].guild === "forage");
 export const PRESENCE_IDS = Object.keys(SPECIES);
 

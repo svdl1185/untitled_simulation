@@ -53,7 +53,7 @@ export function catalogRow(id) {
 }
 
 export function fullCatalog() {
-  return PRESENCE_IDS.map(catalogRow);
+  return PRESENCE_IDS.filter((id) => SPECIES[id]?.agent !== "field").map(catalogRow);
 }
 
 function emptyEvents() {
@@ -381,6 +381,7 @@ export class ViabilityLog {
     }
 
     for (const id of PRESENCE_IDS) {
+      if (SPECIES[id]?.agent === "field") continue;
       if (!this.selected.has(id) && !faunaPresent(id) && !tally[id] && !vehicle[id]) continue;
       let s = this.series[id];
       if (!s) s = this.series[id] = blankSeries();
@@ -470,6 +471,7 @@ export class ViabilityLog {
     const out = [];
     const seen = new Set();
     for (const id of PRESENCE_IDS) {
+      if (SPECIES[id]?.agent === "field") continue;
       if (!this.selected.has(id)) continue;
       const series = this.series[id];
       if (!series && !faunaPresent(id) && !liveIds.has(id)) continue;

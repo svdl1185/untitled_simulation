@@ -17,7 +17,7 @@ export const FAUNA = {
       "Polarized hashed-grid shoal (pancake envelope, same-shoal alignment). Type II graze on z. Hungry shoals may rise toward zooplankton; satiated shoals sit in the day refuge. Starvation and kills recycle to detritus.",
     missing: [
       "Seals and gannets are not agents; the day dive is the refuge those visual hunters would create.",
-      "Temperature and spawning grounds are not fields yet.",
+      "Temperature is a mixed-layer field with Q10 on graze and metabolism; spawning grounds are still not a place.",
       "Seasonal feeding–spawning migration (Norwegian Sea, Georges Bank, Baltic) is a range hull, not a swim between cells.",
       "Gravel-bank spawning, egg beds, and larval drift are not a season — recruits appear when the bloom can carry the mixed forage budget.",
       "Natal homing and stock structure are not states.",
@@ -221,7 +221,7 @@ export const FAUNA = {
       "Sea ice, beluga, and Greenland shark are not in the catalog.",
       "Under-ice habitat is not a field.",
       "Cryopelagic feeding on ice-algal copepods is not a food.",
-      "Antifreeze and subzero water are not a temperature field.",
+      "Antifreeze glycoproteins are not a physiology. Temperature is a field; this taxon is gated to cold SST.",
       "Polar-night light climate is still the epipelagic day/night clock.",
       "Under-ice spawning is not a season.",
     ],
@@ -296,7 +296,7 @@ export const FAUNA = {
     program:
       "Scatter shoal on the shared hashed grid. Type II graze on z. Own DVM (night ~−40 m, day ~−280 m, max −450 m). Modest catalog share so it does not fill the 20k budget. Presence is oceanic (|lat| < 52°), not a hull. Enlarges gridMinY only when this taxon is in the cell.",
     missing: [
-      "A true mesopelagic optical story (dark water, photophore lighting) is not in the shader.",
+      "A true mesopelagic optical story (photophore lighting) is not in the shader. PAR now decays with depth and grows phytoplankton only in the photic envelope; the water still looks too green at 1500 m.",
       "Oxygen-minimum habitat is not a field.",
       "Family is one catalog id, not thirty myctophid species.",
       "Species-specific photophore patterns are not a mate cue.",
@@ -413,9 +413,9 @@ export const FAUNA = {
     about:
       "North Atlantic shelf gadid, typically 40–120 cm. Lives on the sand and in the lower column, usually 10–400 m; recorded to about 600 m. Not an abyssal fish. Eats herring, capelin, sand lance, and benthos.",
     program:
-      "Slow benthic vehicle: seafloor + a few metres. Small fear radius. Bites herring, capelin, sand lance, sprat, and polar cod (huntTaxa). Dropped if the cell floor is deeper than about 650 m — that is slope/abyss, not shelf.",
+      "Slow benthic vehicle: seafloor + a few metres. Small fear radius. Bites herring, capelin, sand lance, sprat, and polar cod (huntTaxa). Also Type II-grazes seafloor carbon (benthos) when on the bed. Dropped if the cell floor is deeper than about 650 m — that is slope/abyss, not shelf.",
     missing: [
-      "Benthos and crabs are not agents, so energy is only from named school-fish bites.",
+      "Crabs and named benthic taxa are not agents — the seafloor field is detrital carbon, not a crab loop.",
       "Fishing mortality is not in the budget.",
       "Skrei / Lofoten spawning migrations are a hull, not a commute.",
       "Drumming in spawning aggregations is not a sound field.",
@@ -573,9 +573,9 @@ export const FAUNA = {
     about:
       "The deep-diving toothed whale. Females ~11 m, males ~16 m. Cosmopolitan in ice-free oceans. Typical foraging dives 400–1200 m for 40–50 minutes; recorded beyond 2000 m. Hunts squid by echolocation. Must return to the surface to breathe.",
     program:
-      "Burst vehicle. Air-breather: brief surface, then a foraging dive to min(2000 m, this cell's floor). In a 1500 m cell that is ~1500 m, not a photic cap. Prefers market squid, Illex, and lanternfish (huntTaxa). Bites Humboldt squid when that vehicle is in mouth range (huntKinds). Time is compressed so the descent is fast enough to reach that floor in one breath-hold. Does not bite herring.",
+      "Burst vehicle. Air-breather: brief surface, then a foraging dive to min(2000 m, this cell's floor). In a 1500 m cell that is ~1500 m, not a photic cap. Prefers market squid, Illex, and lanternfish (huntTaxa). Bites Humboldt squid and giant squid when those vehicles are in mouth range (huntKinds). Time is compressed so the descent is fast enough to reach that floor in one breath-hold. Does not bite herring.",
     missing: [
-      "Giant and glass squid (Architeuthis, Histioteuthis) are not agents. The whale still dives; it does not get free calories from empty water.",
+      "Glass squid (Histioteuthis) are not agents. The whale still dives; it does not get free calories from empty water.",
       "Echolocation clicks are not a sense or a sound field.",
       "Lighting below the photic zone is still the epipelagic shader. That is an optical gap, not a reason to keep the whale shallow.",
       "Coda dialects and clan culture are not a state.",
@@ -747,6 +747,42 @@ export const FAUNA = {
       "The bill is used as a mouth bite, not a tap-and-slash on bait.",
       "Rapid colour change during the hunt is not a shader.",
       "Jumping and surface basking are not states.",
+    ],
+  },
+  giantsquid: {
+    id: "giantsquid",
+    common: "Giant squid",
+    latin: "Architeuthis dux",
+    guild: "Pelagic cephalopod predator",
+    diet: "Fish and squid (lanternfish, market squid, Illex)",
+    sex: "Female / male. Females are drawn larger.",
+    about:
+      "The deep oceanic squid sperm whales actually hunt. Mantle to about 2 m; total length often 8–13 m. Worldwide in ice-free deep water, typically 300–1000 m, recorded near 1200 m. Not a Humboldt jumbo: slower, deeper, and not tied to the East Pacific OMZ.",
+    program:
+      "Ram / jet vehicle on its own DVM (night ~−420 m, day ~−850 m, max −1200 m). Bites lanternfish, market squid, and Illex (huntTaxa). Absent on shelves shallower than about 350 m. Sperm whales bite this vehicle (huntKinds). Starves if named prey is missing — no free calories.",
+    missing: [
+      "Colossal squid (Mesonychoteuthis) is not a second hull.",
+      "Ammonium chloride buoyancy is not a physics.",
+      "The beak and toothed suckers are a mouth radius, not handling.",
+      "Sperm-whale sucker-scar stories are not a wound state.",
+      "Gelatinous tissue and a low metabolic rate are an energyDrain knob, not a tissue model.",
+    ],
+  },
+  benthos: {
+    id: "benthos",
+    common: "Benthos",
+    latin: "Seafloor carbon",
+    guild: "Benthos",
+    diet: "Sinking detritus",
+    sex: "Unsexed field.",
+    about:
+      "The living and recently dead organic film on the seafloor: microbes, small invertebrates, and the carbon that fell from the pelagic. Not a crab or a worm loop yet — a density of recycled mass the demersal guild can actually eat.",
+    program:
+      "Field agent. Detritus sinks from the NPZD column onto a 2D seafloor store. Cod graze it when they are on the bed. Remineralises back to dissolved N. Present in every wet cell.",
+    missing: [
+      "Named benthic taxa (crabs, amphipods, polychaetes) are not agents.",
+      "Sediment grain size and oxygen at the bed are not fields.",
+      "Bioturbation is not mixing.",
     ],
   },
 };

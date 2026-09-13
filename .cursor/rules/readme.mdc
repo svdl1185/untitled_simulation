@@ -1,0 +1,25 @@
+---
+description: Keep README.md in lockstep with the live model — mission, what is coupled, what is not.
+alwaysApply: true
+---
+
+# README is the live inventory
+
+`README.md` is the public description of this simulation. **Update it in the same change as the feature.** Do not land a field, species, budget, or control and leave the README describing the previous ocean.
+
+## What the README must contain
+
+1. **Mission** — a scientific ocean simulation aiming to be the most complete coupled ocean that can run in a browser: every factor that changes a budget, a habitat, or a sensory cue. The camera is a window. Not a fish game.
+2. **What is coupled now** — fields, agents, budgets, scale. Name the live modules.
+3. **What is not in the model yet** — honest gaps (oxygen, ice, salinity, seasons as migration, named benthos, photophores, basin streaming). Do not hide a gap behind a mesh.
+4. **Links** — relative links to `docs/fields.md`, `docs/viability.md`, `.cursor/rules/species.mdc`, `.cursor/rules/mission.mdc`.
+
+## When you must edit it
+
+- New field (`sampleTemp`, PAR, oxygen, ice, …)
+- New catalog species or guild
+- New budget coupling (graze, Q10, benthos sink, …)
+- New physical control in `MENU`
+- A gap that closed (move it from “not yet” to “coupled now”)
+
+Keep the tone of the rest of the repo: physical, specific, no arcade copy.

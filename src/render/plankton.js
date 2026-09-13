@@ -98,7 +98,7 @@ export function createPlanktonMesh(plankton, uniforms) {
       const dusk = look?.dusk ?? 0;
       const dawn = look?.dawn ?? 0;
       const rise = Math.min(1, night * 0.9 + dusk * 0.5 + dawn * 0.4);
-      mesh.position.y = (CONFIG.thermoY - 2) * (1 - rise) + -8.5 * rise;
+      mesh.position.y = plankton.bloomY ?? (CONFIG.thermoY - 2) * (1 - rise) + -8.5 * rise;
       mat.uniforms.uRise.value = rise;
     },
   };

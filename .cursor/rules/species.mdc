@@ -26,7 +26,7 @@ Write the diet anyway. Then wire what exists.
 - **What limits it.** Shared bloom mean for school fish; catch rate and energy drain for vehicles; a cap in `CONFIG`. New life must eat something and be limited by something.
 - **Missing prey.** If the food is not in the model yet, do not fake fullness with a constant. Do not keep the animal shallow as a stand-in. Either leave it out, or let it perform the natural loop and starve / sit at carrying-capacity zero. List the gap in `FAUNA[id].missing` — the card shows that as **Not in the model**, a separate section, not buried in Program.
 
-Current school grazers: herring, capelin, menhaden, sardine, pilchard, anchovy, sardinella, mackerel, jack mackerel, sprat, sand lance, polar cod, Antarctic silverfish (Type II on `z`); lanternfish (`scatter`, DSL DVM); flying fish and Pacific saury (`loose` surface); market squid and Illex (`scatter`, DVM); krill (`scatter`, Type II on `p`). Predators: blue shark, great white, tiger, hammerhead, skipjack, yellowfin, bluefin, mahi, barracuda, sailfish, orca, humpback, Humboldt squid, common dolphin bite named or school fish; sperm whale prefers squid and lanternfish (`huntTaxa`) and bites Humboldt squid (`huntKinds`); whale shark filters `z`; minke filters `z` and bites (including krill); cod bites named shelf forage; toothfish bites silverfish on the Antarctic slope.
+Current school grazers: herring, capelin, menhaden, sardine, pilchard, anchovy, sardinella, mackerel, jack mackerel, sprat, sand lance, polar cod, Antarctic silverfish (Type II on `z`); lanternfish (`scatter`, DSL DVM); flying fish and Pacific saury (`loose` surface); market squid and Illex (`scatter`, DVM); krill (`scatter`, Type II on `p`). Predators: blue shark, great white, tiger, hammerhead, skipjack, yellowfin, bluefin, mahi, barracuda, sailfish, orca, humpback, Humboldt squid, common dolphin bite named or school fish; sperm whale prefers squid and lanternfish (`huntTaxa`) and bites Humboldt squid and giant squid (`huntKinds`); whale shark filters `z`; minke filters `z` and bites (including krill); cod bites named shelf forage and grazes benthos; toothfish bites silverfish on the Antarctic slope. Giant squid is a deep vehicle (max 1200 m, dropped on shelves shallower than ~350 m) that eats lanternfish and named squid. Benthos is a `field` guild: sinking detritus on the seafloor.
 
 ## 3. Predators (even if they are not simulated yet)
 
@@ -53,8 +53,10 @@ Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 
 ## 5. Flow and fields
 
 - **Sample `sampleFlow`.** Advection, shear, beach-normal tide. Do not give a species its own current.
-- **NPZD / bloom.** Does it graze `z`, shade `p`, recycle to `d`? School fish graze `z` unless `grazeOn: "p"` (krill). Carcasses recycle; whale shark / minke `plankton.graze` as filter.
-- **Later fields** (add here when they exist): temperature / Q10, light extinction for growth, nutrients, oxygen, salinity, pycnocline crossing cost.
+- **NPZD / bloom.** Does it graze `z`, shade `p`, recycle to `d`, or graze seafloor carbon (`grazeBenthos`)? School fish graze `z` unless `grazeOn: "p"` (krill). Carcasses recycle; whale shark / minke `plankton.graze` as filter; cod graze benthos on the bed.
+- **Light.** `samplePAR(y, look)` — Beer–Lambert, shared with fog. Phytoplankton grow in the photic envelope.
+- **Temperature.** `sampleTemp` / `columnQ10`. Optional `temp: { min, max }` on the catalog row gates `presenceAt`.
+- **Later fields** (add here when they exist): dissolved oxygen, salinity, ice, pycnocline crossing cost.
 
 ## 6. Range and presence
 
@@ -95,10 +97,12 @@ One cell may eventually list hundreds of sharks, squid, kelp, coral, whales. Tha
 | Eaten by | Sharks/tuna/cod (seals/gannets not meshed; DVM stands in) | Nothing yet | Nothing yet |
 | Depth | DVM night −20 / day −110; **max 400 m** | Usually photic; **max 260 m** | Surface to breathe, then dive; **max 2000 m** or the cell floor |
 | Flow | `sampleFlow` + bloom gradient | `sampleFlow` while hunting | `sampleFlow` on the commute |
+| Temperature | Q10 on graze / metabolism; niche 0–20 °C | Q10 on drain; tropic SST gate on skipjack | Q10 on drain; oceanic, not SST-gated |
+| Light | Overlap with the photic / DVM column | Optics only | Optics only; still dives in the dark |
 | Range | North Atlantic hull | \|lat\| < 40° and prey present | \|lat\| < 55° |
 | Budget | Type II graze, shared bloom cap | Bite restores energy, starve recycles | Bite on squid if present; starve if not (no fake fullness) |
 | Grid | Shared school grid; `gridMinY` from deepest present taxon | Vehicle, not boids | Vehicle, not boids — does not enlarge the herring grid |
 
 ## When you add a feature, add a bullet
 
-Examples of future rows: temperature niche, dissolved oxygen, benthic carbon, photophores as a light field, school-as-density beyond the camera frustum, krill as a basin Eulerian field (agents are the near-camera swarm), coral as a `field` agent, a bathypelagic optical story (dark water, not herring-green at 1500 m). Vehicle-on-vehicle bites exist for sperm whale × Humboldt squid; other pairs still need `huntKinds`.
+Examples of future rows: dissolved oxygen, sea ice, salinity, photophores as a light field, school-as-density beyond the camera frustum, krill as a basin Eulerian field (agents are the near-camera swarm), coral as a `field` agent, a bathypelagic optical story (photophores, not herring-green at 1500 m). Vehicle-on-vehicle bites exist for sperm whale × Humboldt squid and sperm whale × giant squid; other pairs still need `huntKinds`.

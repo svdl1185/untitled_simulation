@@ -50,6 +50,7 @@ export const CONFIG = {
     // a fraction of daylight, not the whole morning.
     dayLength: 480,
     daysPerYear: 12,
+    dayIndex: 180,
   },
 
   /**
@@ -60,6 +61,10 @@ export const CONFIG = {
   water: {
     photicY: -180,
     turbidity: 1,
+    sstAnomaly: 0,
+    sst: 10,
+    q10: 2,
+    tRef: 10,
   },
 
   fish: { ...FISH_DEFAULTS },
@@ -99,6 +104,7 @@ export const CONFIG = {
     spawnCost: 0.018,
     excrete: 0.36,
     detritus: 0.24,
+    sink: 0.012,
   },
 
   /** Headcount / energy / meal recorder for the headless viability suite. */

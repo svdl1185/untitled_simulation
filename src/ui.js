@@ -96,6 +96,18 @@ export const MENU = [
         format: (n) => Number(n).toFixed(2),
         cellOnly: true,
       },
+      {
+        id: "sstAnomaly",
+        kind: "slider",
+        label: "SST anomaly",
+        hint: "Degrees added to climatological sea-surface temperature. Zero is the mean; positive is an El Niño-style warm event.",
+        min: -4,
+        max: 4,
+        step: 0.25,
+        value: 0,
+        format: (n) => `${Number(n) >= 0 ? "+" : ""}${Number(n).toFixed(2)} °C`,
+        cellOnly: true,
+      },
     ],
   },
   {
