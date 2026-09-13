@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG } from "./config.js";
+import { CONFIG, worldMaxZ } from "./config.js";
 import { seafloorHeight } from "./simulation/obstacles.js";
 
 export const CAM = { CINEMATIC: 0, FOLLOW: 1, ORBIT: 2, SURFACE: 3, FREE: 4 };
@@ -29,15 +29,15 @@ export function cameraHint(mode, piloting, following = false) {
     return "Drag to look · Scroll zoom · WASD thrust · E/Q rise/dive · Shift boost · Space lunge · Esc release";
   }
   if (mode === CAM.FREE || !following) {
-    return "Click an animal · Drag to look · WASD fly · Scroll dolly · I field notes";
+    return "Click an animal · Drag to look · WASD fly · E/Q rise/dive · G depth zone · Scroll dolly · I field notes";
   }
   return "C camera · N next · Drag orbit · Scroll zoom · V free roam";
 }
 
 export function createCameraRig(camera) {
   camera.near = 0.35;
-  camera.far = 2400;
-  camera.updateProjectionMatrix();
+    camera.far = Math.max(2400, CONFIG.halfX * 6, Math.abs(CONFIG.floorY) + 600);
+    camera.updateProjectionMatrix();
 
   const target = new THREE.Vector3();
   const pan = new THREE.Vector3();
@@ -93,7 +93,7 @@ export function createCameraRig(camera) {
     pan.addScaledVector(_fwd, dy * scale * along);
     pan.y += dy * scale * Math.cos(phi);
     pan.x = THREE.MathUtils.clamp(pan.x, -CONFIG.halfX * 0.85, CONFIG.halfX * 0.85);
-    pan.z = THREE.MathUtils.clamp(pan.z, -CONFIG.halfZ * 0.85, CONFIG.beach.endZ * 0.7);
+    pan.z = THREE.MathUtils.clamp(pan.z, -CONFIG.halfZ * 0.85, worldMaxZ() * 0.7);
     pan.y = THREE.MathUtils.clamp(pan.y, -36, 28);
     userHold = 8;
     return true;
@@ -106,7 +106,7 @@ export function createCameraRig(camera) {
 
   function clampCam(pos) {
     pos.x = THREE.MathUtils.clamp(pos.x, -CONFIG.halfX + 2, CONFIG.halfX - 2);
-    pos.z = THREE.MathUtils.clamp(pos.z, -CONFIG.halfZ + 2, CONFIG.beach.endZ - 6);
+    pos.z = THREE.MathUtils.clamp(pos.z, -CONFIG.halfZ + 2, worldMaxZ() - 6);
     pos.y = Math.max(pos.y, seafloorHeight(pos.x, pos.z) + 1.6);
     pos.y = Math.min(pos.y, 170);
   }
@@ -142,6 +142,16 @@ export function createCameraRig(camera) {
 
   function behindHeading(follow) {
     return Math.atan2(-follow.fwdX, -follow.fwdZ);
+  }
+
+  function setExtents() {
+    camera.far = Math.max(2400, CONFIG.halfX * 6, Math.abs(CONFIG.floorY) + 600);
+    camera.updateProjectionMatrix();
+  }
+
+  function jumpToY(y) {
+    camera.position.y = y;
+    clampCam(camera.position);
   }
 
   function setMode(next, ctx) {
@@ -197,13 +207,14 @@ export function createCameraRig(camera) {
     if (pointer.wheel) {
       camera.position.addScaledVector(_fwd, -pointer.wheel * 0.055);
     }
-    let speed = (input.boost ? 78 : 34) * dt;
+    let speed = (input.boost ? 92 : 42) * dt;
+    const vSpeed = (input.boost ? 620 : 260) * dt;
     if (input.forward) camera.position.addScaledVector(_fwd, speed);
     if (input.back) camera.position.addScaledVector(_fwd, -speed);
     if (input.right) camera.position.addScaledVector(_right, speed);
     if (input.left) camera.position.addScaledVector(_right, -speed);
-    if (input.up) camera.position.y += speed;
-    if (input.down) camera.position.y -= speed;
+    if (input.up) camera.position.y += vSpeed;
+    if (input.down) camera.position.y -= vSpeed;
     clampCam(camera.position);
     _look.copy(camera.position).add(_fwd);
     camera.up.copy(_up);
@@ -315,6 +326,8 @@ export function createCameraRig(camera) {
       return mode;
     },
     setMode,
+    setExtents,
+    jumpToY,
     update,
     enterFree,
     get radius() {

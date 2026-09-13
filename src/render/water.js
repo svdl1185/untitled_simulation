@@ -1,12 +1,12 @@
 import * as THREE from "three";
-import { CONFIG } from "../config.js";
+import { CONFIG, hasBeach, worldMaxZ } from "../config.js";
 import { seafloorHeight } from "../simulation/obstacles.js";
 import { attachWorldShading } from "./caustics.js";
 
 function _xzExtent() {
   const pad = 48;
   const minZ = -CONFIG.halfZ - pad * 0.4;
-  const maxZ = CONFIG.beach.endZ + pad;
+  const maxZ = worldMaxZ() + pad;
   return {
     spanX: CONFIG.halfX * 2 + pad * 2,
     spanZ: maxZ - minZ,
@@ -213,15 +213,17 @@ export function createSandDetail(uniforms) {
     metalness: 0,
   });
   attachWorldShading(dryMat, uniforms);
-  for (let i = 0; i < 36; i++) {
-    const g = new THREE.SphereGeometry(0.35 + Math.random() * 1.1, 6, 5);
-    const m = new THREE.Mesh(g, i % 3 === 0 ? rockMat : dryMat);
-    const x = (Math.random() - 0.5) * CONFIG.halfX * 1.7;
-    const z = CONFIG.beach.startZ + 20 + Math.random() * (CONFIG.beach.endZ - CONFIG.beach.startZ);
-    m.position.set(x, seafloorHeight(x, z) + 0.15, z);
-    m.rotation.set(Math.random() * 0.5, Math.random() * Math.PI, Math.random() * 0.5);
-    m.scale.set(1.1 + Math.random(), 0.22 + Math.random() * 0.2, 0.9 + Math.random() * 0.4);
-    group.add(m);
+  if (hasBeach()) {
+    for (let i = 0; i < 36; i++) {
+      const g = new THREE.SphereGeometry(0.35 + Math.random() * 1.1, 6, 5);
+      const m = new THREE.Mesh(g, i % 3 === 0 ? rockMat : dryMat);
+      const x = (Math.random() - 0.5) * CONFIG.halfX * 1.7;
+      const z = CONFIG.beach.startZ + 20 + Math.random() * (CONFIG.beach.endZ - CONFIG.beach.startZ);
+      m.position.set(x, seafloorHeight(x, z) + 0.15, z);
+      m.rotation.set(Math.random() * 0.5, Math.random() * Math.PI, Math.random() * 0.5);
+      m.scale.set(1.1 + Math.random(), 0.22 + Math.random() * 0.2, 0.9 + Math.random() * 0.4);
+      group.add(m);
+    }
   }
   return group;
 }

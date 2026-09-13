@@ -1,4 +1,4 @@
-import { CONFIG } from "../config.js";
+import { CONFIG, faunaPresent, gridMinY, hasBeach, waterMaxZ } from "../config.js";
 import { UniformGrid3D } from "./grid.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
@@ -157,11 +157,11 @@ export class School {
 
     this.grid = new UniformGrid3D({
       minX: -CONFIG.halfX,
-      minY: CONFIG.floorY,
+      minY: gridMinY(),
       minZ: -CONFIG.halfZ,
       maxX: CONFIG.halfX,
       maxY: CONFIG.surfaceY + 4,
-      maxZ: CONFIG.halfZ,
+      maxZ: waterMaxZ(),
       cellSize: CONFIG.cellSize,
       maxAgents: max,
     });
@@ -178,16 +178,21 @@ export class School {
   _home(s) {
     const n = Math.max(1, this.initialSchools);
     const a = (s / n) * Math.PI * 2 + 0.31;
+    const rx = CONFIG.halfX * 0.49;
+    const rz = CONFIG.halfZ * 0.31;
+    const zOff = hasBeach() ? -CONFIG.halfZ * 0.32 : 0;
     return {
-      x: Math.cos(a) * 118,
+      x: Math.cos(a) * rx,
       y: CONFIG.fish.preferredDepth + (s % 2 === 0 ? -2 : 2.5),
-      z: Math.sin(a) * 88 - 90,
+      z: Math.sin(a) * rz + zOff,
       heading: a + Math.PI * 0.5,
     };
   }
 
   respawn(count) {
-    const n = Math.max(0, Math.min(this.max, count | 0));
+    const n = faunaPresent("herring")
+      ? Math.max(0, Math.min(this.max, count | 0))
+      : 0;
     this.count = n;
     this.cap = n;
     this.totalEaten = 0;
@@ -276,6 +281,14 @@ export class School {
   }
 
   setCount(next) {
+    if (!faunaPresent("herring")) {
+      this.cap = 0;
+      if (this.count !== 0) {
+        this.count = 0;
+        this._refreshCentroids();
+      }
+      return;
+    }
     const n = Math.max(32, Math.min(this.max, next | 0));
     this.cap = n;
     if (n === this.count) return;
@@ -526,10 +539,10 @@ export class School {
       if (c.z > boundZ) a.hz = -Math.abs(a.hz);
       else if (c.z < -boundZ) a.hz = Math.abs(a.hz);
       const groundA = seafloorHeight(c.x, c.z);
-      if (groundA > depth - 10) {
+      if (groundA > depth + 6) {
         const sl = seafloorSlope(c.x, c.z);
-        a.hx -= sl.x;
-        a.hz -= sl.z;
+        a.hx -= sl.x * 2.4;
+        a.hz -= sl.z * 2.4;
       }
       const shore = lookAheadShore(c.x, c.z, a.hx, a.hz, CONFIG.fish.beachLook);
       if (shore.urgency > 0) {
@@ -546,7 +559,7 @@ export class School {
         a.wantMill = 0;
         a.modeT = Math.max(a.modeT, 6);
       }
-      if (c.z > CONFIG.beach.shoreZ - 50) a.hz = -Math.abs(a.hz);
+      if (hasBeach() && c.z > CONFIG.beach.shoreZ - 50) a.hz = -Math.abs(a.hz);
       const hn = Math.hypot(a.hx, a.hz) || 1;
       a.hx /= hn;
       a.hz /= hn;
@@ -559,11 +572,17 @@ export class School {
       const leadD = lead * (1 - shore.urgency * 0.75);
       a.x = c.x + a.hx * leadD;
       a.z = c.z + a.hz * leadD;
-      let wantY = depth + (s % 2 === 0 ? -2 : 2.5);
-      if (bloom) wantY += (bloom.forageDepth(look) - wantY) * hunger * 0.42;
-      a.y += (wantY - a.y) * Math.min(1, dt * 0.35);
+      let wantY = depth + (s % 2 === 0 ? -3 : 2.2);
+      const forageY = bloom ? bloom.forageDepth(look) : wantY;
+      const night = look?.night ?? 0;
+      if (night > 0.45) {
+        wantY += (forageY - wantY) * (0.35 + hunger * 0.4);
+      } else if (hunger > 0.62) {
+        wantY += (forageY - wantY) * Math.min(0.28, (hunger - 0.62) * 0.7);
+      }
+      a.y += (wantY - a.y) * Math.min(1, dt * 0.55);
       const waterTop = -3.2;
-      const waterBot = groundA + 8;
+      const waterBot = Math.max(groundA + 8, CONFIG.fish.maxDepth);
       if (waterBot < waterTop) {
         if (a.y < waterBot) a.y = waterBot;
         else if (a.y > waterTop) a.y = waterTop;
@@ -877,7 +896,7 @@ export class School {
 
       const groundHold = seafloorHeight(px, pz);
       const ceilHold = -cfg.surfaceClearance;
-      const sandPad = groundHold + cfg.floorClearance + 0.6;
+      const sandPad = Math.max(groundHold + cfg.floorClearance + 0.6, cfg.maxDepth);
       const room = Math.max(2.2, (ceilHold - sandPad) * 0.5);
       const localH = Math.min(holdH, room);
       let holdY = hold.y;
@@ -990,7 +1009,10 @@ export class School {
       const shoreU = Math.max(shore.urgency, column < cfg.beachTurnWater
         ? Math.min(1, (cfg.beachTurnWater - column) / Math.max(8, cfg.beachTurnWater - cfg.minWater))
         : 0);
-      const floorKeep = ground + cfg.floorClearance + 1.4 + shoreU * 2.6;
+      const floorKeep = Math.max(
+        ground + cfg.floorClearance + 1.4 + shoreU * 2.6,
+        cfg.maxDepth
+      );
       if (py < floorKeep) ay += (floorKeep - py) * (5.5 + shoreU * 9);
       if (shoreU > 0.02) {
         const slope = shore.urgency > 0
@@ -1000,10 +1022,11 @@ export class School {
         const w = 28 + shoreU * shoreU * 70 + into * 22;
         ax -= slope.x * w;
         az -= slope.z * w;
-        if (vz > 0) az -= vz * (2.5 + shoreU * 10);
+        if (hasBeach() && vz > 0) az -= vz * (2.5 + shoreU * 10);
         maxAcc = Math.max(maxAcc, cfg.maxAccel * (1.15 + shoreU * 0.9));
       }
-      if (pz > CONFIG.beach.shoreZ - 28) {
+      if (pz > waterMaxZ() - margin) az -= (pz - (waterMaxZ() - margin)) * cfg.boundsWeight;
+      if (hasBeach() && pz > CONFIG.beach.shoreZ - 28) {
         az -= (pz - (CONFIG.beach.shoreZ - 28)) * cfg.boundsWeight * 3.2;
       }
 
@@ -1065,12 +1088,20 @@ export class School {
         }
       }
 
-      const maxPitch = alarm > 0.45 ? cfg.pitchLimit * 2.1 : shoreU > 0.2 ? cfg.pitchLimit * 1.55 : cfg.pitchLimit;
+      const depthErr = Math.abs((anchor.y ?? py) - py);
+      const maxPitch =
+        alarm > 0.45
+          ? cfg.pitchLimit * 2.1
+          : shoreU > 0.2
+            ? cfg.pitchLimit * 1.55
+            : depthErr > 16
+              ? cfg.pitchLimit * 1.65
+              : cfg.pitchLimit;
       const horiz = Math.hypot(nvx, nvz);
       const pitchCap = horiz * Math.tan(maxPitch) + 0.04;
       if (nvy > pitchCap) nvy = pitchCap;
       else if (nvy < -pitchCap) nvy = -pitchCap;
-      if (shoreU > 0.28 && nvz > 0) nvz *= 1 - Math.min(0.9, shoreU * 0.95);
+      if (hasBeach() && shoreU > 0.28 && nvz > 0) nvz *= 1 - Math.min(0.9, shoreU * 0.95);
 
       const flow = sampleFlow(px, py, pz, look?.simTime ?? 0, look?.storm ?? 0);
       let nxPos = px + (nvx + flow.x) * dt + corrX;
@@ -1086,10 +1117,10 @@ export class School {
       if (nyPos < hardFloor) {
         nyPos = hardFloor;
         nvy = Math.max(nvy, 0);
-        if (nvz > 0) nvz *= 0.32;
+        if (hasBeach() && nvz > 0) nvz *= 0.32;
       }
-      if (nzPos > CONFIG.beach.shoreZ - 22) {
-        nzPos = CONFIG.beach.shoreZ - 22;
+      if (nzPos > waterMaxZ() - 22) {
+        nzPos = waterMaxZ() - 22;
         nvz = Math.min(nvz, 0);
       }
       const resolved = resolveColliders(nxPos, nyPos, nzPos, colliders, colliderCount, 1.4);
@@ -1469,6 +1500,7 @@ export class School {
   }
 
   _recruit(dt, plankton) {
+    if (!faunaPresent("herring") || this.cap <= 0) return;
     const foodCap = plankton.carryingCapacity(this.cap);
     const ceiling = Math.min(this.cap, foodCap);
     this._harvestDebt = Math.max(0, this._harvestDebt + this.eatenThisFrame);

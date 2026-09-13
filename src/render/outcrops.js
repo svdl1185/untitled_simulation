@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CONFIG } from "../config.js";
 import { seafloorHeight } from "../simulation/obstacles.js";
 import { attachWorldShading, setRockSlots } from "./caustics.js";
 
@@ -40,8 +41,19 @@ const SITES = [
 
 const WRECK = { x: -102, z: 78 };
 
-export function createOutcrops(uniforms) {
+export function createOutcrops(uniforms, opts = {}) {
+  const canned = opts.canned !== false && (opts.canned || CONFIG.world?.statics);
   const group = new THREE.Group();
+  if (!canned) {
+    setRockSlots(uniforms, new Float32Array(0), 0);
+    return {
+      group,
+      colliders: null,
+      colliderCount: 0,
+      sites: [],
+      update() {},
+    };
+  }
   const colliders = [];
   const tex = _rockTexture();
   const rockMat = new THREE.MeshStandardMaterial({

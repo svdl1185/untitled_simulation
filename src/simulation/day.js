@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG } from "../config.js";
+import { CONFIG, herringDvmY } from "../config.js";
 
 const PRESETS = [
   {
@@ -260,6 +260,7 @@ export class DayCycle {
     this.auto = true;
     this.dayLength = CONFIG.time.dayLength;
     this.dayIndex = 0;
+    this.latitude = CONFIG.world?.lat ?? 54.2;
     this.storm = 0;
     this.stormTarget = 0;
     this._stormFog = new THREE.Color(0x152028);
@@ -300,6 +301,7 @@ export class DayCycle {
 
   update(dt) {
     if (this.auto) {
+      this.dayLength = CONFIG.time.dayLength;
       const next = this.hour + (24 / this.dayLength) * dt;
       if (next >= 24) this.dayIndex += Math.floor(next / 24);
       this.hour = ((next % 24) + 24) % 24;
@@ -364,7 +366,8 @@ export class DayCycle {
     look.fillI = lerp(a.fillI, b.fillI, s);
     look.caustic = lerp(a.caustic, b.caustic, s);
     look.exposure = lerp(a.exposure, b.exposure, s);
-    look.preferredDepth = lerp(a.preferredDepth, b.preferredDepth, s);
+    look.preferredDepth = herringDvmY(hour);
+    CONFIG.fish.preferredDepth = look.preferredDepth;
     look.schoolRadiusScale = lerp(a.schoolRadiusScale, b.schoolRadiusScale, s);
     look.fearScale = lerp(a.fearScale, b.fearScale, s);
     look.tight = lerp(a.tight, b.tight, s);
@@ -373,9 +376,14 @@ export class DayCycle {
     look.dusk = lerp(a.dusk, b.dusk, s);
 
     const az = ((hour - 6) / 24) * Math.PI * 2;
+    const lat = ((this.latitude ?? 54.2) * Math.PI) / 180;
+    const doy = ((this.dayIndex % 365) + 81) * (2 * Math.PI) / 365;
+    const dec = 0.409 * Math.sin(doy);
+    const ha = ((hour - 12) / 12) * Math.PI;
+    const sinElev = Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha);
     const elev = Math.sin(((hour - 6) / 12) * Math.PI);
-    const moon = elev < 0;
-    const y = moon ? 0.32 : 0.18 + elev * 0.82;
+    const moon = sinElev < -0.02 || elev < 0;
+    const y = moon ? 0.28 : Math.max(0.06, 0.12 + sinElev * 0.88);
     look.sunDir.set(Math.cos(az) * 0.72, y, Math.sin(az) * 0.72).normalize();
     if (moon) {
       look.sunI *= 0.35;

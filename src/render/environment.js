@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG } from "../config.js";
+import { CONFIG, photicLimitY } from "../config.js";
 
 export function createEnvironment(scene, uniforms) {
   const sky = _sky(uniforms);
@@ -16,6 +16,10 @@ export function createEnvironment(scene, uniforms) {
   fill.position.set(-30, -10, -40);
   scene.add(fill);
 
+  const lamp = new THREE.PointLight(0xc4e6ee, 0, 78, 1.45);
+  scene.add(lamp);
+  const _lampFwd = new THREE.Vector3();
+
   const particles = _motes();
   scene.add(particles);
 
@@ -24,37 +28,60 @@ export function createEnvironment(scene, uniforms) {
     sun,
     hemi,
     fill,
+    lamp,
+    lampOn: false,
     particles,
     _moteTint: new THREE.Color(0xaad8e8),
+    _abyss: new THREE.Color(0x010308),
     update(time, camera, look) {
       uniforms.uTime.value = time;
       uniforms.uCamY.value = camera.position.y;
       particles.rotation.y = time * 0.012;
       const above = camera.position.y > 2.4;
       const depth = Math.max(0, -camera.position.y);
+      const turb = CONFIG.water?.turbidity ?? 1;
+      const photic = -photicLimitY();
+      const inLight = above ? 1 : THREE.MathUtils.clamp(1 - depth / Math.max(40, photic), 0, 1);
+      const optical = above ? 0 : 1 - Math.exp(-depth / Math.max(40, photic * 0.55));
       const thermo =
-        1 + 0.42 * Math.exp(-((camera.position.y - CONFIG.thermoY) * (camera.position.y - CONFIG.thermoY)) / 36);
+        1 + 0.18 * Math.exp(-((camera.position.y - CONFIG.thermoY) * (camera.position.y - CONFIG.thermoY)) / 36);
       const pull = THREE.MathUtils.smoothstep(
         64,
         280,
         Math.max(camera.position.y, Math.hypot(camera.position.x, camera.position.z) * 0.28)
       );
       scene.fog.color.copy(above ? look.fogAbove : look.fog);
+      if (!above) scene.fog.color.lerp(this._abyss, optical * 0.72);
       scene.fog.density =
-        ((above ? look.fogD * 0.62 : look.fogD) * thermo + (above ? 0 : depth * 0.00008)) *
-        (1 - pull * 0.86);
+        ((above ? look.fogD * 0.62 : look.fogD * turb) * thermo) * (1 - pull * 0.86);
       scene.background.copy(above ? look.bgAbove : look.bg);
+      if (!above) scene.background.lerp(this._abyss, optical * 0.82);
       sun.color.copy(look.sun);
-      sun.intensity = (above ? look.sunI * 1.15 : look.sunI) * look.wavePulse;
+      sun.intensity = (above ? look.sunI * 1.15 : look.sunI * (0.18 + 0.82 * inLight)) * look.wavePulse;
       sun.position.copy(look.sunDir).multiplyScalar(120);
       hemi.color.copy(look.hemiSky);
       hemi.groundColor.copy(look.hemiGround);
-      hemi.intensity = look.hemiI;
-      fill.intensity = look.fillI;
+      hemi.intensity = look.hemiI * (above ? 1 : 0.22 + 0.78 * inLight);
+      fill.intensity = look.fillI * (above ? 1 : 0.16 + 0.84 * inLight);
       fill.position.copy(look.sunDir).multiplyScalar(-40);
       sky.visible = above;
       particles.material.opacity = above ? 0.05 : 0.12 + look.caustic * 0.16;
       particles.material.color.copy(look.sun).lerp(this._moteTint, 0.55);
+
+      camera.getWorldDirection(_lampFwd);
+      lamp.position.copy(camera.position).addScaledVector(_lampFwd, 4.5);
+      if (this.lampOn) {
+        const night = look.night ?? 0;
+        const dark = above ? night * 0.4 : (1 - inLight) * 0.7 + night * 0.85;
+        lamp.intensity = 1.4 + dark * 3.2;
+        lamp.distance = 48 + dark * 55;
+        scene.fog.density *= 1 - Math.min(0.45, 0.18 + dark * 0.28);
+        hemi.intensity = Math.max(hemi.intensity, 0.28 + dark * 0.42);
+        fill.intensity = Math.max(fill.intensity, 0.22 + dark * 0.3);
+        look.exposure = Math.max(look.exposure, 0.7 + dark * 0.28);
+      } else {
+        lamp.intensity = 0;
+      }
     },
   };
 }
@@ -94,9 +121,12 @@ function _motes() {
   const n = 900;
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(n * 3);
+  const top = -4;
+  const bot = Math.max(CONFIG.floorY + 4, photicLimitY());
+  const span = Math.max(8, top - bot);
   for (let i = 0; i < n; i++) {
     pos[i * 3] = (Math.random() - 0.5) * CONFIG.halfX * 2;
-    pos[i * 3 + 1] = CONFIG.floorY + 4 + Math.random() * (-4 - (CONFIG.floorY + 4));
+    pos[i * 3 + 1] = bot + Math.random() * span;
     pos[i * 3 + 2] = (Math.random() - 0.5) * CONFIG.halfZ * 2;
   }
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG } from "./config.js";
+import { CONFIG, columnZones, faunaPresent, zoneAt } from "./config.js";
 import { School } from "./simulation/school.js";
 import { spawnSharks, resetSharks, createShark, tryBreed } from "./simulation/shark.js";
 import { DayCycle } from "./simulation/day.js";
@@ -14,9 +14,15 @@ import { createPlanktonMesh } from "./render/plankton.js";
 import { createInput } from "./input.js";
 import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followCameraIndex } from "./camera.js";
 import { createHUD } from "./ui.js";
-import { sharkCard, herringCard, schoolCard } from "./species.js";
+import { getLocation, sharkCard, herringCard, schoolCard } from "./species.js";
+import { applyPatch, makeSyntheticPatch, formatLatLon, getActivePatch } from "./world/patch.js";
+import { WorldStream } from "./world/stream.js";
+import { loadPatchById } from "./world/atlas.js";
+import { createOceanMap } from "./world/map.js";
 
 if (window.__schoolTeardown) window.__schoolTeardown();
+
+applyPatch(makeSyntheticPatch());
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({
@@ -42,21 +48,21 @@ day.sample();
 syncWorldUniforms(uniforms, day.look);
 
 const env = createEnvironment(scene, uniforms);
-const water = createWaterSurface(uniforms);
-const floor = createSeafloor(uniforms);
-const sand = createSandDetail(uniforms);
-const thermo = createThermocline(uniforms);
-const outcrops = createOutcrops(uniforms);
+let water = createWaterSurface(uniforms);
+let floor = createSeafloor(uniforms);
+let sand = createSandDetail(uniforms);
+let thermo = createThermocline(uniforms);
+let outcrops = createOutcrops(uniforms);
 scene.add(water, floor, sand, thermo, outcrops.group);
 
-const school = new School(CONFIG.initialFish);
+let school = new School(CONFIG.initialFish);
 school.colliders = outcrops.colliders;
 school.colliderCount = outcrops.colliderCount;
-const plankton = new Plankton();
+let plankton = new Plankton();
 school.clipToBloom(plankton);
-const bloom = createPlanktonMesh(plankton, uniforms);
+let bloom = createPlanktonMesh(plankton, uniforms);
 scene.add(bloom.mesh);
-const sharks = spawnSharks(CONFIG.shark.count, school);
+let sharks = spawnSharks(CONFIG.shark.count, school);
 let shark = sharks[0];
 
 camera.position.set(
@@ -94,7 +100,87 @@ function disposeObject(obj) {
   obj.geometry?.dispose();
   if (!obj.material) return;
   const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-  for (const m of mats) m.dispose();
+  for (const m of mats) {
+    m.map?.dispose?.();
+    m.uniforms?.uMap?.value?.dispose?.();
+    m.dispose();
+  }
+}
+
+function disposeTree(obj) {
+  if (!obj) return;
+  scene.remove(obj);
+  obj.traverse?.(disposeObject);
+  if (!obj.traverse) disposeObject(obj);
+}
+
+function placeCamera() {
+  if (school.count) {
+    camera.position.set(
+      school.centroid.x + 28,
+      school.centroid.y + 11,
+      school.centroid.z + 22
+    );
+    camera.lookAt(school.centroid.x, school.centroid.y - 4, school.centroid.z);
+    return;
+  }
+  camera.position.set(18, -8, 42);
+  camera.lookAt(0, CONFIG.thermoY, 0);
+}
+
+function rebuildPlace() {
+  disposeTree(water);
+  disposeTree(floor);
+  disposeTree(sand);
+  disposeTree(thermo);
+  if (outcrops?.group) disposeTree(outcrops.group);
+  water = createWaterSurface(uniforms);
+  floor = createSeafloor(uniforms);
+  sand = createSandDetail(uniforms);
+  thermo = createThermocline(uniforms);
+  outcrops = createOutcrops(uniforms);
+  scene.add(water, floor, sand, thermo, outcrops.group);
+}
+
+function rebuildLife() {
+  while (sharks.length) removeLastShark();
+  const fishN = faunaPresent("herring") ? Number(hud?.get("fish") ?? CONFIG.initialFish) : 0;
+  school = new School(fishN);
+  school.colliders = outcrops.colliders;
+  school.colliderCount = outcrops.colliderCount;
+  plankton = new Plankton();
+  school.clipToBloom(plankton);
+  disposeTree(bloom?.mesh);
+  bloom = createPlanktonMesh(plankton, uniforms);
+  scene.add(bloom.mesh);
+  fishMesh.geometry.setAttribute("aPhase", new THREE.InstancedBufferAttribute(school.phase, 1));
+  const sharkN = faunaPresent("shark") ? Number(hud?.get("sharks") ?? CONFIG.shark.count) : 0;
+  sharks = spawnSharks(sharkN, school);
+  shark = sharks[0] || null;
+  for (const s of sharks) {
+    bindShark(s);
+    addSharkMesh(s);
+  }
+  window.__sim.school = school;
+  window.__sim.shark = shark;
+  window.__sim.sharks = sharks;
+  window.__sim.plankton = plankton;
+  window.__sim.outcrops = outcrops;
+  window.__sim.patch = getActivePatch();
+}
+
+function bindWorld() {
+  day.latitude = CONFIG.world.lat;
+  day.sample();
+  syncWorldUniforms(uniforms, day.look);
+  rebuildPlace();
+  rebuildLife();
+  rig?.setExtents?.();
+  syncDepthZones();
+  inspect = null;
+  tracking = null;
+  if (typeof applyCamera === "function") applyCamera(CAM.FREE);
+  placeCamera();
 }
 
 function addSharkMesh(s) {
@@ -144,6 +230,7 @@ function removeSharkAt(i) {
 }
 
 function applySharkCount(n) {
+  if (!faunaPresent("shark")) n = 0;
   const next = Math.max(0, Math.min(CONFIG.shark.max, n | 0));
   while (sharks.length > next) removeLastShark();
   while (sharks.length < next) {
@@ -208,6 +295,22 @@ const hud = createHUD();
 hud.setControl(false);
 hud.setHint(cameraHint(CAM.FREE, false, false));
 
+const world = new WorldStream();
+const oceanMap = createOceanMap({
+  onEnter: enterCell,
+});
+
+async function enterCell(lat, lon) {
+  const patch = await world.enter(lat, lon, loadPatchById);
+  applyPatch(patch);
+  bindWorld();
+  oceanMap.focus(lat, lon);
+  hud.set("oceanMap", false);
+  return patch;
+}
+window.__sim.enter = enterCell;
+window.__sim.map = oceanMap;
+
 hud.on("fish", (n) => school.setCount(n));
 hud.on("sharks", (n) => applySharkCount(n));
 hud.on("hour", (h) => {
@@ -225,7 +328,7 @@ hud.on("fear", (on) => {
   for (const mesh of sharkMeshes) mesh.userData.fear.visible = on;
 });
 hud.on("reset", () => {
-  school.respawn(Number(hud.get("fish")));
+  school.respawn(faunaPresent("herring") ? Number(hud.get("fish")) : 0);
   plankton.seed();
   school.clipToBloom(plankton);
   resetSharks(sharks, school);
@@ -240,6 +343,42 @@ hud.on("camera", (index) => {
 });
 hud.on("nextTarget", () => cycleTarget());
 hud.on("followSubject", () => followShown());
+hud.on("depthZone", (index) => jumpDepthZone(index));
+hud.on("oceanMap", (on) => oceanMap.setOpen(on));
+hud.on("currents", (on) => oceanMap.setCurrents(on));
+hud.on("lamp", (on) => {
+  env.lampOn = !!on;
+});
+
+function syncDepthZones() {
+  if (!hud?.setSelectOptions) return;
+  const zones = columnZones(day.look.preferredDepth);
+  const labels = zones.map((z) => z.label);
+  if (!labels.length) return;
+  let idx = Number(hud.get("depthZone") ?? 1);
+  if (idx >= labels.length) idx = Math.max(0, labels.length - 1);
+  const epi = zones.findIndex((z) => z.id === "epipelagic");
+  if (idx < 0) idx = epi >= 0 ? epi : 0;
+  hud.setSelectOptions("depthZone", labels, idx);
+}
+
+function jumpDepthZone(index) {
+  const zones = columnZones(day.look.preferredDepth);
+  if (!zones.length) return;
+  const z = zones[Math.max(0, Math.min(zones.length - 1, index | 0))];
+  if (shark?.controlled) {
+    shark.setControlled(false);
+    hud.setControl(false);
+  }
+  applyCamera(CAM.FREE);
+  rig.jumpToY(z.y);
+}
+
+function zoneLabel() {
+  const z = zoneAt(camera.position.y);
+  const depth = Math.max(0, -camera.position.y);
+  return `${z.label} · ${depth.toFixed(0)} m`;
+}
 
 function occupiedSchoolIds() {
   const ids = [];
@@ -360,8 +499,16 @@ function hudView() {
   // Append another { id, label, value } when a new world or species
   // readout exists. bindStats reuses DOM nodes by id.
   const foodCap = plankton.carryingCapacity(school.cap);
+  const patch = getActivePatch();
+  const loc = getLocation();
+  const depthM = patch ? Math.abs(Math.min(0, patch.floorY)) : Math.abs(CONFIG.floorY);
+  const fauna = loc.fauna.map((s) => s.common).join(", ") || "None in range";
   const general = [
+    { id: "place", label: "Cell", value: loc.region || formatLatLon(CONFIG.world.lat, CONFIG.world.lon) },
+    { id: "depth", label: "Floor", value: `${depthM.toFixed(0)} m` },
+    { id: "fauna", label: "Fauna", value: fauna },
     { id: "sky", label: "Sky", value: day.look.name },
+    { id: "zone", label: "Zone", value: zoneLabel() },
     { id: "time", label: "Time", value: clockText(day.hour) },
     { id: "day", label: "Day", value: String((day.dayIndex | 0) + 1) },
     { id: "weather", label: "Weather", value: weatherText() },
@@ -571,6 +718,11 @@ function togglePilot(force) {
 
 window.addEventListener("keydown", (e) => {
   if (e.repeat) return;
+  if (e.code === "Escape" && oceanMap.isOpen()) {
+    oceanMap.setOpen(false);
+    hud.set("oceanMap", false);
+    return;
+  }
   if (e.code === "KeyV") {
     stopFollow();
   }
@@ -603,8 +755,10 @@ let last = performance.now();
 syncFish();
 let raf = 0;
 let alive = true;
+window.__alive = true;
 
 function frame(now) {
+  window.__ticks = (window.__ticks || 0) + 1;
   if (!alive) return;
   try {
     const dt = Math.min((now - last) / 1000, 0.033);
@@ -612,7 +766,7 @@ function frame(now) {
     const t = now * 0.001;
 
     const pointer = consumePointer();
-    if (pointer.click && !hud.isOpen()) {
+    if (pointer.click && !hud.isOpen() && !oceanMap.isOpen()) {
       inspect = pickSubject(pointer.click.x, pointer.click.y);
     }
     if (tracking?.kind === "herring" && tracking.id >= school.count) stopFollow();
@@ -635,7 +789,6 @@ function frame(now) {
     }
     if (lunging && tod.caustic > 0.05) tod.caustic = Math.min(1.15, tod.caustic + 0.28);
     syncWorldUniforms(uniforms, tod);
-    renderer.toneMappingExposure = tod.exposure;
 
     school.update(dt, sharks, tod, plankton);
     for (let i = sharks.length - 1; i >= 0; i--) {
@@ -658,6 +811,7 @@ function frame(now) {
     outcrops.update(dt, tod);
     updateCamera(dt, pointer);
     env.update(t, camera, tod);
+    renderer.toneMappingExposure = tod.exposure;
     hud.tick(dt, hudView());
 
     renderer.render(scene, camera);
@@ -670,8 +824,21 @@ function frame(now) {
 
 window.__schoolTeardown = () => {
   alive = false;
+  window.__alive = false;
   cancelAnimationFrame(raf);
   renderer.dispose();
 };
 
 raf = requestAnimationFrame(frame);
+window.__sim.step = frame;
+
+bootHome();
+window.__booted = true;
+
+async function bootHome() {
+  try {
+    await enterCell(56.0, 3.2);
+  } catch (err) {
+    console.warn("Live North Sea cell unavailable; using synthetic shelf.", err);
+  }
+}

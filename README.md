@@ -114,4 +114,4 @@ The test of success is not “it looks like Blue Planet.” It is: if you change
 
 Simulation knobs belong in `src/config.js`. Menu entries belong in `MENU` inside `src/ui.js`, then `hud.on("id", …)` in `src/main.js`. Fields go under `src/simulation/`; meshes under `src/render/`.
 
-A Cursor rule in `.cursor/rules/mission.mdc` restates this for anyone (or any agent) working in the repo.
+A Cursor rule in `.cursor/rules/mission.mdc` restates this for anyone (or any agent) working in the repo. Adding a species is a longer checklist: guild, diet (even if the prey is not simulated yet), predators, depth/DVM, flow coupling, range, budget, and behaviour — see `.cursor/rules/species.mdc`. Update that list when the model gains a new constraint.

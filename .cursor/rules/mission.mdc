@@ -13,7 +13,7 @@ This repo is a **scientific ocean simulation**. The camera is a window. Do not a
 2. **Agents** — herring, sharks. Nearby resolution only (`school.js`, `shark.js`).
 3. **Budgets** — bloom mean caps fish; grazing depletes bloom; eating restores shark energy. New life must eat something and be limited by something.
 
-A new species needs a guild, a food, a flow coupling, and a niche. Do not clone herring and retint the mesh. Two species that eat the same thing at the same depth are one species too many.
+A new species needs a guild, a food, a flow coupling, and a niche. Do not clone herring and retint the mesh. Two species that eat the same thing at the same depth are one species too many. Follow `.cursor/rules/species.mdc` and add to that list when the simulation grows a new constraint (light, temperature, a new field, a new predator).
 
 ## Scale
 

@@ -58,6 +58,19 @@ export const MENU = [
     title: "World",
     items: [
       { id: "storm", kind: "toggle", label: "Storm", key: "T" },
+      {
+        id: "oceanMap",
+        kind: "toggle",
+        label: "Ocean map",
+        hint: "Pick a 1 km ocean cell · also in the navbar",
+        key: "O",
+      },
+      {
+        id: "currents",
+        kind: "toggle",
+        label: "Current overlay",
+        hint: "HYCOM arrows on the map",
+      },
     ],
   },
   {
@@ -65,6 +78,13 @@ export const MENU = [
     title: "View",
     items: [
       { id: "fear", kind: "toggle", label: "Fear radius", key: "F" },
+      {
+        id: "lamp",
+        kind: "toggle",
+        label: "Lamp",
+        hint: "Camera fill light after dark",
+        key: "K",
+      },
       {
         id: "camera",
         kind: "select",
@@ -74,6 +94,15 @@ export const MENU = [
         key: "C",
       },
       { id: "nextTarget", kind: "action", label: "Next target", key: "N" },
+      {
+        id: "depthZone",
+        kind: "select",
+        label: "Water column",
+        hint: "Jump to a zone that exists in this cell",
+        options: ["Surface", "Epipelagic", "Seafloor"],
+        value: 1,
+        key: "G",
+      },
       { id: "pilot", kind: "toggle", label: "Pilot shark", key: "P" },
     ],
   },
@@ -81,6 +110,9 @@ export const MENU = [
 
 const KEY_HELP = [
   ["M / Tab", "Open or close this menu"],
+  ["O", "Ocean map"],
+  ["Return", "Reopen the last world map"],
+  ["K", "Lamp (night fill)"],
   ["Click", "Select a shark, herring, or school"],
   ["I", "Open or close field notes"],
   ["Drag", "Look around · orbit when following"],
@@ -89,7 +121,7 @@ const KEY_HELP = [
   ["C", "Follow camera (after Follow)"],
   ["N", "Next followed animal"],
   ["V / Esc", "Free roam"],
-  ["WASD", "Move · E/Q rise/dive · Shift boost · Space lunge"],
+  ["WASD", "Move · E/Q rise/dive · G depth zone · Shift boost · Space lunge"],
 ];
 
 function formatClock(hour) {
@@ -126,6 +158,8 @@ export function createHUD() {
   const backdrop = document.getElementById("menu-backdrop");
   const btnMenu = document.getElementById("btn-menu");
   const btnClose = document.getElementById("btn-menu-close");
+  const btnMap = document.getElementById("btn-map");
+  const btnReturn = document.getElementById("btn-return");
   const hint = document.getElementById("pilot-hint");
   const notes = document.getElementById("hud-notes");
   const btnNotes = document.getElementById("btn-notes");
@@ -147,6 +181,7 @@ export function createHUD() {
   let open = false;
   let notesOpen = true;
   let cameraLive = false;
+  let mapSeen = false;
   body.replaceChildren();
 
   for (const section of MENU) {
@@ -209,22 +244,40 @@ export function createHUD() {
     }
     values[id] = value;
     render(id);
+    if (id === "oceanMap") syncNav();
+  }
+
+  function syncNav() {
+    const mapOn = !!values.oceanMap;
+    if (mapOn) mapSeen = true;
+    if (btnMap) {
+      btnMap.classList.toggle("on", mapOn);
+      btnMap.setAttribute("aria-pressed", mapOn ? "true" : "false");
+    }
+    if (btnReturn) btnReturn.disabled = mapOn || !mapSeen;
+    if (btnNotes) {
+      btnNotes.classList.toggle("on", notesOpen);
+      btnNotes.setAttribute("aria-expanded", notesOpen ? "true" : "false");
+    }
+    if (btnMenu) {
+      btnMenu.classList.toggle("on", open);
+      btnMenu.setAttribute("aria-expanded", open ? "true" : "false");
+    }
   }
 
   function setOpen(next) {
     open = !!next;
     menu.hidden = !open;
     backdrop.hidden = !open;
-    btnMenu.classList.toggle("on", open);
-    btnMenu.setAttribute("aria-expanded", open ? "true" : "false");
     document.body.classList.toggle("menu-open", open);
     if (open && document.pointerLockElement) document.exitPointerLock();
+    syncNav();
   }
 
   function setNotesOpen(next) {
     notesOpen = !!next;
     notes.classList.toggle("is-collapsed", !notesOpen);
-    btnNotes.setAttribute("aria-expanded", notesOpen ? "true" : "false");
+    syncNav();
   }
 
   function setCameraLive(on) {
@@ -289,8 +342,19 @@ export function createHUD() {
   btnClose.addEventListener("click", () => setOpen(false));
   backdrop.addEventListener("click", () => setOpen(false));
   btnNotes.addEventListener("click", () => setNotesOpen(!notesOpen));
+  btnMap?.addEventListener("click", () => {
+    const next = !values.oceanMap;
+    set("oceanMap", next);
+    emit("oceanMap", next);
+  });
+  btnReturn?.addEventListener("click", () => {
+    if (values.oceanMap || !mapSeen) return;
+    set("oceanMap", true);
+    emit("oceanMap", true);
+  });
   btnFollow.addEventListener("click", () => emit("followSubject", true));
   setCameraLive(false);
+  syncNav();
 
   window.addEventListener("keydown", (e) => {
     if (e.code === "Tab" || e.code === "KeyM") {
@@ -361,6 +425,19 @@ export function createHUD() {
       hint.textContent = text;
     },
     setCameraLive,
+    setSelectOptions(id, options, value) {
+      const item = findItem(id);
+      const field = fields.get(id);
+      if (!item || !field || item.kind !== "select" || !field.input) return;
+      item.options = options.slice();
+      field.input.replaceChildren();
+      options.forEach((name, i) => {
+        field.input.append(el("option", { value: String(i), text: name }));
+      });
+      const next = Math.max(0, Math.min(options.length - 1, Number(value ?? values[id] ?? 0)));
+      values[id] = next;
+      render(id);
+    },
     tick(dt, view = {}) {
       frames++;
       acc += dt;

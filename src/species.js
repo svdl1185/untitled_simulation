@@ -1,4 +1,5 @@
-import { CONFIG } from "./config.js";
+import { CONFIG, faunaPresent } from "./config.js";
+import { getActivePatch } from "./world/patch.js";
 
 /**
  * Fauna and place notes for each simulated cell. A new location is a
@@ -23,7 +24,7 @@ export const LOCATIONS = {
         diet: "Zooplankton",
         sex: "Female / male. Females are drawn slightly larger.",
         program:
-          "Reynolds shoal on a hashed 3D grid: nearest-neighbour spacing, same-school alignment, a thin pancake envelope. The school forages up the zooplankton gradient, mills when food is rich, peels off the beach before it strands, and flees through a neighbour alarm-wave. Grazing is Type II; bloom mean caps headcount; starvation and kills recycle biomass into the water column.",
+          "Reynolds shoal on a hashed 3D grid: nearest-neighbour spacing, same-school alignment, a thin pancake envelope. Diel vertical migration stays in the epipelagic (night near −20 m to feed, day toward −110 m, never the abyss). Hungry schools may rise toward zooplankton; satiated schools sit in the day refuge. The school forages up the zooplankton gradient, mills when food is rich, peels off the beach before it strands, and flees through a neighbour alarm-wave. Grazing is Type II; bloom mean caps headcount; starvation and kills recycle biomass into the water column.",
         about:
           "The forage fish of this cell. Recruits appear only when school energy is high and the NPZD field can feed them.",
       },
@@ -41,14 +42,65 @@ export const LOCATIONS = {
       },
     ],
   },
+  "world-cell": {
+    id: "world-cell",
+    name: "Ocean cell",
+    region: "1 km nested patch",
+    about:
+      "A one-kilometre cell of the world ocean. Bathymetry and a mean current come from public grids; fauna only occupy the cell if their range covers it. Empty of herring here is a range gate, not a missing mesh.",
+    fauna: [
+      {
+        id: "herring",
+        common: "Atlantic herring",
+        latin: "Clupea harengus",
+        guild: "Pelagic forage fish",
+        diet: "Zooplankton",
+        sex: "Female / male. Females are drawn slightly larger.",
+        program:
+          "Reynolds shoal on a hashed 3D grid: nearest-neighbour spacing, same-school alignment, a thin pancake envelope. Diel vertical migration is epipelagic (night shallow, day deeper, max about −180 m) even when the floor is kilometres down. Grazing is Type II; bloom mean caps headcount.",
+        about:
+          "North Atlantic forage fish. Suitability is zero outside that range.",
+      },
+      {
+        id: "shark",
+        common: "Pelagic shark",
+        latin: "Lamnidae",
+        guild: "Pelagic predator",
+        diet: "Atlantic herring",
+        sex: "Female / male. Females are larger and initiate courtship.",
+        program:
+          "Burst-and-glide hunter of herring. Stays in the herring depth band; does not commute to the abyssal floor. Absent where herring are absent.",
+        about:
+          "Tracks the herring guild until this predator is split into named species.",
+      },
+    ],
+  },
 };
 
 export function getLocation(id = CONFIG.location) {
-  return LOCATIONS[id] || LOCATIONS["north-sea-shelf"];
+  const loc = LOCATIONS[id] || LOCATIONS["north-sea-shelf"];
+  const patch = getActivePatch();
+  const fauna = (loc.fauna || []).filter((sp) => faunaPresent(sp.id));
+  if (!patch) return { ...loc, fauna };
+  return {
+    ...loc,
+    name: patch.name || loc.name,
+    region: patch.region || loc.region,
+    about: patch.synthetic
+      ? loc.about
+      : `1 km cell at ${patch.region}. Mean floor ${Math.abs(patch.floorY).toFixed(0)} m. ${
+          fauna.length ? fauna.map((s) => s.common).join(", ") : "No implemented fauna in range."
+        }${patch.note ? ` ${patch.note}` : ""}`,
+    fauna,
+  };
 }
 
 function faunaOf(id) {
-  return getLocation().fauna.find((sp) => sp.id === id);
+  const loc = LOCATIONS[CONFIG.location] || LOCATIONS["north-sea-shelf"];
+  return (
+    loc.fauna.find((sp) => sp.id === id) ||
+    LOCATIONS["north-sea-shelf"].fauna.find((sp) => sp.id === id)
+  );
 }
 
 export function sexLabel(sex) {

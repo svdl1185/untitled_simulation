@@ -1,4 +1,4 @@
-import { CONFIG, yearSeconds } from "../config.js";
+import { CONFIG, clampHabitatY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 
@@ -28,7 +28,7 @@ export class Shark {
     this.cruiseMul = 0.78 + this.scale * 0.22;
     this.turnMul = 1.55 - this.scale * 0.48;
     this.x = 8;
-    this.y = CONFIG.fish.preferredDepth;
+    this.y = clampHabitatY(CONFIG.fish.preferredDepth, CONFIG.shark.maxDepth);
     this.z = 28;
     this.vx = 0;
     this.vy = 0;
@@ -224,11 +224,14 @@ export class Shark {
 
   _keepInWater(cfg, dt, steer = true) {
     this.x = Math.max(-CONFIG.halfX + 8, Math.min(CONFIG.halfX - 8, this.x));
-    this.z = Math.max(-CONFIG.halfZ + 8, Math.min(CONFIG.beach.shoreZ - 10, this.z));
+    this.z = Math.max(-CONFIG.halfZ + 8, Math.min(waterMaxZ() - 10, this.z));
 
     const ground = seafloorHeight(this.x, this.z);
     const ceil = cfg.minDepth;
-    const floor = ground + cfg.floorClearance * (0.72 + 0.28 * this.scale);
+    const floor = Math.max(
+      ground + cfg.floorClearance * (0.72 + 0.28 * this.scale),
+      cfg.maxDepth ?? CONFIG.fish.maxDepth
+    );
     const column = ceil - floor;
 
     if (steer && column < cfg.beachTurnWater) {
@@ -238,7 +241,7 @@ export class Shark {
       const w = (20 + u * 48) * dt;
       this.vx -= slope.x * w;
       this.vz -= slope.z * w;
-      if (column < cfg.minWater && this.vz > 0) this.vz *= 0.28;
+      if (column < cfg.minWater && hasBeach() && this.vz > 0) this.vz *= 0.28;
     }
 
     if (column < 1.4) {
@@ -439,7 +442,7 @@ export class Shark {
       tx -= sl.x * 28;
       tz -= sl.z * 28;
     }
-    tz = Math.min(tz, CONFIG.beach.shoreZ - 36);
+    tz = Math.min(tz, waterMaxZ() - 36);
 
     this.speedCap = maxSpd;
 
@@ -476,9 +479,14 @@ export class Shark {
     const a = Math.random() * Math.PI * 2;
     const r = 36 + Math.random() * 96;
     this.roamX = Math.cos(a) * r;
-    this.roamZ = Math.sin(a) * r * 0.72 - 16;
-    this.roamZ = Math.min(this.roamZ, CONFIG.beach.startZ - 24);
-    this.roamY = CONFIG.fish.preferredDepth + (Math.random() - 0.5) * 12;
+    this.roamZ = Math.sin(a) * r * 0.72 - (hasBeach() ? 16 : 0);
+    if (hasBeach()) this.roamZ = Math.min(this.roamZ, CONFIG.beach.startZ - 24);
+    this.roamX = Math.max(-CONFIG.halfX + 24, Math.min(CONFIG.halfX - 24, this.roamX));
+    this.roamZ = Math.max(-CONFIG.halfZ + 24, Math.min(waterMaxZ() - 24, this.roamZ));
+    this.roamY = clampHabitatY(
+      CONFIG.fish.preferredDepth + (Math.random() - 0.5) * 12,
+      CONFIG.shark.maxDepth
+    );
   }
 
   _nextMode(school, dist, holdR, pack) {
@@ -654,7 +662,7 @@ function nearestOpposite(self, pack) {
 }
 
 export function tryBreed(pack) {
-  if (pack.length >= CONFIG.shark.max) return null;
+  if (!faunaPresent("shark") || pack.length >= CONFIG.shark.max) return null;
   const cfg = CONFIG.shark;
   const year = yearSeconds();
   for (let i = 0; i < pack.length; i++) {
@@ -708,8 +716,9 @@ export function birthShark(mother, father, id) {
 }
 
 export function spawnSharks(n, school) {
+  if (!faunaPresent("shark")) return [];
+  const count = Math.max(0, Math.min(CONFIG.shark.max ?? n, n | 0));
   const pack = [];
-  const count = Math.max(1, Math.min(CONFIG.shark.max ?? n, n | 0));
   for (let i = 0; i < count; i++) pack.push(createShark(i, count, school));
   return pack;
 }

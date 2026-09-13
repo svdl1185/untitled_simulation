@@ -1,6 +1,7 @@
-import { CONFIG } from "../config.js";
+import { CONFIG, hasBeach } from "../config.js";
+import { getActivePatch, samplePatchElevation } from "../world/patch.js";
 
-export function seafloorHeight(x, z) {
+function syntheticSeafloor(x, z) {
   const b = CONFIG.beach;
   const zWave =
     z - Math.sin(x * 0.0105) * 14 - Math.sin(x * 0.028) * 5.5;
@@ -35,6 +36,16 @@ export function seafloorHeight(x, z) {
       Math.sin(x * 0.2 + z * 0.09) * 0.22 * u;
   }
   return y;
+}
+
+export function seafloorHeight(x, z) {
+  const patch = getActivePatch();
+  if (patch && !patch.synthetic && patch.elevation) {
+    let y = samplePatchElevation(patch, x, z);
+    y += Math.sin(x * 0.045 + z * 0.02) * 0.35 + Math.sin(x * 0.16 + z * 0.12) * 0.12;
+    return y;
+  }
+  return syntheticSeafloor(x, z);
 }
 
 export function seafloorSlope(x, z, eps = 3.2) {
@@ -79,9 +90,9 @@ export function steerOffShore(hx, hz, urgency, gx, gz, rate = 0.22) {
   let dz = -gz;
   if (Math.hypot(dx, dz) < 0.06) {
     dx = 0;
-    dz = -1;
+    dz = hasBeach() ? -1 : (hz < 0 ? -1 : 1);
   }
-  if (dz > 0.2) dz = 0.2;
+  if (hasBeach() && dz > 0.2) dz = 0.2;
   const len = Math.hypot(dx, dz) || 1;
   dx /= len;
   dz /= len;

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG } from "../config.js";
+import { photicLimitY } from "../config.js";
 
 export const ROCK_SLOT_COUNT = 8;
 
@@ -21,6 +21,7 @@ export function createWorldUniforms() {
     uWaterFres: { value: new THREE.Vector3(0.42, 0.64, 0.72) },
     uSkyZenith: { value: new THREE.Vector3(0.35, 0.62, 0.88) },
     uSkyHorizon: { value: new THREE.Vector3(0.72, 0.84, 0.9) },
+    uPhoticY: { value: -180 },
   };
 }
 
@@ -29,10 +30,11 @@ uniform vec3 uSunDir;
 uniform float uTime;
 uniform float uCaustic;
 uniform float uStorm;
+uniform float uPhoticY;
 uniform vec4 uRocks[8];
 
 float worldCaustic(vec3 w) {
-  float depth = smoothstep(${CONFIG.floorY.toFixed(1)} + 6.0, -5.0, w.y) * (1.0 - smoothstep(-1.4, 0.35, w.y));
+  float depth = smoothstep(uPhoticY + 6.0, -5.0, w.y) * (1.0 - smoothstep(-1.4, 0.35, w.y));
   if (uCaustic < 0.01 || depth < 0.01) return 0.0;
   vec2 uv = w.xz * 0.07;
   uv += uSunDir.xz * (-w.y) * 0.035;
@@ -75,7 +77,7 @@ float rockLee(vec3 w) {
 vec3 applyWorldLight(vec3 col, vec3 w) {
   float lee = rockLee(w);
   float c = worldCaustic(w) * lee;
-  float depthInk = smoothstep(-5.0, ${CONFIG.floorY.toFixed(1)}, w.y);
+  float depthInk = smoothstep(-5.0, uPhoticY, w.y);
   col *= 0.74 + 0.26 * lee;
   col += col * c * 0.62;
   col = mix(col, col * vec3(0.32, 0.52, 0.6), depthInk * 0.48);
@@ -92,6 +94,7 @@ export function attachWorldShading(material, uniforms) {
     shader.uniforms.uCaustic = uniforms.uCaustic;
     shader.uniforms.uStorm = uniforms.uStorm;
     shader.uniforms.uRocks = uniforms.uRocks;
+    shader.uniforms.uPhoticY = uniforms.uPhoticY;
     if (!shader.vertexShader.includes("varying vec3 vCausticWorld")) {
       shader.vertexShader = shader.vertexShader.replace(
         "varying vec3 vViewPosition;",
@@ -124,7 +127,7 @@ export function attachWorldShading(material, uniforms) {
   };
   const prevKey = material.customProgramCacheKey?.bind(material);
   material.customProgramCacheKey = () =>
-    `${prevKey ? prevKey() : material.uuid}|world-caustic-v5`;
+    `${prevKey ? prevKey() : material.uuid}|world-caustic-v6`;
   material.needsUpdate = true;
   return material;
 }
@@ -139,6 +142,7 @@ export function syncWorldUniforms(uniforms, look) {
   uniforms.uWaterFres.value.copy(look.waterFres);
   uniforms.uSkyZenith.value.copy(look.skyZenith);
   uniforms.uSkyHorizon.value.copy(look.skyHorizon);
+  if (uniforms.uPhoticY) uniforms.uPhoticY.value = photicLimitY();
 }
 
 export function setRockSlots(uniforms, colliders, count) {

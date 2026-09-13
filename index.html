@@ -11,10 +11,23 @@
     <div id="vignette"></div>
     <header class="hud-top">
       <h1 class="brand">untitled_ocean_simulation</h1>
-      <button type="button" id="btn-menu" aria-expanded="false" aria-controls="menu">
-        Menu
-        <kbd>M</kbd>
-      </button>
+      <nav class="nav-bar" aria-label="Simulation">
+        <button type="button" id="btn-return" disabled title="Return to the last world map">
+          Return
+        </button>
+        <button type="button" id="btn-map" aria-pressed="false">
+          Map
+          <kbd>O</kbd>
+        </button>
+        <button type="button" id="btn-notes" aria-expanded="true" aria-controls="hud-notes-body">
+          Field notes
+          <kbd>I</kbd>
+        </button>
+        <button type="button" id="btn-menu" aria-expanded="false" aria-controls="menu">
+          Menu
+          <kbd>M</kbd>
+        </button>
+      </nav>
     </header>
     <aside class="hud-left" id="hud-subject" hidden>
       <section class="hud-panel">
@@ -27,10 +40,6 @@
       </section>
     </aside>
     <aside class="hud-right" id="hud-notes">
-      <button type="button" id="btn-notes" aria-expanded="true" aria-controls="hud-notes-body">
-        <span>Field notes</span>
-        <kbd>I</kbd>
-      </button>
       <div id="hud-notes-body">
         <section class="hud-panel" id="hud-general">
           <h3>General</h3>

@@ -1,4 +1,4 @@
-import { CONFIG } from "../config.js";
+import { CONFIG, clampHabitatY, hasBeach } from "../config.js";
 import { seafloorHeight } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 
@@ -29,7 +29,7 @@ export class Plankton {
     this.minX = -CONFIG.halfX;
     this.minZ = -CONFIG.halfZ;
     this.spanX = CONFIG.halfX * 2;
-    this.spanZ = CONFIG.beach.shoreZ - this.minZ;
+    this.spanZ = hasBeach() ? CONFIG.beach.shoreZ - this.minZ : CONFIG.halfZ * 2;
     this.cellX = this.spanX / this.nx;
     this.cellZ = this.spanZ / this.nz;
     const cells = this.nx * this.nz;
@@ -60,42 +60,44 @@ export class Plankton {
     d.fill(0);
     wet.fill(0);
     vent.fill(0);
+    const sx = this.spanX / 480;
+    const sz = this.spanZ / 468;
     const phyto = [
-      { x: -40, z: -30, r: 58, a: 0.78 },
-      { x: 70, z: -80, r: 50, a: 0.7 },
-      { x: -90, z: 20, r: 44, a: 0.62 },
-      { x: 20, z: 40, r: 38, a: 0.55 },
-      { x: 110, z: -20, r: 42, a: 0.48 },
-      { x: -20, z: -110, r: 36, a: 0.52 },
-      { x: 40, z: -190, r: 48, a: 0.64 },
-      { x: -130, z: -160, r: 42, a: 0.5 },
+      { x: -40 * sx, z: -30 * sz, r: 58, a: 0.78 },
+      { x: 70 * sx, z: -80 * sz, r: 50, a: 0.7 },
+      { x: -90 * sx, z: 20 * sz, r: 44, a: 0.62 },
+      { x: 20 * sx, z: 40 * sz, r: 38, a: 0.55 },
+      { x: 110 * sx, z: -20 * sz, r: 42, a: 0.48 },
+      { x: -20 * sx, z: -110 * sz, r: 36, a: 0.52 },
+      { x: 40 * sx, z: -190 * sz, r: 48, a: 0.64 },
+      { x: -130 * sx, z: -160 * sz, r: 42, a: 0.5 },
     ];
     const zoo = [
-      { x: -28, z: -18, r: 50, a: 0.7 },
-      { x: 58, z: -68, r: 44, a: 0.62 },
-      { x: -78, z: 12, r: 40, a: 0.58 },
-      { x: 32, z: 28, r: 34, a: 0.5 },
-      { x: 96, z: -8, r: 36, a: 0.44 },
-      { x: 28, z: -175, r: 40, a: 0.56 },
+      { x: -28 * sx, z: -18 * sz, r: 50, a: 0.7 },
+      { x: 58 * sx, z: -68 * sz, r: 44, a: 0.62 },
+      { x: -78 * sx, z: 12 * sz, r: 40, a: 0.58 },
+      { x: 32 * sx, z: 28 * sz, r: 34, a: 0.5 },
+      { x: 96 * sx, z: -8 * sz, r: 36, a: 0.44 },
+      { x: 28 * sx, z: -175 * sz, r: 40, a: 0.56 },
     ];
     const vents = [
-      { x: -40, z: -30, r: 36, a: 0.9 },
-      { x: 70, z: -80, r: 32, a: 0.8 },
-      { x: -20, z: -110, r: 28, a: 0.7 },
-      { x: 110, z: -50, r: 30, a: 0.55 },
-      { x: 36, z: -210, r: 40, a: 0.85 },
-      { x: -150, z: -200, r: 34, a: 0.7 },
+      { x: -40 * sx, z: -30 * sz, r: 36, a: 0.9 },
+      { x: 70 * sx, z: -80 * sz, r: 32, a: 0.8 },
+      { x: -20 * sx, z: -110 * sz, r: 28, a: 0.7 },
+      { x: 110 * sx, z: -50 * sz, r: 30, a: 0.55 },
+      { x: 36 * sx, z: -210 * sz, r: 40, a: 0.85 },
+      { x: -150 * sx, z: -200 * sz, r: 34, a: 0.7 },
     ];
     for (let iz = 0; iz < nz; iz++) {
       for (let ix = 0; ix < nx; ix++) {
         const x = this.minX + (ix + 0.5) * this.cellX;
         const zWorld = this.minZ + (iz + 0.5) * this.cellZ;
         const ground = seafloorHeight(x, zWorld);
-        if (ground > -6) continue;
+        if (ground > -1.5) continue;
         const i = iz * nx + ix;
         wet[i] = 1;
         const shelf = CONFIG.shelfY;
-        const basin = CONFIG.floorY;
+        const basin = Math.min(CONFIG.floorY, shelf - 8);
         const depth = Math.min(1, Math.max(0, (shelf - ground) / (shelf - basin)));
         let nut = 0.2 + depth * 0.46;
         let phy = 0.06;
@@ -202,8 +204,8 @@ export class Plankton {
     const dusk = look?.dusk ?? 0;
     const dawn = look?.dawn ?? 0;
     const rise = Math.min(1, night * 0.9 + dusk * 0.55 + dawn * 0.4);
-    const deep = CONFIG.thermoY - 5;
-    return deep + ( -7.2 - deep) * rise;
+    const deep = clampHabitatY(CONFIG.thermoY - 5, CONFIG.fish.maxDepth);
+    return deep + (clampHabitatY(-7.2, CONFIG.fish.maxDepth) - deep) * rise;
   }
 
   graze(x, z, amount) {
@@ -292,6 +294,7 @@ export class Plankton {
   }
 
   carryingCapacity(cap, layer = TROPHIC.Z) {
+    if (!cap || cap <= 0) return 0;
     const mean =
       layer === TROPHIC.D ? this.meanD : layer === TROPHIC.P ? this.meanP : this.meanZ;
     const forage =
@@ -382,7 +385,7 @@ export class Plankton {
         );
         const deep = Math.min(
           1,
-          Math.max(0, (CONFIG.shelfY - ground) / (CONFIG.shelfY - CONFIG.floorY))
+          Math.max(0, (CONFIG.shelfY - ground) / Math.max(8, CONFIG.shelfY - CONFIG.floorY))
         );
         const upwell =
           (cfg.baseN * (0.35 + deep) + storm * cfg.upwell * deep + vent[i] * (0.012 + storm * 0.04)) *

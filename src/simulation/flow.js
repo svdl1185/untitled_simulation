@@ -1,22 +1,26 @@
-import { CONFIG } from "../config.js";
+import { CONFIG, hasBeach } from "../config.js";
 
 const _out = { x: 0, y: 0, z: 0 };
 const TWO_PI = Math.PI * 2;
 
 /**
- * Local current. Tide runs beach-normal (Z), longshore along X, with
- * thermocline shear and a storm multiplier. Cheap enough to sample per fish.
+ * Local current. Tide, longshore, thermocline shear, plus an atlas mean
+ * (east → X, north → Z). Cheap enough to sample per fish.
  */
 export function sampleFlow(x, y, z, t, storm = 0, out = _out) {
   const cfg = CONFIG.flow;
   const thermo = CONFIG.thermoY;
+  const beachOn = hasBeach();
   const shoreZ = CONFIG.beach.shoreZ;
   const startZ = CONFIG.beach.startZ;
 
-  let shore = (z - startZ) / (shoreZ - startZ);
-  if (shore < 0) shore = 0;
-  else if (shore > 1) shore = 1;
-  shore = shore * shore * (3 - 2 * shore);
+  let shore = 0;
+  if (beachOn) {
+    shore = (z - startZ) / (shoreZ - startZ);
+    if (shore < 0) shore = 0;
+    else if (shore > 1) shore = 1;
+    shore = shore * shore * (3 - 2 * shore);
+  }
   const open = 1 - shore * 0.92;
 
   const water = Math.max(8, -CONFIG.floorY);
@@ -46,11 +50,14 @@ export function sampleFlow(x, y, z, t, storm = 0, out = _out) {
   let v = Math.sin(x * 0.02 + t * 0.28) * 0.12 * shearGate;
   v += storm * Math.sin(x * 0.05 + z * 0.04 + t * 1.1) * 0.18;
 
+  u += (cfg.meanU || 0) * open * depthMul;
+  w += (cfg.meanV || 0) * open * depthMul;
+
   u *= stormMul;
   v *= stormMul;
   w *= stormMul;
 
-  if (z > shoreZ - 18) {
+  if (beachOn && z > shoreZ - 18) {
     const dry = (z - (shoreZ - 18)) / 18;
     u *= Math.max(0, 1 - dry);
     v *= Math.max(0, 1 - dry);
