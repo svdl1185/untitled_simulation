@@ -1,3 +1,8 @@
-name = "untitled-ocean-simulation"
+name = "untitled-simulation"
+main = "workers/atlas.js"
 compatibility_date = "2026-09-14"
-pages_build_output_dir = "dist"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = ["/gebco/*", "/gmrt/*", "/hycom/*"]
