@@ -207,6 +207,10 @@ h3 {
   color: var(--ink);
 }
 
+.hud-note[data-note="missing"] h4 {
+  color: #c4a070;
+}
+
 #hud-follow {
   pointer-events: auto;
   justify-self: start;

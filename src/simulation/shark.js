@@ -1,4 +1,4 @@
-import { CONFIG, clampHabitatY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
+import { CONFIG, clampHabitatY, dvmY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
 import { SPECIES, VEHICLE_IDS, vehicleCfg } from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
@@ -79,6 +79,8 @@ export class Shark {
     this.bursting = true;
     this.burstT = 1.2 + Math.random() * 1.8;
     this.glideT = 0;
+    this.surfacing = !!this.cfg.breathes && Math.random() < 0.28;
+    this.breathT = Math.random() * (this.cfg.diveTime ?? 20);
     this.roamX = 0;
     this.roamY = CONFIG.fish.preferredDepth;
     this.roamZ = 0;
@@ -164,6 +166,7 @@ export class Shark {
     this.energy = Math.max(0, this.energy - drain * dt);
     this._filterFeed(dt, school, look, cfg);
     this.mateT = Math.max(0, this.mateT - dt);
+    this._tickBreath(dt, cfg);
     if (this.energy < cfg.starveAt) this.starveT += dt;
     else this.starveT = Math.max(0, this.starveT - dt * 1.8);
     if (this.starveT >= cfg.starveDays * CONFIG.time.dayLength) this.dead = true;
@@ -213,6 +216,28 @@ export class Shark {
     const ov = bloom.overlap(look, this.y);
     const taken = bloom.graze(this.x, this.z, cfg.filterGraze * dt * ov);
     if (taken > 0) this.energy = Math.min(1, this.energy + taken * (cfg.filterGain ?? 0.4));
+  }
+
+  _tickBreath(dt, cfg) {
+    if (!cfg.breathes) return;
+    this.breathT = (this.breathT ?? 0) - dt;
+    if (this.breathT > 0) return;
+    this.surfacing = !this.surfacing;
+    this.breathT = this.surfacing
+      ? cfg.surfaceTime ?? 6
+      : cfg.diveTime ?? 28;
+  }
+
+  _columnFloor(x, z, cfg) {
+    const ground = seafloorHeight(x, z) + (cfg.floorClearance ?? 6) * (this.scale || 1) + 1.2;
+    return Math.max(ground, cfg.maxDepth ?? -200);
+  }
+
+  _breathTargetY(tx, tz, huntY, cfg) {
+    const deep = this._columnFloor(tx, tz, cfg);
+    if (this.surfacing) return cfg.minDepth ?? -1.2;
+    if (this.aiMode === "strike") return Math.max(huntY, deep);
+    return deep;
   }
 
   _avoidPack(pack, dt) {
@@ -324,8 +349,9 @@ export class Shark {
     const rdx = this.roamX - this.x;
     const rdz = this.roamZ - this.z;
     if (rdx * rdx + rdz * rdz < 28 * 28) this._pickRoam();
+    const hungry = this.energy < (cfg.hungry ?? 0.5);
     let tx = this.roamX;
-    let ty = fy;
+    let ty = hungry ? fy : this.roamY;
     let tz = this.roamZ;
     const maxSpd = cfg.cruiseSpeed * 0.62 * this.cruiseMul;
     const force = cfg.maxForce * 0.42;
@@ -488,6 +514,12 @@ export class Shark {
 
     if (this.cfg.gait === "benthic") {
       ty = seafloorHeight(tx, tz) + cfg.floorClearance + 1.6;
+    } else if (cfg.nightDepth != null && this.aiMode !== "strike") {
+      ty = dvmY(look?.hour ?? 12, cfg);
+    }
+
+    if (cfg.breathes) {
+      ty = this._breathTargetY(tx, tz, ty, cfg);
     }
 
     const tGround = seafloorHeight(tx, tz);
@@ -501,13 +533,18 @@ export class Shark {
     tz = Math.min(tz, waterMaxZ() - 36);
 
     this.speedCap = maxSpd;
+    if (cfg.breathes && Math.abs(ty - this.y) > 12) {
+      this.speedCap = Math.max(this.speedCap, cfg.diveSpeed ?? 24);
+      this.thrust = Math.max(this.thrust, 0.85);
+      this.bursting = true;
+    }
 
     const follow = 1 - Math.exp(-dt * (this.aiMode === "strike" ? 8.5 : 2.4));
     this.seekX += (tx - this.seekX) * follow;
     this.seekY += (ty - this.seekY) * follow;
     this.seekZ += (tz - this.seekZ) * follow;
 
-    const des = this._desired(this.seekX, this.seekY, this.seekZ, maxSpd, arriveR);
+    const des = this._desired(this.seekX, this.seekY, this.seekZ, this.speedCap, arriveR);
     this._steer(des.x, des.y, des.z, force, dt);
   }
 
@@ -543,12 +580,15 @@ export class Shark {
     if (hasBeach()) this.roamZ = Math.min(this.roamZ, CONFIG.beach.startZ - 24);
     this.roamX = Math.max(-CONFIG.halfX + 24, Math.min(CONFIG.halfX - 24, this.roamX));
     this.roamZ = Math.max(-CONFIG.halfZ + 24, Math.min(waterMaxZ() - 24, this.roamZ));
-    this.roamY = clampHabitatY(
-      this.cfg.gait === "benthic"
-        ? seafloorHeight(this.roamX, this.roamZ) + (this.cfg.floorClearance ?? 3)
-        : CONFIG.fish.preferredDepth + (Math.random() - 0.5) * 12,
-      this.cfg.maxDepth
-    );
+    const cfg = this.cfg;
+    const deep = this._columnFloor(this.roamX, this.roamZ, cfg);
+    const hi = cfg.minDepth ?? -2;
+    this.roamY =
+      cfg.gait === "benthic"
+        ? deep
+        : cfg.breathes
+          ? deep
+          : hi + Math.random() * (deep - hi);
   }
 
   _nextMode(school, dist, holdR, pack) {

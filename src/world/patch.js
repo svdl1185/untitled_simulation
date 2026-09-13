@@ -256,7 +256,7 @@ export function applyPatch(patch) {
   const src = patch.presence || {};
   for (const id of Object.keys(next)) next[id] = src[id] ?? 0;
   for (const id of Object.keys(next)) {
-    if (next[id] && SPECIES[id]?.guild === "demersal" && patch.floorY < -280) next[id] = 0;
+    if (next[id] && SPECIES[id]?.guild === "demersal" && patch.floorY < -650) next[id] = 0;
   }
   CONFIG.presence = next;
   CONFIG.flow.meanU = patch.current?.u ?? 0;

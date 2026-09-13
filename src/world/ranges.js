@@ -527,7 +527,7 @@ export function presenceAt(lat, lon) {
   if (prey && Math.abs(lat) < 32) p.hammerhead = 1;
   if (Math.abs(lat) < 30) p.whaleshark = 1;
   if (Math.abs(lat) > 32) p.minke = 1;
-  if (p.marketsquid && Math.abs(lat) < 55) p.spermwhale = 1;
+  if (Math.abs(lat) < 55) p.spermwhale = 1;
   if (prey) p.orca = 1;
   if (prey && Math.abs(lat) < 32) p.mahi = 1;
   if (prey && Math.abs(lat) < 28) p.barracuda = 1;

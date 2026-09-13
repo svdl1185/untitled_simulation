@@ -161,8 +161,8 @@ export function photicLimitY() {
 
 /**
  * Keep an animal in its guild's vertical niche. `maxDepth` is the
- * deepest it will go (more negative). The seafloor always wins on a
- * shallow shelf.
+ * biological maximum (more negative). The seafloor always wins on a
+ * shallow shelf. Lighting is not a depth cap.
  */
 export function clampHabitatY(y, maxDepth) {
   const floor = CONFIG.floorY + (CONFIG.fish.floorClearance ?? 2.2) + 4;
