@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { photicLimitY } from "../config.js";
+import { openPhoticY } from "../config.js";
 
 export const ROCK_SLOT_COUNT = 8;
 
@@ -79,6 +79,7 @@ vec3 applyWorldLight(vec3 col, vec3 w) {
   float lee = rockLee(w);
   float c = worldCaustic(w) * lee;
   float depth = max(0.0, -w.y);
+  // uPhoticY is optical 1% light (openPhoticY), never the seafloor.
   float photic = max(24.0, -uPhoticY);
   float par = exp(-(log(100.0) / photic) * depth);
   float clear = clamp(sqrt(par / 0.18), 0.0, 1.0);
@@ -151,7 +152,7 @@ export function syncWorldUniforms(uniforms, look) {
   uniforms.uWaterFres.value.copy(look.waterFres);
   uniforms.uSkyZenith.value.copy(look.skyZenith);
   uniforms.uSkyHorizon.value.copy(look.skyHorizon);
-  if (uniforms.uPhoticY) uniforms.uPhoticY.value = photicLimitY();
+  if (uniforms.uPhoticY) uniforms.uPhoticY.value = openPhoticY();
 }
 
 export function setRockSlots(uniforms, colliders, count) {

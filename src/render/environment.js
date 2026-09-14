@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { CONFIG, photicLimitY } from "../config.js";
+import { CONFIG } from "../config.js";
+import { visualClarity } from "../simulation/light.js";
 
 export function createEnvironment(scene, uniforms) {
   const sky = _sky(uniforms);
@@ -38,11 +39,9 @@ export function createEnvironment(scene, uniforms) {
       uniforms.uCamY.value = camera.position.y;
       particles.rotation.y = time * 0.012;
       const above = camera.position.y > 2.4;
-      const depth = Math.max(0, -camera.position.y);
       const turb = CONFIG.water?.turbidity ?? 1;
-      const photic = -photicLimitY();
-      const inLight = above ? 1 : THREE.MathUtils.clamp(1 - depth / Math.max(40, photic), 0, 1);
-      const optical = above ? 0 : 1 - Math.exp(-depth / Math.max(40, photic * 0.55));
+      const inLight = above ? 1 : visualClarity(camera.position.y, look);
+      const optical = above ? 0 : 1 - inLight;
       const thermo =
         1 + 0.18 * Math.exp(-((camera.position.y - CONFIG.thermoY) * (camera.position.y - CONFIG.thermoY)) / 36);
       const pull = THREE.MathUtils.smoothstep(

@@ -1,22 +1,20 @@
-import { CONFIG, photicLimitY } from "../config.js";
+import { openPhoticY } from "../config.js";
 
 /**
  * Photosynthetically active radiation. Optics and NPZD share this
  * Beer–Lambert envelope — turbidity shallows both fog and growth.
  *
  * I(z) = I0 · exp(−Kd · depth). Kd is set so the 1% light depth matches
- * `photicLimitY()` before the seafloor clips it.
+ * `openPhoticY()` (turbidity). A shelf floor shallower than that is still
+ * in the envelope — do not treat the sand as the 1% depth.
  */
 
 let _kd = 4.605170186 / 180;
-let _kdTurb = NaN;
 let _kdOpen = NaN;
 
 export function attenuationKd() {
-  const turb = Math.max(0.35, CONFIG.water?.turbidity ?? 1);
-  const open = (CONFIG.water?.photicY ?? -180) / turb;
-  if (turb === _kdTurb && open === _kdOpen) return _kd;
-  _kdTurb = turb;
+  const open = openPhoticY();
+  if (open === _kdOpen) return _kd;
   _kdOpen = open;
   const z = Math.max(24, -open);
   _kd = Math.log(100) / z;
@@ -105,5 +103,5 @@ export function visualHunter(cfg) {
 }
 
 export function photicY() {
-  return photicLimitY();
+  return openPhoticY();
 }

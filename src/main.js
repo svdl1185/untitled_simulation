@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG, anySchoolPresent, columnZones, faunaPresent, photicLimitY } from "./config.js";
+import { CONFIG, anySchoolPresent, columnZones, faunaPresent, openPhoticY } from "./config.js";
 import { SPECIES, VEHICLE_IDS, vehicleCfg } from "./world/fauna.js";
 import { School } from "./simulation/school.js";
 import { spawnPredators, resetSharks, createShark, tryBreed } from "./simulation/shark.js";
@@ -729,7 +729,7 @@ function hudView() {
     nutriclineY: plankton.nutriclineY(),
     omzCoreY: CONFIG.water?.omzCoreY ?? null,
     upwell: CONFIG.water?.upwell ?? 0,
-    photicY: photicLimitY(),
+    photicY: openPhoticY(),
     o2Cam: sampleO2(0, camera.position.y, 0),
     parPct: samplePAR(camera.position.y, day.look) * 100,
     meanP: plankton.meanP,

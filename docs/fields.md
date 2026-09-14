@@ -7,7 +7,7 @@ How the water column is sampled. Agents never get a private current, a private s
 Photosynthetically active radiation. Beer–Lambert: \(I(z) = I_0 e^{-K_d z}\).
 
 - \(I_0\) comes from the day look (sun elevation, night, storm).
-- \(K_d\) is set so the 1% light depth matches `photicLimitY()` (turbidity).
+- \(K_d\) is set so the 1% light depth matches `openPhoticY()` (turbidity). `photicLimitY()` clips that to the seafloor for the column HUD — fog, caustics, and seafloor shading do not treat the sand as the 1% depth.
 - Fog, caustics, phytoplankton growth, fish/seafloor shading, and visual hunt share that envelope.
 - `samplePAR(y, look)` is PAR 0–1 at depth.
 - `visualRange(y, look, base, glow)` scales detect / fear for sighted hunters. `glow` is photophore prey (lanternfish): restores a fraction of `base` in the dark. Sperm whale / orca `sense: "echo"` skip this. Filter-only diets skip it.

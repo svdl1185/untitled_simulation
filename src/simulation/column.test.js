@@ -9,7 +9,7 @@ import {
   saturationO2,
 } from "./oxygen.js";
 import { bindCellUpwell, climateUpwell, sampleFlow } from "./flow.js";
-import { CONFIG, breathTargetY, photicLimitY, columnZones } from "../config.js";
+import { CONFIG, breathTargetY, photicLimitY, openPhoticY, columnZones } from "../config.js";
 import { Plankton, TROPHIC } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
 import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
@@ -45,6 +45,25 @@ function assert(cond, msg) {
   CONFIG.floorY = floor;
   assert(kdMurky > kdClear, "murkier water should attenuate faster");
   assert(photicMurky > photicClear, "murkier photic limit should be shallower (less negative)");
+}
+
+{
+  const savedFloor = CONFIG.floorY;
+  const savedTurb = CONFIG.water.turbidity;
+  CONFIG.floorY = -71;
+  CONFIG.water.turbidity = 1;
+  const open = openPhoticY();
+  const clipped = photicLimitY();
+  const day = { night: 0, caustic: 1, sunDir: { y: 0.8 }, storm: 0 };
+  const I0 = surfacePAR(day);
+  const bed = samplePAR(-71, day);
+  const mid = visualClarity(-53, day);
+  CONFIG.floorY = savedFloor;
+  CONFIG.water.turbidity = savedTurb;
+  assert(open < -150, `optical 1% at turbidity 1 is ~180 m, got ${open.toFixed(0)}`);
+  assert(clipped === -71, `photicLimitY clips to the water that exists, got ${clipped}`);
+  assert(bed > I0 * 0.05, `North Sea sand should stay well above 1% PAR (${((bed / I0) * 100).toFixed(1)}%)`);
+  assert(mid > 0.9, `53 m on the shelf should still be visually clear, got ${mid.toFixed(2)}`);
 }
 
 {

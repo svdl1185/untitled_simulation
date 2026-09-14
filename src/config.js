@@ -173,11 +173,19 @@ export function bindColumnHabitat(floorY, hasLand) {
   else CONFIG.water.turbidity = Math.min(0.85, Math.max(0.34, 140 / Math.max(140, -floorY)));
 }
 
-/** 1% light depth for this cell. Shelf floors clip it. */
-export function photicLimitY() {
+/** Optical 1% light depth from turbidity. Never bathymetry. */
+export function openPhoticY() {
   const turb = Math.max(0.35, CONFIG.water?.turbidity ?? 1);
-  const open = (CONFIG.water?.photicY ?? -180) / turb;
-  return Math.max(CONFIG.floorY, open);
+  return (CONFIG.water?.photicY ?? -180) / turb;
+}
+
+/**
+ * Deepest photic water in this cell. Shelf floors clip it — there is
+ * no 1% light below the sand. Fog, caustics, and seafloor shading use
+ * `openPhoticY()`, or the bed would sit at midnight on every shelf.
+ */
+export function photicLimitY() {
+  return Math.max(CONFIG.floorY, openPhoticY());
 }
 
 /**
@@ -256,7 +264,7 @@ export function columnZones(preferredY) {
     y = Math.min(-2.2, Math.max(floor + 6, y));
     return { id: z.id, label: z.label, y };
   });
-  const lightY = photicLimitY();
+  const lightY = openPhoticY();
   if (column > 24 && lightY < -12 && lightY > floor + 16) {
     const close = zones.some((z) => Math.abs(z.y - lightY) < 40);
     if (!close) {
