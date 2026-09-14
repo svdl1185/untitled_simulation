@@ -3,6 +3,7 @@ import { emptyPresence, fullPresence, SPECIES } from "./fauna.js";
 import { bindCellTemperature } from "../simulation/temperature.js";
 import { bindCellOxygen } from "../simulation/oxygen.js";
 import { bindCellUpwell } from "../simulation/flow.js";
+import { bindCellIce } from "../simulation/ice.js";
 
 export const PATCH_SIZE_M = 1000;
 export const LAB_SIZE_M = 10000;
@@ -428,6 +429,7 @@ export function applyPatch(patch) {
     bindCellTemperature();
     bindCellUpwell();
     bindCellOxygen();
+    bindCellIce();
     CONFIG.water.turbidity = 0.72;
     bindCellFauna();
     return patch;
@@ -445,6 +447,7 @@ export function applyPatch(patch) {
     bindCellTemperature();
     bindCellUpwell();
     bindCellOxygen();
+    bindCellIce();
     if (patch.hasLand) {
       CONFIG.beach.enabled = true;
       CONFIG.beach.startZ = CONFIG.halfZ * 0.12;
@@ -479,6 +482,7 @@ export function applyPatch(patch) {
     CONFIG.water.turbidity = 1;
     bindCellUpwell();
     bindCellOxygen();
+    bindCellIce();
     bindCellFauna();
     return patch;
   }
@@ -493,6 +497,7 @@ export function applyPatch(patch) {
   bindCellTemperature();
   bindCellUpwell();
   bindCellOxygen();
+  bindCellIce();
   if (patch.hasLand) {
     CONFIG.beach.enabled = true;
     CONFIG.beach.startZ = CONFIG.halfZ * 0.12;

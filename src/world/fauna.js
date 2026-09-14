@@ -615,6 +615,7 @@ export const SPECIES = {
       fleeSpeed: 14,
       minSchoolSize: 120,
       metabolism: 0.011,
+      iceAssociated: true,
     },
     look: {
       body: [0.42, 1.12, 1],
@@ -650,6 +651,7 @@ export const SPECIES = {
       fleeSpeed: 16,
       minSchoolSize: 180,
       metabolism: 0.012,
+      iceAssociated: true,
     },
     look: {
       body: [0.28, 1.18, 1],
@@ -799,6 +801,7 @@ export const SPECIES = {
       minSchoolSize: 16,
       schoolRadius: 14,
       schoolHeight: 5,
+      iceAssociated: true,
     },
     look: {
       shape: "krill",

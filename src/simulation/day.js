@@ -2,7 +2,17 @@ import * as THREE from "three";
 import { CONFIG, herringDvmY } from "../config.js";
 import { bindCellTemperature, climatologySST } from "./temperature.js";
 import { bindCellOxygen } from "./oxygen.js";
+import { bindCellIce, iceTransmit } from "./ice.js";
 import { surfacePAR } from "./light.js";
+
+/** Sine of solar elevation. Polar night is negative at noon; midnight sun stays positive at hour 0. */
+export function solarSinElev(lat, hour, dayOfYear = 180) {
+  const latR = ((lat ?? 54) * Math.PI) / 180;
+  const doy = (((dayOfYear % 365) + 365) % 365);
+  const dec = 0.409 * Math.sin(((doy - 81) / 365) * Math.PI * 2);
+  const ha = ((hour - 12) / 12) * Math.PI;
+  return Math.sin(latR) * Math.sin(dec) + Math.cos(latR) * Math.cos(dec) * Math.cos(ha);
+}
 
 const PRESETS = [
   {
@@ -300,6 +310,7 @@ export class DayCycle {
       dusk: 0,
       storm: 0,
       wavePulse: 1,
+      ice: 0,
     };
   }
 
@@ -311,6 +322,7 @@ export class DayCycle {
         this.dayIndex += Math.floor(next / 24);
         CONFIG.time.dayIndex = this.dayIndex;
         bindCellOxygen();
+        bindCellIce();
       }
       this.hour = ((next % 24) + 24) % 24;
     }
@@ -385,18 +397,31 @@ export class DayCycle {
     look.dusk = lerp(a.dusk, b.dusk, s);
 
     const az = ((hour - 6) / 24) * Math.PI * 2;
-    const lat = ((this.latitude ?? 54.2) * Math.PI) / 180;
-    const doy = ((this.dayIndex % 365) + 81) * (2 * Math.PI) / 365;
-    const dec = 0.409 * Math.sin(doy);
-    const ha = ((hour - 12) / 12) * Math.PI;
-    const sinElev = Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha);
-    const elev = Math.sin(((hour - 6) / 12) * Math.PI);
-    const moon = sinElev < -0.02 || elev < 0;
+    const latDeg = this.latitude ?? CONFIG.world?.lat ?? 54.2;
+    const sinElev = solarSinElev(latDeg, hour, this.dayIndex);
+    const moon = sinElev < -0.02;
     const y = moon ? 0.28 : Math.max(0.06, 0.12 + sinElev * 0.88);
     look.sunDir.set(Math.cos(az) * 0.72, y, Math.sin(az) * 0.72).normalize();
     if (moon) {
       look.sunI *= 0.35;
       look.caustic *= 0.08;
+    }
+
+    const aLat = Math.abs(latDeg);
+    const polarW = Math.min(1, Math.max(0, (aLat - 50) / 22));
+    if (polarW > 0.04) {
+      const solarNight = sinElev < 0.02 ? Math.min(1, Math.max(0, 0.12 + -sinElev * 6)) : 0;
+      look.night = look.night * (1 - polarW) + solarNight * polarW;
+      if (sinElev > 0) {
+        const dayness = Math.min(1, sinElev * 2.2);
+        const lift = polarW * dayness;
+        look.sunI = lerp(look.sunI, 1.15 * dayness, lift);
+        look.caustic = lerp(look.caustic, 0.72 * dayness, lift);
+        look.exposure = lerp(look.exposure, 0.96, lift);
+        look.hemiI = lerp(look.hemiI, 0.8, lift);
+      }
+      if (aLat > 58 && sinElev > 0.04 && (hour < 3.5 || hour > 21.5)) look.name = "Midnight sun";
+      if (aLat > 58 && sinElev < -0.02 && hour > 8 && hour < 17) look.name = "Polar night";
     }
 
     const storm = this.storm;
@@ -414,6 +439,8 @@ export class DayCycle {
     look.wavePulse = 1 + 0.045 * Math.sin(performance.now() * 0.001 * 1.15);
     look.sunI *= look.wavePulse;
     look.caustic *= look.wavePulse;
+    look.ice = CONFIG.water?.ice ?? 0;
+    look.caustic *= iceTransmit(look.ice);
     look.sst = climatologySST(this.latitude ?? CONFIG.world?.lat ?? 54, this.dayIndex);
     look.par0 = surfacePAR(look);
     return look;

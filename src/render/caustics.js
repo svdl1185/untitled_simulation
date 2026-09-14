@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { openPhoticY } from "../config.js";
+import { iceTransmit } from "../simulation/ice.js";
 
 export const ROCK_SLOT_COUNT = 8;
 
@@ -22,6 +23,8 @@ export function createWorldUniforms() {
     uSkyZenith: { value: new THREE.Vector3(0.35, 0.62, 0.88) },
     uSkyHorizon: { value: new THREE.Vector3(0.72, 0.84, 0.9) },
     uPhoticY: { value: -180 },
+    uIce: { value: 0 },
+    uIceT: { value: 1 },
   };
 }
 
@@ -32,6 +35,7 @@ uniform float uCaustic;
 uniform float uStorm;
 uniform float uPhoticY;
 uniform float uGlow;
+uniform float uIceT;
 uniform vec4 uRocks[8];
 
 float worldCaustic(vec3 w) {
@@ -81,7 +85,7 @@ vec3 applyWorldLight(vec3 col, vec3 w) {
   float depth = max(0.0, -w.y);
   // uPhoticY is optical 1% light (openPhoticY), never the seafloor.
   float photic = max(24.0, -uPhoticY);
-  float par = exp(-(log(100.0) / photic) * depth);
+  float par = uIceT * exp(-(log(100.0) / photic) * depth);
   float clear = clamp(sqrt(par / 0.18), 0.0, 1.0);
   vec3 abyss = vec3(0.008, 0.016, 0.035);
   col *= 0.74 + 0.26 * lee;
@@ -104,6 +108,7 @@ export function attachWorldShading(material, uniforms) {
     shader.uniforms.uStorm = uniforms.uStorm;
     shader.uniforms.uRocks = uniforms.uRocks;
     shader.uniforms.uPhoticY = uniforms.uPhoticY;
+    shader.uniforms.uIceT = uniforms.uIceT;
     shader.uniforms.uGlow = material.userData.uGlow || { value: 0 };
     if (!shader.vertexShader.includes("varying vec3 vCausticWorld")) {
       shader.vertexShader = shader.vertexShader.replace(
@@ -137,7 +142,7 @@ export function attachWorldShading(material, uniforms) {
   };
   const prevKey = material.customProgramCacheKey?.bind(material);
   material.customProgramCacheKey = () =>
-    `${prevKey ? prevKey() : material.uuid}|world-caustic-v8`;
+    `${prevKey ? prevKey() : material.uuid}|world-caustic-v9`;
   material.needsUpdate = true;
   return material;
 }
@@ -153,6 +158,8 @@ export function syncWorldUniforms(uniforms, look) {
   uniforms.uSkyZenith.value.copy(look.skyZenith);
   uniforms.uSkyHorizon.value.copy(look.skyHorizon);
   if (uniforms.uPhoticY) uniforms.uPhoticY.value = openPhoticY();
+  if (uniforms.uIce) uniforms.uIce.value = look.ice ?? 0;
+  if (uniforms.uIceT) uniforms.uIceT.value = iceTransmit(look.ice);
 }
 
 export function setRockSlots(uniforms, colliders, count) {

@@ -2,7 +2,8 @@
  * Named kilometres for the Cells picker. Map is still free roam.
  * Coupled rows load a real place (atlas, or a synthetic floor if the
  * atlas is down). Gap rows still open a pelagic cell at that site —
- * the missing biome is named, not faked with a mesh.
+ * the missing biome is named, not faked with a mesh. Polar ice is
+ * coupled: concentration, PAR, ice algae, polar-cod underside.
  */
 import {
   ELEV_NX,
@@ -113,11 +114,12 @@ export const DEMO_CELLS = [
     observe: [
       "Antarctic silverfish and krill on a polar clock. Type II graze on z and p.",
       "Toothfish hug the slope floor — not a North Sea cod. Minke filter the bloom and bite.",
+      "Sea ice follows latitude and season — pack ice shades PAR; ice algae feeds the top metres.",
       "Cold SST gates tropical tunas out. Empty of skipjack here is a niche, not a missing mesh.",
     ],
-    missing: ["Sea ice, ice algae, penguins, and icefish are still gaps."],
+    missing: ["Ice types, mapped polynyas, penguins, and icefish are still gaps."],
     about:
-      "An Antarctic slope cell. Silverfish, krill, and toothfish are the Southern Ocean loop that exists today. Ice is not a field yet, so this is open water at polar latitude, not a polynya.",
+      "An Antarctic slope cell. Silverfish, krill, and toothfish are the Southern Ocean loop that exists today. Ice is a field: winter pack here shades the column and grows ice-algal P. Still not a polynya, and penguins are not agents.",
     extras: ["silverfish", "krill", "toothfish", "minke"],
     fallback: { floorY: -1600, beach: false, northShallow: -280 },
   },
@@ -168,21 +170,22 @@ export const DEMO_CELLS = [
     id: "polar",
     location: "world-cell",
     kind: "atlas",
-    status: "gap",
+    status: "coupled",
     title: "Polar ice",
-    kicker: "Ice algae · seals · polynya",
+    kicker: "Ice field · PAR · polar cod",
     region: "Barents Sea, north of 74°N",
     lat: 75.4,
     lon: 32.1,
     observe: [
-      "Polar cod, capelin if the hull covers the cell, minke, orca. Q10 slows the bloom.",
-      "Polar night / midnight sun is still the epipelagic day/night clock.",
+      "Sea-ice concentration from latitude and season. Pack ice shades PAR; leads stay brighter.",
+      "Ice algae produces in the top metres; krill graze that P. Polar cod shoal under the ice.",
+      "Polar night / midnight sun follow solar elevation at this latitude, not a 24 h clock.",
     ],
     missing: [
-      "Sea ice, ice types, leads, ice algae, seals, walrus, polar bear, and under-ice blooms are not in the model. This is open polar water.",
+      "Ice types, drift, mapped polynyas, seals, walrus, polar bear, and penguins are not in the model.",
     ],
     about:
-      "A high-Arctic kilometre. Polar cod is the cryopelagic forage we have; ice is not a field, so there is no under-ice bloom and no haul-out.",
+      "A high-Arctic kilometre. Ice is a field: concentration, thickness, under-ice PAR, and ice-algal P. Polar cod use the underside. Seals and a haul-out are not meshed.",
     extras: ["polarcod", "capelin", "minke", "orca", "humpback"],
     fallback: { floorY: -220, beach: false },
   },

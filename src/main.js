@@ -15,6 +15,7 @@ import { createPlanktonMesh } from "./render/plankton.js";
 import { samplePAR, visualClarity } from "./simulation/light.js";
 import { bindCellTemperature, sampleTemp } from "./simulation/temperature.js";
 import { bindCellOxygen, sampleO2 } from "./simulation/oxygen.js";
+import { bindCellIce } from "./simulation/ice.js";
 import { createInput } from "./input.js";
 import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followCameraIndex } from "./camera.js";
 import { createHUD } from "./ui.js";
@@ -544,6 +545,10 @@ hud.on("o2Anomaly", (n) => {
   CONFIG.water.o2Anomaly = Number(n);
   bindCellOxygen();
 });
+hud.on("iceAnomaly", (n) => {
+  CONFIG.water.iceAnomaly = Number(n);
+  bindCellIce();
+});
 
 function syncDepthZones() {
   if (!hud?.setSelectOptions) return;
@@ -737,6 +742,9 @@ function hudView() {
     meanB: plankton.meanB,
     forageCount: school.count,
     forageCap: foodCap,
+    ice: CONFIG.water?.ice ?? 0,
+    iceH: CONFIG.water?.iceH ?? 0,
+    iceT: CONFIG.water?.iceT ?? 1,
     cameraLabel: cameraLabel(),
     lat: CONFIG.world.lat,
     lon: CONFIG.world.lon,

@@ -213,13 +213,11 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "Circumpolar Arctic gadid, typically 15–25 cm. Ice-associated. Often 0–300 m; recorded to about 700 m under ice and on Arctic slopes. Forage for beluga, seabirds, and Greenland sharks (none of those are meshed).",
-    program: "Slow polarized shoal. Type II graze on z. Carries the high Arctic when herring drop out.",
+    program: "Slow polarized shoal. Type II graze on z. When the cell holds ice, DVM shoals toward the ice–water film. Carries the high Arctic when herring drop out.",
     missing: [
-      "Sea ice, beluga, and Greenland shark are not in the catalog.",
-      "Under-ice habitat is not a field.",
-      "Cryopelagic feeding on ice-algal copepods is not a food.",
+      "Beluga and Greenland shark are not in the catalog.",
+      "Ice algae feeds P; polar cod still graze z, not a direct ice-algal bite.",
       "Antifreeze glycoproteins are not a physiology. Temperature is a field; this taxon is gated to cold SST.",
-      "Polar-night light climate is still the epipelagic day/night clock.",
       "Under-ice spawning is not a season.",
     ],
   },
@@ -232,12 +230,12 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "The pelagic forage of the Southern Ocean, typically 10–25 cm. Lives throughout the water column over the Antarctic slope; recorded to about 700 m. Eaten by penguins, toothfish, minke, and orca.",
-    program: "Polarized shoal. Type II graze on z. Fills cells south of about 54°S that no northern clupeid covers. Toothfish hunt this taxon.",
+    program: "Polarized shoal. Type II graze on z. When the cell holds ice, DVM shoals toward the ice–water film. Fills cells south of about 54°S that no northern clupeid covers. Toothfish hunt this taxon.",
     missing: [
       "Penguins are not agents.",
       "Krill is now a school taxon where hulls overlap; silverfish still graze z, not krill bites.",
       "Neutral buoyancy from high muscle lipid (no swim bladder) is just a fish integrator.",
-      "Platelet-ice and under-ice winter habitat are not a field.",
+      "Platelet ice as a distinct crystal habitat is not a type — ice is concentration and thickness.",
       "Ontogenetic depth split (larvae versus adults) is not a stage.",
       "Weddell seals are not agents.",
     ],
@@ -310,13 +308,13 @@ export const FAUNA = {
     about:
       "Swarming euphausiids. Antarctic krill (Euphausia superba) south of about 54°S; northern krill (Meganyctiphanes) in the North Atlantic. Typically 2–6 cm. Night near the surface on phytoplankton; day tens of metres down. Food for minke, humpback, and silverfish in nature.",
     program:
-      "Scatter swarm on the shared grid. Type II graze on phytoplankton p (not z). Recruits when p or z can carry the mixed school budget. Mysticetes bite this taxon like any other school agent. Mesh hangs head-up; the paddle can station-keep below herring minSpeed, and hangs on the current more than a ram fish.",
+      "Scatter swarm on the shared grid. Type II graze on phytoplankton p (not z), including ice-algal P when the cell holds ice. When ice is present, DVM shoals toward the ice–water film. Recruits when p or z can carry the mixed school budget. Mysticetes bite this taxon like any other school agent. Mesh hangs head-up; the paddle can station-keep below herring minSpeed, and hangs on the current more than a ram fish.",
     missing: [
       "Krill as a basin-scale density field is not this agent set.",
-      "Ice-edge blooms are not a season.",
+      "Ice-edge blooms as a mapped filament are not a season — ice concentration is a cell mean.",
       "Swarm densities of thousands per cubic metre are a scatter school, not a super-swarm field.",
       "Filter-basket feeding is Type II graze on p, not an appendage model.",
-      "Antarctic overwintering under ice and lipid storage are not a season.",
+      "Antarctic lipid overwinter and diapause are not a season.",
       "Calyptopis / furcilia larvae and moulting stanzas are not stages.",
       "Photophore flashing is not a cue.",
     ],

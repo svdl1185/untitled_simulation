@@ -33,6 +33,7 @@ export function createWaterSurface(uniforms) {
       uWaterAbove: uniforms.uWaterAbove,
       uWaterBelow: uniforms.uWaterBelow,
       uWaterFres: uniforms.uWaterFres,
+      uIce: uniforms.uIce || { value: 0 },
     },
     transparent: true,
     side: THREE.DoubleSide,
@@ -40,6 +41,7 @@ export function createWaterSurface(uniforms) {
     vertexShader: /* glsl */ `
       uniform float uTime;
       uniform float uStorm;
+      uniform float uIce;
       varying vec3 vN;
       varying vec3 vWorld;
 
@@ -64,6 +66,7 @@ export function createWaterSurface(uniforms) {
         float zWave = p.z - 14.0 * sin(p.x * 0.0105) - 5.5 * sin(p.x * 0.028);
         float shore = smoothstep(${shoreZ} - 28.0, ${shoreZ} + 8.0, zWave);
         chop *= 1.0 - shore * 0.85;
+        chop *= 1.0 - uIce * 0.92;
         gerstner(p, nAcc, normalize(vec2(1.0, 0.35)), 0.14 * chop, 28.0, 1.15);
         gerstner(p, nAcc, normalize(vec2(-0.6, 1.0)), 0.09 * chop, 17.0, 1.55);
         gerstner(p, nAcc, normalize(vec2(0.2, -1.0)), 0.05 * chop, 9.0, 2.1);
@@ -80,6 +83,7 @@ export function createWaterSurface(uniforms) {
       uniform vec3 uWaterAbove;
       uniform vec3 uWaterBelow;
       uniform vec3 uWaterFres;
+      uniform float uIce;
       varying vec3 vN;
       varying vec3 vWorld;
 
@@ -102,8 +106,13 @@ export function createWaterSurface(uniforms) {
         float foam = foamBand * (0.4 + 0.6 * sin(vWorld.x * 0.35 + uTime * 2.4 + zWave * 0.2));
         above = mix(above, vec3(0.92, 0.96, 0.98), foam * 0.7 * fromAbove);
         below = mix(below, vec3(0.55, 0.72, 0.78), foam * 0.25);
+        float lead = fract(sin(dot(floor(vWorld.xz * 0.08), vec2(12.9898, 78.233))) * 43758.5453);
+        float pack = uIce * smoothstep(0.08, 0.42, uIce - lead * (1.0 - uIce) * 0.85);
+        vec3 iceCol = vec3(0.78, 0.88, 0.93);
+        above = mix(above, iceCol, pack * fromAbove);
+        below = mix(below, iceCol * 0.42, pack * 0.62);
         vec3 col = mix(below, above, fromAbove);
-        float alpha = mix(0.78, 0.62, fromAbove) * (1.0 - shore);
+        float alpha = mix(mix(0.78, 0.62, fromAbove), mix(0.9, 0.97, pack), uIce) * (1.0 - shore);
         gl_FragColor = vec4(col, alpha);
       }
     `,

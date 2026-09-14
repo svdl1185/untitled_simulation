@@ -4,6 +4,7 @@ import { sampleFlow } from "./flow.js";
 import { samplePAR } from "./light.js";
 import { columnQ10, productionQ10 } from "./temperature.js";
 import { setOxygenDemand } from "./oxygen.js";
+import { iceAlgaeWant } from "./ice.js";
 
 const _grad = { x: 0, z: 0 };
 const _flowP = { x: 0, y: 0, z: 0 };
@@ -641,7 +642,11 @@ export class Plankton {
       const deep = Math.min(1, Math.max(0, (thermo - y) / nutSpan));
       const nDeep = nProfile(y, nutLine);
       nCol[i] += (0.12 + 0.88 * nDeep - nCol[i]) * kN;
-      const pWant = Math.max(1e-5, samplePAR(y, dayLook) * (0.18 + 0.82 * Math.max(0, nCol[i])));
+      const par = samplePAR(y, dayLook);
+      const pWant = Math.max(
+        1e-5,
+        par * (0.18 + 0.82 * Math.max(0, nCol[i])) + iceAlgaeWant(y, par)
+      );
       pCol[i] += (pWant - pCol[i]) * kP;
       const dy = y - zWant;
       zCol[i] += (Math.exp(-(dy * dy) / (2 * sigZ * sigZ)) - zCol[i]) * kZ;

@@ -1,14 +1,15 @@
 # Fields
 
-How the water column is sampled. Agents never get a private current, a private sun, a private temperature, or a private oxygen field — they read these.
+How the water column is sampled. Agents never get a private current, a private sun, a private temperature, a private oxygen field, or a private ice cover — they read these.
 
 ## Light — `src/simulation/light.js`
 
 Photosynthetically active radiation. Beer–Lambert: \(I(z) = I_0 e^{-K_d z}\).
 
-- \(I_0\) comes from the day look (sun elevation, night, storm).
+- \(I_0\) comes from the day look (sun elevation, night, storm), then ice transmission.
 - \(K_d\) is set so the 1% light depth matches `openPhoticY()` (turbidity). `photicLimitY()` clips that to the seafloor for the column HUD — fog, caustics, and seafloor shading do not treat the sand as the 1% depth.
 - Fog, caustics, phytoplankton growth, fish/seafloor shading, and visual hunt share that envelope.
+- Ice is an \(I_0\) skin: `iceTransmit` (leads plus the floe) multiplies surface PAR before Kd. Pack ice does not change turbidity Kd.
 - `samplePAR(y, look)` is PAR 0–1 at depth.
 - `visualRange(y, look, base, glow)` scales detect / fear for sighted hunters. `glow` is photophore prey (lanternfish): restores a fraction of `base` in the dark. Sperm whale / orca `sense: "echo"` skip this. Filter-only diets skip it.
 - Camera lamp (`K`) is fill after dark. It does not feed `visualRange`.
@@ -48,4 +49,8 @@ Climate upwell (`climateUpwell`) and storms add a mean **upward** lift around th
 
 3D concentration is separable: \(C(x,y,z) = \mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). Horizontal mass is 128×128 (`n`, `p`, `z`, `d`). The column is a shared shape, not a second budget and not a 128³ grid: P follows the photic / DCM, Z a DVM, N a nutricline that shoals under climate upwell and storms, D sinks. `sampleAt` / `grazeAt` apply the product and return 0 below the local seafloor. Production uses PAR weighted by the P profile; Z grazing uses P–Z column coincidence; detritus export to `benthos` scales with the column bottom. Cod graze that store on the bed.
 
-`overlap(look, y, layer)` is the 0–1 encounter weight. `grazeBenthos` is the demersal bite. The renderer stacks slices on the live column bins so P is green in the photic and Z sparkles on the DVM.
+`overlap(look, y, layer)` is the 0–1 encounter weight. `grazeBenthos` is the demersal bite. Ice algae (`iceAlgaeWant`) adds P in the top ~10 m when the cell holds ice. The renderer stacks slices on the live column bins so P is green in the photic and Z sparkles on the DVM.
+
+## Sea ice — `src/simulation/ice.js`
+
+Sibling of `sampleTemp`. Concentration 0–1 from latitude, longitude, and season. Thickness follows concentration. `iceTransmit` is the under-ice PAR factor. Polar night / midnight sun live on `solarSinElev` in `day.js` — the 24 h clock does not force night at hour 0 under midnight sun. `iceAnomaly` is a physical control. Catalog tank is ice-free. Drift, ice age, and mapped polynyas are still gaps.

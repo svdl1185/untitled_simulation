@@ -24,6 +24,7 @@ function assert(cond, msg) {
   }
   assert(demoById("catalog")?.kind === "lab", "catalog tank is the 10 km lab");
   assert(DEMO_CELLS.some((d) => d.id === "shelf"), "North Sea shelf demo");
+  assert(DEMO_CELLS.some((d) => d.id === "polar" && d.status === "coupled"), "polar ice is coupled");
   assert(DEMO_CELLS.some((d) => d.id === "reef" && d.status === "gap"), "reef is still a gap tile");
 }
 

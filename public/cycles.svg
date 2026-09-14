@@ -39,7 +39,7 @@
   <g font-family="ui-sans-serif, system-ui, sans-serif">
     <rect x="12" y="64" width="114" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
     <text x="69" y="79" fill="#e7f4f2" font-size="11" font-weight="600" text-anchor="middle">Light</text>
-    <text x="69" y="92" fill="#9bb8b4" font-size="9" text-anchor="middle">PAR &#183; Kd &#183; turbidity</text>
+    <text x="69" y="92" fill="#9bb8b4" font-size="9" text-anchor="middle">PAR &#183; Kd &#183; ice</text>
 
     <rect x="134" y="64" width="114" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
     <text x="191" y="79" fill="#e7f4f2" font-size="11" font-weight="600" text-anchor="middle">Temperature</text>
@@ -107,8 +107,8 @@
   <text x="8" y="318" fill="#6aa8d4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" transform="rotate(-90 12 318)">upwell N</text>
 
   <!-- Ghost primary production -->
-  <rect x="148" y="112" width="72" height="22" rx="3" fill="none" stroke="#a89068" stroke-dasharray="3 2"/>
-  <text x="184" y="126" fill="#a89068" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">ice algae</text>
+  <rect x="148" y="112" width="72" height="22" rx="3" fill="#12351c" stroke="#7dcf7a"/>
+  <text x="184" y="126" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">ice algae</text>
 
   <rect x="160" y="428" width="88" height="22" rx="3" fill="none" stroke="#a89068" stroke-dasharray="3 2"/>
   <text x="204" y="442" fill="#a89068" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">vents / seeps</text>
@@ -174,7 +174,7 @@
 
   <!-- Biomes -->
   <text x="20" y="528" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" letter-spacing="0.14em">EVERY KIND OF OCEAN</text>
-  <text x="620" y="528" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="9" text-anchor="end">this cell is pelagic &#183; the rest still has to land</text>
+  <text x="620" y="528" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="9" text-anchor="end">pelagic + ice field &#183; the rest still has to land</text>
 
   <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">
     <rect x="12" y="540" width="148" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
@@ -197,9 +197,9 @@
     <text x="86" y="599" fill="#d4c4a0" font-weight="600" text-anchor="middle">Coral reef</text>
     <text x="86" y="612" fill="#a89068" font-size="8" text-anchor="middle">calcification &#183; bleaching</text>
 
-    <rect x="168" y="584" width="148" height="36" rx="4" fill="none" stroke="#a89068" stroke-dasharray="4 3"/>
-    <text x="242" y="599" fill="#d4c4a0" font-weight="600" text-anchor="middle">Polar ice</text>
-    <text x="242" y="612" fill="#a89068" font-size="8" text-anchor="middle">ice algae &#183; seals &#183; polynya</text>
+    <rect x="168" y="584" width="148" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="242" y="599" fill="#e7f4f2" font-weight="600" text-anchor="middle">Polar ice</text>
+    <text x="242" y="612" fill="#9bb8b4" font-size="8" text-anchor="middle">ice &#183; PAR &#183; polar cod</text>
 
     <rect x="324" y="584" width="148" height="36" rx="4" fill="none" stroke="#a89068" stroke-dasharray="4 3"/>
     <text x="398" y="599" fill="#d4c4a0" font-weight="600" text-anchor="middle">Coast / estuary</text>
@@ -216,6 +216,6 @@
     <rect x="12" y="656" width="10" height="10" rx="2" fill="none" stroke="#a89068" stroke-dasharray="3 2"/>
     <text x="28" y="665">not in the model yet - still a gap, even if a mesh could fake it</text>
     <text x="28" y="688" fill="#7fd8cf">Near the camera: agents. Kilometres out: density. Basin: Eulerian fields. Not more boids.</text>
-    <text x="28" y="704" fill="#9bb8b4">Clock: 8 min ~ 1 day. Storms mix deeper and shoal the nutricline. Air-breathers hang and blow, then dive.</text>
+    <text x="28" y="704" fill="#9bb8b4">Clock: 8 min ~ 1 day. Polar night follows the sun. Storms mix deeper and shoal the nutricline. Air-breathers hang and blow, then dive.</text>
   </g>
 </svg>

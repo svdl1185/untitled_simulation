@@ -9,7 +9,9 @@ import {
   saturationO2,
 } from "./oxygen.js";
 import { bindCellUpwell, climateUpwell, sampleFlow } from "./flow.js";
-import { CONFIG, breathTargetY, photicLimitY, openPhoticY, columnZones } from "../config.js";
+import { bindCellIce, climateIce, iceAlgaeWant, iceThickness, iceTransmit } from "./ice.js";
+import { DayCycle, solarSinElev } from "./day.js";
+import { CONFIG, breathTargetY, photicLimitY, openPhoticY, columnZones, dvmY } from "../config.js";
 import { Plankton, TROPHIC } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
 import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
@@ -427,4 +429,65 @@ function assert(cond, msg) {
   assert(SPECIES.orca.vehicle.count < shares.cod, "orca count stays below school-cod abundance");
 }
 
-console.log("column physics: 18 checks ok");
+{
+  const north = climateIce(56, 3.2, 80);
+  const barentsWinter = climateIce(75.4, 32.1, 80);
+  const barentsSummer = climateIce(75.4, 32.1, 200);
+  const antarcticWinter = climateIce(-64.8, -60.2, 262);
+  assert(north === 0, `North Sea should be ice-free, got ${north}`);
+  assert(barentsWinter > 0.45, `Barents March should hold pack, got ${barentsWinter.toFixed(2)}`);
+  assert(barentsWinter > barentsSummer, "Barents ice should thin toward summer");
+  assert(antarcticWinter > 0.5, `Antarctic slope in September should hold pack, got ${antarcticWinter.toFixed(2)}`);
+  assert(iceThickness(0.7) > iceThickness(0.2), "thicker pack on higher concentration");
+  assert(iceTransmit(0.8) < 0.45, "pack ice should cut under-ice PAR");
+  assert(iceTransmit(0) === 1, "open water transmits fully");
+}
+
+{
+  const saved = { ice: CONFIG.water.ice, iceT: CONFIG.water.iceT, iceH: CONFIG.water.iceH, anomaly: CONFIG.water.iceAnomaly };
+  CONFIG.water.ice = 0;
+  CONFIG.water.iceT = 1;
+  const open = samplePAR(-8, { night: 0, caustic: 1, sunDir: { y: 0.8 }, storm: 0 });
+  CONFIG.water.ice = 0.8;
+  CONFIG.water.iceT = iceTransmit(0.8);
+  const under = samplePAR(-8, { night: 0, caustic: 1, sunDir: { y: 0.8 }, storm: 0 });
+  assert(under < open * 0.5, `under-ice PAR should drop (${under.toFixed(3)} vs open ${open.toFixed(3)})`);
+  const algae = iceAlgaeWant(-2, 0.4);
+  const deep = iceAlgaeWant(-40, 0.4);
+  CONFIG.water.ice = saved.ice;
+  CONFIG.water.iceT = saved.iceT;
+  CONFIG.water.iceH = saved.iceH;
+  CONFIG.water.iceAnomaly = saved.anomaly;
+  assert(algae > 0.05, "ice algae produces in the film");
+  assert(deep === 0, "ice algae is not a 40 m source");
+}
+
+{
+  const savedIce = CONFIG.water.ice;
+  CONFIG.water.ice = 0.8;
+  const cfg = knobsFor("polarcod");
+  const y = dvmY(12, cfg);
+  CONFIG.water.ice = savedIce;
+  assert(y > -30, `polar cod under pack ice should shoal, got ${y.toFixed(1)}`);
+}
+
+{
+  assert(solarSinElev(75, 12, 355) < 0, "75°N at December noon is polar night");
+  assert(solarSinElev(75, 0, 172) > 0, "75°N at June midnight is midnight sun");
+  const day = new DayCycle();
+  day.latitude = 75.4;
+  day.dayIndex = 355;
+  day.setHour(12);
+  assert(day.look.night > 0.45, `polar-night noon should stay dark, night=${day.look.night.toFixed(2)}`);
+  assert(day.look.name === "Polar night", `phase should be Polar night, got ${day.look.name}`);
+  day.dayIndex = 172;
+  day.setHour(0);
+  assert(day.look.night < 0.4, `midnight sun should not use the 24 h night preset, night=${day.look.night.toFixed(2)}`);
+  assert(day.look.name === "Midnight sun", `phase should be Midnight sun, got ${day.look.name}`);
+  day.latitude = 56;
+  day.dayIndex = 180;
+  day.setHour(12);
+  assert(day.look.night < 0.15, "North Sea noon is still day");
+}
+
+console.log("column physics: 22 checks ok");
