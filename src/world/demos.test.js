@@ -1,4 +1,4 @@
-import { DEMO_CELLS, defaultToggles, demoById, naturalPresence, presenceFromToggles, sandboxIds } from "./demos.js";
+import { DEMO_CELLS, defaultToggles, demoById, makeDemoPatch, naturalPresence, presenceFromToggles, sandboxIds } from "./demos.js";
 import { PRESENCE_IDS, SPECIES } from "./fauna.js";
 import { applyPatch, applyPresence, makeSyntheticPatch, makeTestPatch } from "./patch.js";
 import { faunaPresent } from "../config.js";
@@ -55,6 +55,17 @@ function assert(cond, msg) {
 }
 
 {
+  const ant = makeDemoPatch(demoById("antarctic"));
+  assert(ant.dayIndex === 15, `antarctic window is austral summer, got ${ant.dayIndex}`);
+  const polar = makeDemoPatch(demoById("polar"));
+  assert(polar.dayIndex === 172, `polar window is midnight sun, got ${polar.dayIndex}`);
+  const tank = makeDemoPatch(demoById("catalog"));
+  assert(tank.dayIndex === 180, `catalog tank stays day 180, got ${tank.dayIndex}`);
+  const shelf = makeDemoPatch(demoById("shelf"));
+  assert(shelf.dayIndex === 180, "North Sea stays day 180");
+}
+
+{
   applyPatch(makeTestPatch());
   const p = { ...PRESENCE_IDS.reduce((acc, id) => ((acc[id] = 1), acc), {}), herring: 0 };
   applyPresence(p, { honorFloor: false });
@@ -70,4 +81,4 @@ function assert(cond, msg) {
   assert(!faunaPresent("cod"), "sandbox can remove cod");
 }
 
-console.log("demo cells: 5 checks ok");
+console.log("demo cells: 6 checks ok");

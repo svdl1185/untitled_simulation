@@ -18,7 +18,7 @@ Photosynthetically active radiation. Beer–Lambert: \(I(z) = I_0 e^{-K_d z}\).
 
 Sibling of `sampleFlow`.
 
-- SST is a latitude climatology plus a seasonal cycle plus `CONFIG.water.sstAnomaly`.
+- SST is a latitude climatology plus a seasonal cycle plus `CONFIG.water.sstAnomaly`. High-latitude seasonal amplitude is small — pack-ice cells stay polar.
 - The mixed layer is well-mixed; below it temperature falls toward a deep value. `CONFIG.thermoY` is that mixed-layer depth. Winter mixes deeper; storms mix deeper still.
 - `sampleTemp(x, y, z)` returns °C.
 - `q10Factor` / `columnQ10` scale NPZD rates, school metabolism/graze, and vehicle drain.
@@ -47,10 +47,10 @@ Climate upwell (`climateUpwell`) and storms add a mean **upward** lift around th
 
 ## NPZD + benthos — `src/simulation/plankton.js`
 
-3D concentration is separable: \(C(x,y,z) = \mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). Horizontal mass is 128×128 (`n`, `p`, `z`, `d`). The column is a shared shape, not a second budget and not a 128³ grid: P follows the photic / DCM, Z a DVM, N a nutricline that shoals under climate upwell and storms, D sinks. `sampleAt` / `grazeAt` apply the product and return 0 below the local seafloor. Production uses PAR weighted by the P profile; Z grazing uses P–Z column coincidence; detritus export to `benthos` scales with the column bottom. Cod graze that store on the bed.
+3D concentration is separable: \(C(x,y,z) = \mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). Horizontal mass is 128×128 (`n`, `p`, `z`, `d`). The column is a shared shape, not a second budget and not a 128³ grid: P follows the photic / DCM, Z a DVM, N a nutricline that shoals under climate upwell and storms, D sinks. `sampleAt` / `grazeAt` apply the product and return 0 below the local seafloor. Production uses PAR weighted by the P profile; Z grazing uses P–Z column coincidence; detritus export to `benthos` scales with the column bottom. Cod graze that store on the bed. `carryingCapacity` scales the school grazer cap with bloom mean, `prodIndex`, live `photicLight`, and `productionQ10`.
 
 `overlap(look, y, layer)` is the 0–1 encounter weight. `grazeBenthos` is the demersal bite. Ice algae (`iceAlgaeWant`) adds P in the top ~10 m when the cell holds ice. The renderer stacks slices on the live column bins so P is green in the photic and Z sparkles on the DVM.
 
 ## Sea ice — `src/simulation/ice.js`
 
-Sibling of `sampleTemp`. Concentration 0–1 from latitude, longitude, and season. Thickness follows concentration. `iceTransmit` is the under-ice PAR factor. Polar night / midnight sun live on `solarSinElev` in `day.js` — the 24 h clock does not force night at hour 0 under midnight sun. `iceAnomaly` is a physical control. Catalog tank is ice-free. Drift, ice age, and mapped polynyas are still gaps.
+Sibling of `sampleTemp`. Concentration 0–1 from latitude, longitude, and season. Thickness follows concentration. `iceTransmit` is the under-ice PAR factor. Polar night / midnight sun live on `solarSinElev` in `day.js` — the 24 h clock does not force night at hour 0 under midnight sun. Named Cells stamp `observeDayIndex` before `bindCellIce`. `iceAnomaly` is a physical control. Catalog tank is ice-free. Drift, ice age, and mapped polynyas are still gaps.

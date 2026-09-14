@@ -231,7 +231,7 @@
               is a picker of named kilometres: the 10 km catalog tank (every species, stepped shelves, 2000 m)
               plus biomes from the coupling figure. Gap tiles still open the pelagic water at that site — they
               do not invent coral or a vent. Polar ice is coupled. Neighbour chunks cache; animals do not swim between cells.
-              Clock: 8 min ≈ 1 day, twelve sim days per year. Polar night follows the sun. Storms mix deeper, shoal the nutricline,
+              Clock: 8 min ≈ 1 day, twelve sim days per year. Polar night follows the sun. Named Cells stamp a productive-season day-of-year (Antarctic ~15 Jan, high Arctic ~21 Jun). Storms mix deeper, shoal the nutricline,
               and raise current.
             </li>
             <li>
@@ -240,21 +240,25 @@
               shared by fog, caustics, phytoplankton, and visual hunt. Pack ice is an
               <em>I</em><sub>0</sub> skin. A shelf floor inside the
               photic envelope stays sunlit. Temperature and Q10
-              (<code>sampleTemp</code>). Dissolved oxygen and OMZ (<code>sampleO2</code>). Sea ice
-              (<code>climateIce</code>: concentration, thickness, ice algae). Separable
+              (<code>sampleTemp</code>; high-latitude amplitude is small). Dissolved oxygen and OMZ (<code>sampleO2</code>). Sea ice
+              (<code>climateIce</code>: concentration, thickness, ice algae on the P patch). Separable
               NPZD (128×128 patch × column: N, P, Z, D). Benthos: detritus flux onto the bed.
             </li>
             <li>
               <strong>Agents.</strong> One hashed-grid school (cap 20k): grazers on a bloom cap,
               piscivores on a prey-capped slice of the same grid. Vehicles are the rares and
               air-breathers. Social modes: polarized, loose, scatter. Gaits on vehicles: burst, ram,
-              jet. Air-breathers hang and blow, then a flukes-up dive. Spawn against the local
-              seafloor; <code>maxDepth</code> is biological, then the floor, then oxygen.
+              jet. Hungry biters — including benthic cod and toothfish, and DVM giant squid — leave
+              refuge toward live prey; satiated animals sit in the typical band. A bloom clip packs
+              survivors into live shoals. Outside the catalog tank, vehicle counts scale with live
+              forage. Air-breathers hang
+              and blow, then a flukes-up dive. Echo detect is length-scaled, not PAR. Spawn against
+              the local seafloor; <code>maxDepth</code> is biological, then the floor, then oxygen.
             </li>
             <li>
-              <strong>Budgets.</strong> Grazer ceiling = bloom mean × photic production. Piscivore
+              <strong>Budgets.</strong> Grazer ceiling = bloom mean × photic production × live light × Q10. Piscivore
               ceiling = live forage / prey ratio on the same grid. Type II graze on <code>z</code> or
-              <code>p</code>. Bites restore energy; missing prey is a starve. Sperm whale × giant
+              <code>p</code>. Neighbour-walk bites reach at least one hashed-grid cell. Missing prey is a starve. Sperm whale × giant
               squid is the vehicle-on-vehicle bite; Humboldt is school <code>huntTaxa</code>. Q10 and
               hypoxia scale rates. Closed mass: graze, excretion, carcass, sink, remineralisation,
               benthos graze.

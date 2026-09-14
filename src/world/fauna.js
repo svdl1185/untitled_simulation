@@ -931,7 +931,7 @@ export const SPECIES = {
       minSchoolSize: 24,
       metabolism: 0.018,
       o2Min: 2.4,
-      biteRadius: 1.35,
+      biteRadius: 2.0,
       eatEnergy: 0.07,
       fearRadius: 12,
       groups: 3,
@@ -977,7 +977,7 @@ export const SPECIES = {
       fleeSpeed: 8.5,
       minSchoolSize: 8,
       metabolism: 0.008,
-      biteRadius: 1.15,
+      biteRadius: 2.4,
       eatEnergy: 0.1,
       fearRadius: 9,
       benthosGraze: 0.00045,
@@ -1024,7 +1024,7 @@ export const SPECIES = {
       fleeSpeed: 7.2,
       minSchoolSize: 4,
       metabolism: 0.007,
-      biteRadius: 1.35,
+      biteRadius: 3.8,
       eatEnergy: 0.11,
       fearRadius: 11,
       huntTaxa: ["silverfish"],
@@ -1124,10 +1124,10 @@ export const SPECIES = {
       o2Min: 2,
       fearRadius: 32,
       lungeFearRadius: 38,
-      biteRadius: 1.6,
+      biteRadius: 2.2,
       mouthOffset: 1.4,
-      energyDrain: 0.0021,
-      eatEnergy: 0.08,
+      energyDrain: 0.0016,
+      eatEnergy: 0.11,
       gait: "burst",
       mesh: "hammerhead",
       diet: "bite",
@@ -1281,8 +1281,8 @@ export const SPECIES = {
       forageDepth: -700,
       fearRadius: 48,
       lungeFearRadius: 54,
-      biteRadius: 3.2,
-      lungeBiteRadius: 5.5,
+      biteRadius: 4.2,
+      lungeBiteRadius: 6.8,
       mouthOffset: 6.2,
       energyDrain: 0.0013,
       eatEnergy: 0.16,
@@ -1373,9 +1373,9 @@ export const SPECIES = {
       pitchLimit: 0.95,
       pitchDamp: 0.85,
       maxTurn: 2.2,
-      metabolism: 0.02,
-      biteRadius: 1.4,
-      eatEnergy: 0.07,
+      metabolism: 0.016,
+      biteRadius: 3.8,
+      eatEnergy: 0.1,
       fearRadius: 16,
       huntTaxa: ["anchovy", "sardine", "mackerel", "lanternfish", "jackmackerel"],
       minSchoolSize: 8,
@@ -1419,11 +1419,11 @@ export const SPECIES = {
       duskDepth: -580,
       fearRadius: 28,
       lungeFearRadius: 36,
-      biteRadius: 2.4,
-      lungeBiteRadius: 3.8,
+      biteRadius: 4.2,
+      lungeBiteRadius: 6.4,
       mouthOffset: 3.4,
       energyDrain: 0.0015,
-      eatEnergy: 0.12,
+      eatEnergy: 0.14,
       starveDays: 5.5,
       gait: "jet",
       minSpeed: 1.1,
@@ -1457,11 +1457,11 @@ export const SPECIES = {
       forageDepth: -18,
       fearRadius: 26,
       lungeFearRadius: 32,
-      biteRadius: 1.15,
-      lungeBiteRadius: 2.0,
+      biteRadius: 2.2,
+      lungeBiteRadius: 3.2,
       mouthOffset: 0.95,
-      energyDrain: 0.0024,
-      eatEnergy: 0.08,
+      energyDrain: 0.0016,
+      eatEnergy: 0.12,
       starveDays: 3,
       gait: "ram",
       minSpeed: 4.6,
@@ -1501,7 +1501,7 @@ export const SPECIES = {
       fleeSpeed: 22,
       minSchoolSize: 8,
       metabolism: 0.019,
-      biteRadius: 1.2,
+      biteRadius: 1.8,
       eatEnergy: 0.07,
       fearRadius: 11,
       groups: 2,
@@ -1540,7 +1540,7 @@ export const SPECIES = {
       fleeSpeed: 26,
       minSchoolSize: 4,
       metabolism: 0.014,
-      biteRadius: 1.15,
+      biteRadius: 1.8,
       eatEnergy: 0.08,
       fearRadius: 10,
       groups: 3,
@@ -1584,7 +1584,7 @@ export const SPECIES = {
       minSchoolSize: 12,
       metabolism: 0.018,
       o2Min: 2,
-      biteRadius: 1.5,
+      biteRadius: 2.2,
       eatEnergy: 0.08,
       fearRadius: 14,
       groups: 2,
@@ -1659,8 +1659,8 @@ export const SPECIES = {
       maxSpeed: 22,
       fleeSpeed: 28,
       minSchoolSize: 4,
-      metabolism: 0.02,
-      biteRadius: 1.4,
+      metabolism: 0.016,
+      biteRadius: 2.4,
       eatEnergy: 0.08,
       fearRadius: 16,
       groups: 2,
@@ -1893,7 +1893,7 @@ export function allocateSchoolCounts(cap, taxa, minPer = 0) {
   };
   while (used > n) {
     const b = biggest();
-    if (out[b].n <= floor && used - 1 < taxa.length * Math.max(1, floor)) break;
+    if (out[b].n <= 0) break;
     out[b].n -= 1;
     used -= 1;
   }
@@ -1934,7 +1934,13 @@ export function allocateMixedSchoolCounts(totalCap, taxa, bloomCap, minPer = 0, 
     const cfg = taxa[i].cfg || knobsFor(taxa[i].id);
     if (isSchoolGrazer(cfg)) preyN += out[i].n;
   }
-  const bCap = Math.min(n - gCap, piscivoreCapacity(preyN, biters, ratio));
+  const bCap = Math.min(
+    n - gCap,
+    Math.max(
+      piscivoreCapacity(preyN, biters, ratio),
+      Math.min(biters.length, Math.floor(preyN / 8))
+    )
+  );
   write(allocateSchoolCounts(bCap, biters, 0));
   return out;
 }

@@ -132,6 +132,7 @@ export function runOneCell(cellId, opts = {}) {
   const fishN = anySchoolPresent() ? Number(opts.fish ?? CONFIG.initialFish) : 0;
   const school = new School(fishN, { hour: day.look.hour });
   const plankton = new Plankton();
+  plankton.acclimate(day.look);
   school.clipToBloom(plankton);
   const sharks = spawnPredators(school, predatorCounts());
   const log = new ViabilityLog();

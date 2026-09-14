@@ -5,6 +5,19 @@ import { bindCellOxygen } from "./oxygen.js";
 import { bindCellIce, iceTransmit } from "./ice.js";
 import { surfacePAR } from "./light.js";
 
+/**
+ * Day-of-year a named cell is a window onto. Antarctic tiles open on
+ * austral summer (~15 Jan), high Arctic on midnight sun (~21 Jun);
+ * mid-latitudes stay boreal summer (180). Map roam does not stamp this.
+ */
+export function observeDayIndex(lat) {
+  const la = Number(lat);
+  if (!Number.isFinite(la)) return CONFIG.time.dayIndex ?? 180;
+  if (la < -40) return 15;
+  if (la > 66) return 172;
+  return 180;
+}
+
 /** Sine of solar elevation. Polar night is negative at noon; midnight sun stays positive at hour 0. */
 export function solarSinElev(lat, hour, dayOfYear = 180) {
   const latR = ((lat ?? 54) * Math.PI) / 180;

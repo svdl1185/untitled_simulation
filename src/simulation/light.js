@@ -104,6 +104,18 @@ export function visualHunter(cfg) {
   return true;
 }
 
+/**
+ * Strike search radius in metres. Echo is length-scaled and ignores PAR.
+ * Sighted hunters use `visualRange`; `glow` restores a DSL fraction.
+ */
+export function huntDetectRange(cfg, y, look, base = 7.2, glow = 0) {
+  const len = cfg?.length ?? 4;
+  const b = Math.max(base, len * 0.55 + 5);
+  if (cfg?.sense === "echo") return Math.max(b * 2.2, len * 2.6 + 12);
+  if (!visualHunter(cfg)) return b;
+  return visualRange(y, look, b, glow);
+}
+
 export function photicY() {
   return openPhoticY();
 }

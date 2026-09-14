@@ -17,12 +17,37 @@ function packOf(sharks) {
   return Array.isArray(sharks) ? sharks : sharks ? [sharks] : [];
 }
 
-function shoalTargetY(hour, cfg, x, z) {
+export function shoalTargetY(hour, cfg, x, z) {
   if (cfg.habitat === "benthic") {
     return seafloorHeight(x, z) + (cfg.floorClearance ?? 2.4) + 2;
   }
   return dvmY(hour, cfg);
 }
+
+/**
+ * Typical band, then hungry biters leave it toward live prey.
+ * Satiated benthic hunters stay on the bed. The seafloor still clamps later.
+ */
+export function shoalHuntY(hour, cfg, x, z, hunger, preyY) {
+  const refuge = shoalTargetY(hour, cfg, x, z);
+  if (!isSchoolBiter(cfg) || preyY == null || !Number.isFinite(preyY)) return refuge;
+  const benthic = cfg.habitat === "benthic";
+  if (benthic) return hunger > 0.3 ? preyY : refuge;
+  const gate = 0.18;
+  if (!(hunger > gate)) return refuge;
+  const t = Math.min(1, (hunger - gate) / 0.4);
+  const pull = 0.5 + t * 0.5;
+  return refuge + (preyY - refuge) * pull;
+}
+
+/** Neighbour-walk bite must reach at least one hashed-grid cell. */
+export function schoolBiteRadius(cfg) {
+  const want = cfg?.biteRadius || 1.2;
+  const cell = CONFIG.cellSize || 3.8;
+  return want > cell ? want : cell;
+}
+
+const HUNT_SCHOOL_MIN = 1;
 
 const NEAR_K = 6;
 const NEIGHBOR_BUDGET = 40;
@@ -460,21 +485,55 @@ export class School {
       CONFIG.piscivorePreyRatio
     );
     const want = alloc.map((row) => row.n);
-    const have = new Array(this.taxa.length).fill(0);
-    for (let i = 0; i < this.count; i++) have[this.taxon[i]]++;
-    let i = this.count - 1;
-    let guard = this.count + 8;
-    while (guard-- > 0 && i >= 0) {
-      const t = this.taxon[i];
-      if (have[t] > (want[t] ?? 0)) {
-        this.remove(i, false);
-        have[t]--;
-        if (i >= this.count) i = this.count - 1;
-      } else {
-        i--;
-      }
+    const kept = new Uint32Array(this.taxa.length);
+    let w = 0;
+    for (let r = 0; r < this.count; r++) {
+      const t = this.taxon[r];
+      if (kept[t] >= (want[t] ?? 0)) continue;
+      if (w !== r) this._copyAgent(w, r);
+      kept[t]++;
+      w++;
     }
+    this.count = w;
+    this._packSurvivors();
     this._refreshCentroids();
+  }
+
+  /** After a bloom clip, keep each taxon in as many packs as it still has fish — not eight empty scatter slots. */
+  _packSurvivors() {
+    if (!this._taxonSlots || !this.count) return;
+    for (let t = 0; t < this.taxa.length; t++) {
+      const idx = [];
+      for (let i = 0; i < this.count; i++) if (this.taxon[i] === t) idx.push(i);
+      if (!idx.length) continue;
+      const slots = this._taxonSlots[t];
+      if (!slots?.length) continue;
+      const want = Math.max(1, this._tcfg[t]?.groups ?? 2);
+      const k = Math.max(1, Math.min(slots.length, idx.length, want));
+      const live = slots.slice(0, k);
+      for (let n = 0; n < idx.length; n++) this.schoolId[idx[n]] = live[n % live.length];
+    }
+  }
+
+  _copyAgent(dest, src) {
+    if (dest === src) return;
+    const d3 = dest * 3;
+    const s3 = src * 3;
+    this.pos[d3] = this.pos[s3];
+    this.pos[d3 + 1] = this.pos[s3 + 1];
+    this.pos[d3 + 2] = this.pos[s3 + 2];
+    this.vel[d3] = this.vel[s3];
+    this.vel[d3 + 1] = this.vel[s3 + 1];
+    this.vel[d3 + 2] = this.vel[s3 + 2];
+    this.phase[dest] = this.phase[src];
+    this.scale[dest] = this.scale[src];
+    this.pref[dest] = this.pref[src];
+    this.alarm[dest] = this.alarm[src];
+    this.energy[dest] = this.energy[src];
+    this.biteT[dest] = this.biteT[src];
+    this.sex[dest] = this.sex[src];
+    this.schoolId[dest] = this.schoolId[src];
+    this.taxon[dest] = this.taxon[src];
   }
 
   setCount(next) {
@@ -543,25 +602,7 @@ export class School {
     if (harvested) this.eatenOf[t]++;
     else this.starvedOf[t]++;
     const last = this.count - 1;
-    if (i !== last) {
-      const i3 = i * 3;
-      const l3 = last * 3;
-      this.pos[i3] = this.pos[l3];
-      this.pos[i3 + 1] = this.pos[l3 + 1];
-      this.pos[i3 + 2] = this.pos[l3 + 2];
-      this.vel[i3] = this.vel[l3];
-      this.vel[i3 + 1] = this.vel[l3 + 1];
-      this.vel[i3 + 2] = this.vel[l3 + 2];
-      this.phase[i] = this.phase[last];
-      this.scale[i] = this.scale[last];
-      this.pref[i] = this.pref[last];
-      this.alarm[i] = this.alarm[last];
-      this.energy[i] = this.energy[last];
-      this.biteT[i] = this.biteT[last];
-      this.sex[i] = this.sex[last];
-      this.schoolId[i] = this.schoolId[last];
-      this.taxon[i] = this.taxon[last];
-    }
+    if (i !== last) this._copyAgent(i, last);
     this.count = last;
     if (harvested) {
       this.totalEaten++;
@@ -589,6 +630,7 @@ export class School {
     else if (iz0 >= nz) iz0 = nz - 1;
     let best = -1;
     let bestD = r2;
+    const budget = taxa && taxa.length ? NEIGHBOR_BUDGET * 3 : NEIGHBOR_BUDGET;
     let inspected = 0;
     outer: for (let o = 0; o < 27; o++) {
       const ix = ix0 + N27X[o];
@@ -602,7 +644,7 @@ export class School {
       for (let j = heads[h]; j >= 0; j = next[j]) {
         if (keyOf[j] !== want) continue;
         inspected++;
-        if (inspected > NEIGHBOR_BUDGET) break outer;
+        if (inspected > budget) break outer;
         if (taxa && taxa.length && !taxa.includes(this.taxonId(j))) continue;
         const j3 = j * 3;
         const dx = pos[j3] - x;
@@ -635,7 +677,7 @@ export class School {
     let bestD = Infinity;
     let matched = false;
     for (let s = 0; s < this.maxSchools; s++) {
-      if (this.schoolN[s] < 8) continue;
+      if (this.schoolN[s] < HUNT_SCHOOL_MIN) continue;
       if (want && want.length) {
         const tid = this.anchors[s]?.taxon ?? 0;
         const id = this.taxa[tid]?.id;
@@ -653,11 +695,13 @@ export class School {
       }
     }
     if (want && want.length && !matched) {
-      return this.centroids[this.schoolN[shark.huntIndex] > 8 ? shark.huntIndex : 0] || this.centroid;
+      return this.centroids[this.schoolN[shark.huntIndex] >= HUNT_SCHOOL_MIN ? shark.huntIndex : 0] || this.centroid;
     }
-    const idx = this.schoolN[shark.huntIndex] > 8 && (!want || want.includes(this.taxa[this.anchors[shark.huntIndex]?.taxon ?? 0]?.id))
-      ? shark.huntIndex
-      : best;
+    const idx =
+      this.schoolN[shark.huntIndex] >= HUNT_SCHOOL_MIN &&
+      (!want || want.includes(this.taxa[this.anchors[shark.huntIndex]?.taxon ?? 0]?.id))
+        ? shark.huntIndex
+        : best;
     return this.centroids[idx];
   }
 
@@ -684,7 +728,7 @@ export class School {
     let best = null;
     let bestD = Infinity;
     for (let k = 0; k < this.maxSchools; k++) {
-      if (k === s || this.schoolN[k] < 4) continue;
+      if (k === s || this.schoolN[k] < HUNT_SCHOOL_MIN) continue;
       const tid = this.anchors[k]?.taxon ?? 0;
       const id = this.taxa[tid]?.id;
       if (!schoolHunts(cfg, eaterId, id)) continue;
@@ -787,13 +831,13 @@ export class School {
       const flowA = sampleFlow(c.x, c.y, c.z, look?.simTime ?? 0, look?.storm ?? 0);
       a.hx += flowA.x * 0.07;
       a.hz += flowA.z * 0.07;
+      const prey = biter ? this._preyCentroid(s, scfg) : null;
       if (biter && !grazer) {
-        const prey = this._preyCentroid(s, scfg);
         if (prey) {
           let gx = prey.x - c.x;
           let gz = prey.z - c.z;
           const gLen = Math.hypot(gx, gz) || 1;
-          const pull = 0.22 + hunger * 1.15;
+          const pull = 0.55 + hunger * 1.85;
           a.hx += (gx / gLen) * pull;
           a.hz += (gz / gLen) * pull;
           a.gx = gx / gLen;
@@ -854,11 +898,12 @@ export class School {
       if (a.mill < 0.02) a.mill = 0;
       a.cruise = (a.baseCruise || a.cruise) * (1 + hunger * 0.2) * (food > 0.4 && hunger < 0.38 ? 0.74 : 1);
 
-      const leadD = lead * (1 - shore.urgency * 0.75);
+      const huntLead = biter && prey && hunger > 0.28 ? 2.2 + hunger * 2.8 : 1;
+      const leadD = lead * huntLead * (1 - shore.urgency * 0.75);
       a.x = c.x + a.hx * leadD;
       a.z = c.z + a.hz * leadD;
-      let wantY = depth + (s % 2 === 0 ? -3 : 2.2);
-      if (scfg.habitat !== "benthic") {
+      let wantY = shoalHuntY(look?.hour ?? 12, scfg, c.x, c.z, hunger, prey?.y) + (s % 2 === 0 ? -3 : 2.2);
+      if (scfg.habitat !== "benthic" && !(biter && prey && hunger > 0.22)) {
         const forageY = bloom ? bloom.forageDepth(look) : wantY;
         const night = look?.night ?? 0;
         if (night > 0.45) {
@@ -866,12 +911,9 @@ export class School {
         } else if (hunger > 0.62) {
           wantY += (forageY - wantY) * Math.min(0.28, (hunger - 0.62) * 0.7);
         }
-        if (biter && hunger > 0.48) {
-          const prey = this._preyCentroid(s, scfg);
-          if (prey) wantY += (prey.y - wantY) * 0.42;
-        }
       }
-      a.y += (wantY - a.y) * Math.min(1, dt * 0.55);
+      const huntY = biter && prey && hunger > 0.28;
+      a.y += (wantY - a.y) * Math.min(1, dt * (huntY ? 2.6 : 0.55));
       const scfgBot = this.shoalCfg(s);
       const waterTop = scfgBot.anchorTop ?? -3.2;
       const pad = scfgBot.habitat === "benthic" ? (scfgBot.floorClearance ?? 2.4) + 1.6 : 8;
@@ -970,6 +1012,7 @@ export class School {
       const polarized = (cfg.social || "polarized") === "polarized";
       const diet = schoolDiet(cfg);
       const eaterId = this.taxa[this.taxon[i]]?.id;
+      const biter = isSchoolBiter(cfg);
       this.biteT[i] = Math.max(0, (this.biteT[i] || 0) - dt);
       const anchor = this.anchors[sid];
       const hold = this.centroids[sid];
@@ -1019,8 +1062,6 @@ export class School {
         const h = (Math.imul(ix, 73856093) ^ Math.imul(iy, 19349663) ^ Math.imul(iz, 83492791)) & mask;
         for (let j = heads[h]; j >= 0; j = next[j]) {
           if (keyOf[j] !== want || j === i) continue;
-          inspected++;
-          if (inspected > NEIGHBOR_BUDGET) break outer;
           const j3 = j * 3;
           const dx = px - pos[j3];
           const dy = py - pos[j3 + 1];
@@ -1028,6 +1069,24 @@ export class School {
           const d2 = dx * dx + dy * dy + dz * dz;
           const jcfg = this._tcfg[this.taxon[j]];
           const preyId = this.taxa[this.taxon[j]]?.id;
+          if (
+            biter &&
+            schoolHunts(cfg, eaterId, preyId) &&
+            this.energy[i] < 0.82 &&
+            this.biteT[i] <= 0 &&
+            !this._eaten[j]
+          ) {
+            const br = schoolBiteRadius(cfg);
+            if (d2 < br * br) {
+              this._eaten[j] = 1;
+              this.energy[i] = Math.min(1, this.energy[i] + (cfg.eatEnergy || 0.08));
+              this.mealsOf[this.taxon[i]]++;
+              this._noteDiet(this.taxon[i], preyId);
+              this.biteT[i] = 0.16;
+            }
+          }
+          inspected++;
+          if (inspected > NEIGHBOR_BUDGET) break outer;
           if (schoolHunts(jcfg, preyId, eaterId)) {
             const scareR = jcfg.fearRadius || (jcfg.biteRadius || 1.2) * 5;
             if (d2 < scareR * scareR && d2 > 1e-5) {
@@ -1045,21 +1104,6 @@ export class School {
                 sfy = vel[j3 + 1] / sLen;
                 sfz = vel[j3 + 2] / sLen;
               }
-            }
-          }
-          if (
-            schoolHunts(cfg, eaterId, preyId) &&
-            this.energy[i] < 0.82 &&
-            this.biteT[i] <= 0 &&
-            !this._eaten[j]
-          ) {
-            const br = cfg.biteRadius || 1.2;
-            if (d2 < br * br) {
-              this._eaten[j] = 1;
-              this.energy[i] = Math.min(1, this.energy[i] + (cfg.eatEnergy || 0.08));
-              this.mealsOf[this.taxon[i]]++;
-              this._noteDiet(this.taxon[i], preyId);
-              this.biteT[i] = 0.16;
             }
           }
           if (d2 > cohR2) continue;
@@ -1307,7 +1351,10 @@ export class School {
           const ground = seafloorHeight(px, pz);
           if (py < ground + (cfg.floorClearance ?? 2.4) * 2.6 + 2) {
             const taken = bloom.grazeBenthos(px, pz, cfg.benthosGraze * dt);
-            if (taken > 0) e = Math.min(1, e + taken * 18);
+            if (taken > 0) {
+              this.grazeTaken[this.taxon[i]] += taken;
+              e = Math.min(1, e + taken * 18);
+            }
           }
         }
       }
@@ -1386,7 +1433,7 @@ export class School {
         oxygenLimitY(cfg)
       );
       if (py < floorKeep) ay += (floorKeep - py) * (5.5 + shoreU * 9);
-      if (cfg.habitat === "benthic" && shoreU < 0.08) {
+      if (cfg.habitat === "benthic" && shoreU < 0.08 && this.energy[i] > 0.62) {
         const bed = ground + cfg.floorClearance + 1.2;
         ay += (bed - py) * 3.8;
       }

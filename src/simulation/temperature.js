@@ -11,14 +11,15 @@ import { CONFIG } from "../config.js";
 export function meanSST(lat) {
   const a = Math.abs(lat);
   const trop = 27.6 * Math.cos((a * Math.PI) / 148);
-  const polar = a > 55 ? (a - 55) * 0.2 : 0;
+  const polar = a > 55 ? (a - 55) * 0.48 : 0;
   return Math.max(-1.7, trop - polar);
 }
 
 export function climatologySST(lat, dayOfYear = 180) {
   const mean = meanSST(lat);
   const a = Math.abs(lat);
-  const amp = 1.2 + 7.4 * Math.sin((a * Math.PI) / 180) ** 1.35;
+  let amp = 1.2 + 7.4 * Math.sin((a * Math.PI) / 180) ** 1.35;
+  if (a > 58) amp = Math.min(amp, 2.2) * Math.max(0.22, 1 - (a - 58) / 24);
   const phase = lat >= 0 ? 1 : -1;
   const seasonal = amp * Math.sin(((dayOfYear - 110) / 365) * Math.PI * 2) * phase;
   const anomaly = CONFIG.water?.sstAnomaly ?? 0;

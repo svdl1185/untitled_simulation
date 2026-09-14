@@ -76,7 +76,7 @@ export function iceAlgaeWant(y, par) {
   if (ice < 0.05 || y < -10) return 0;
   const film = Math.max(0, 1 + y / 10);
   const light = Math.max(0, par ?? 0);
-  return ice * film * (0.28 + 0.72 * light);
+  return ice * film * (0.4 + 0.9 * light);
 }
 
 export function bindCellIce() {

@@ -16,6 +16,7 @@ import {
 } from "./patch.js";
 import { PRESENCE_IDS, SCHOOL_IDS, SPECIES, VEHICLE_IDS, emptyPresence, fullPresence } from "./fauna.js";
 import { faunaIdsPresent, presenceAt } from "./ranges.js";
+import { observeDayIndex } from "../simulation/day.js";
 
 export const DEMO_CELLS = [
   {
@@ -112,14 +113,14 @@ export const DEMO_CELLS = [
     lat: -64.8,
     lon: -60.2,
     observe: [
-      "Antarctic silverfish and krill on a polar clock. Type II graze on z and p.",
-      "Toothfish hug the slope floor — not a North Sea cod. Minke filter the bloom and bite.",
+      "Antarctic silverfish and krill on a polar clock. Type II graze on z and p. The picker opens austral summer (~15 Jan), not June famine.",
+      "Hungry toothfish leave the slope toward silverfish; satiated fish hug the bed. Minke filter the bloom and bite.",
       "Sea ice follows latitude and season — pack ice shades PAR; ice algae feeds the top metres.",
       "Cold SST gates tropical tunas out. Empty of skipjack here is a niche, not a missing mesh.",
     ],
     missing: ["Ice types, mapped polynyas, penguins, and icefish are still gaps."],
     about:
-      "An Antarctic slope cell. Silverfish, krill, and toothfish are the Southern Ocean loop that exists today. Ice is a field: winter pack here shades the column and grows ice-algal P. Still not a polynya, and penguins are not agents.",
+      "An Antarctic slope cell opened on austral summer. Silverfish, krill, and toothfish are the Southern Ocean loop that exists today. Ice is a field: remaining pack shades the column and grows ice-algal P. Still not a polynya, and penguins are not agents.",
     extras: ["silverfish", "krill", "toothfish", "minke"],
     fallback: { floorY: -1600, beach: false, northShallow: -280 },
   },
@@ -177,7 +178,7 @@ export const DEMO_CELLS = [
     lat: 75.4,
     lon: 32.1,
     observe: [
-      "Sea-ice concentration from latitude and season. Pack ice shades PAR; leads stay brighter.",
+      "Sea-ice concentration from latitude and season. The picker opens midnight sun (~21 Jun). Pack ice shades PAR; leads stay brighter.",
       "Ice algae produces in the top metres; krill graze that P. Polar cod shoal under the ice.",
       "Polar night / midnight sun follow solar elevation at this latitude, not a 24 h clock.",
     ],
@@ -357,6 +358,7 @@ function stampDemo(patch, demo) {
   patch.name = demo.title;
   patch.region = demo.region;
   patch.about = demo.about;
+  patch.dayIndex = demo.kind === "lab" ? 180 : observeDayIndex(demo.lat);
   return patch;
 }
 

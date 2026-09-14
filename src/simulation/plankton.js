@@ -477,10 +477,20 @@ export class Plankton {
     if (!cap || cap <= 0) return 0;
     const mean =
       layer === TROPHIC.D ? this.meanD : layer === TROPHIC.P ? this.meanP : this.meanZ;
-    const prod = this.prodIndex > 0 ? 0.55 + 0.45 * Math.min(1, this.prodIndex / 0.35) : 1;
-    const forage =
-      mean < 0.05 ? 0.42 + mean * 9 : 0.86 + 0.14 * Math.min(1, mean / 0.28);
-    return Math.max(48, (cap * forage * prod) | 0);
+    const light = Math.max(0.04, Math.min(1, this.photicLight || 0.4));
+    const q = Math.max(0.2, Math.min(1.15, productionQ10()));
+    const pFrac = Math.min(1, Math.max(0, this.prodIndex) / 0.28);
+    const prod = 0.2 + 0.8 * pFrac;
+    const stock = 0.08 + 0.92 * Math.min(1, mean / 0.2);
+    const climate = Math.max(0.06, light * light * q);
+    return Math.max(96, (cap * stock * prod * climate) | 0);
+  }
+
+  /** Settle the column against the live look before clipping spawn. Does not graze the patch down. */
+  acclimate(look, steps = 24, dt = 0.4) {
+    const tod = look || { night: 0, caustic: 0.8, sunDir: { y: 0.7 }, storm: 0 };
+    for (let i = 0; i < steps; i++) this._updateColumn(dt, tod);
+    this.update(dt, tod, 0);
   }
 
   update(dt, look, t) {
@@ -491,8 +501,14 @@ export class Plankton {
     const q10 = columnQ10();
     const flowT = t ?? 0;
     const mix = cfg.mix * (1 + storm * 2.4) * dt;
-    const growP = cfg.growP * this.photicLight * productionQ10();
-    const grazeZ = cfg.grazeZ * (0.62 + 0.48 * this.pzCoincide) * q10;
+    const ice = CONFIG.water?.ice ?? 0;
+    const iceGrow = ice > 0.05 ? ice * 0.036 * (0.32 + 0.68 * this.photicLight) : 0;
+    const growP = cfg.growP * this.photicLight * productionQ10() + iceGrow;
+    const grazeZ =
+      cfg.grazeZ *
+      (0.62 + 0.48 * this.pzCoincide) *
+      q10 *
+      (0.48 + 0.52 * Math.min(1, this.photicLight / 0.32));
     const sinkFrac = this.sinkFrac;
     const yP = this.bloomY;
     const yZ = this.zooY;
@@ -642,10 +658,11 @@ export class Plankton {
       const deep = Math.min(1, Math.max(0, (thermo - y) / nutSpan));
       const nDeep = nProfile(y, nutLine);
       nCol[i] += (0.12 + 0.88 * nDeep - nCol[i]) * kN;
-      const par = samplePAR(y, dayLook);
+      const parDay = samplePAR(y, dayLook);
+      const parNow = samplePAR(y, look);
       const pWant = Math.max(
         1e-5,
-        par * (0.18 + 0.82 * Math.max(0, nCol[i])) + iceAlgaeWant(y, par)
+        parDay * (0.18 + 0.82 * Math.max(0, nCol[i])) + iceAlgaeWant(y, parNow)
       );
       pCol[i] += (pWant - pCol[i]) * kP;
       const dy = y - zWant;

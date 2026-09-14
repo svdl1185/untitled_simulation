@@ -406,7 +406,7 @@ export const FAUNA = {
     about:
       "North Atlantic shelf gadid, typically 40–120 cm. Lives on the sand and in the lower column, usually 10–400 m; recorded to about 600 m. Not an abyssal fish. Eats herring, capelin, sand lance, and benthos.",
     program:
-      "Scatter school on the shelf floor (`habitat: benthic`). Neighbour-walk bites herring, capelin, sand lance, sprat, and polar cod (huntTaxa). Also Type II-grazes seafloor carbon when on the bed. Prey-capped headcount so a North Sea cell holds a shoal of cod, not a vehicle pair. Dropped if the cell floor is deeper than about 650 m — that is slope/abyss, not shelf.",
+      "Scatter school on the shelf floor (`habitat: benthic`). Neighbour-walk bites herring, capelin, sand lance, sprat, and polar cod (huntTaxa). Hungry shoals leave the bed toward that prey centroid; satiated fish sit on the sand and Type II-graze seafloor carbon. Prey-capped headcount so a North Sea cell holds a shoal of cod, not a vehicle pair. Dropped if the cell floor is deeper than about 650 m — that is slope/abyss, not shelf.",
     missing: [
       "Crabs and named benthic taxa are not agents — the seafloor field is detrital carbon, not a crab loop.",
       "Fishing mortality is not in the budget.",
@@ -426,7 +426,7 @@ export const FAUNA = {
     about:
       "The large demersal predator of the Southern Ocean slope, typically 1–2 m. Lives from the shelf break to about 2000 m. Not a North Sea cod. Eats silverfish. Antarctic toothfish (mawsoni) on this hull; Patagonian toothfish is a later range.",
     program:
-      "Scatter school on the Antarctic slope (`habitat: benthic`). huntTaxa silverfish only. Prey-capped slice of the hashed grid. Biological max 2000 m; the seafloor still wins. Not dropped at 650 m — that gate is for Atlantic cod. Starves if silverfish are missing.",
+      "Scatter school on the Antarctic slope (`habitat: benthic`). huntTaxa silverfish only. Hungry toothfish leave the bed toward the silverfish shoal; satiated fish hug the slope. Neighbour-walk bite radius is at least a hashed-grid cell. Prey-capped slice of the hashed grid. Biological max 2000 m; the seafloor still wins. Not dropped at 650 m — that gate is for Atlantic cod. Starves if silverfish are missing.",
     missing: [
       "Patagonian toothfish (D. eleginoides) is not a second hull yet.",
       "Icefish and other notothenioids are not school taxa.",
@@ -566,7 +566,7 @@ export const FAUNA = {
     about:
       "The deep-diving toothed whale. Females ~11 m, males ~16 m. Cosmopolitan in ice-free oceans. Typical foraging dives 400–1200 m for 40–50 minutes; recorded beyond 2000 m. Hunts squid by echolocation. Must return to the surface to breathe.",
     program:
-      "Burst vehicle, fluke swim, block head (spermaceti organ, underslung jaw, left blowhole, knuckles to the fluke). The head stays stiff; only the tailstock waves. Slow turn, little bank. Air-breather: hangs level at the surface and blows a single forward-left spout, then a foraging dive toward live squid/lanternfish or typical forage ~700 m — not a commute to 2000 m. maxDepth 2000 m is the clamp; in a 1500 m cell the floor wins first. Prefers market squid, Illex, lanternfish, and Humboldt squid (huntTaxa). Bites giant squid when that vehicle is in mouth range (huntKinds). Typical 45 min forage / 8 min blow series, mapped 15× onto wall-clock (~3 min dive) so it still finishes inside the 8 min day; recovery only counts at the air. Does not bite herring. Missing named prey still produces the dive; it does not get free calories. sense is echo: PAR does not shrink this whale's detect or fear.",
+      "Burst vehicle, fluke swim, block head (spermaceti organ, underslung jaw, left blowhole, knuckles to the fluke). The head stays stiff; only the tailstock waves. Slow turn, little bank. Air-breather: hangs level at the surface and blows a single forward-left spout, then a foraging dive toward live squid/lanternfish or typical forage ~700 m — not a commute to 2000 m. maxDepth 2000 m is the clamp; in a 1500 m cell the floor wins first. Prefers market squid, Illex, lanternfish, and Humboldt squid (huntTaxa), including small scatter packs. Bites giant squid when that vehicle is in mouth range (huntKinds). Typical 45 min forage / 8 min blow series, mapped 15× onto wall-clock (~3 min dive) so it still finishes inside the 8 min day; recovery only counts at the air. Does not bite herring. Missing named prey still produces the dive; it does not get free calories. sense is echo: PAR does not shrink this whale's detect or fear; strike search is length-scaled metres.",
     missing: [
       "Glass squid (Histioteuthis) are not agents. The whale still dives; it does not get free calories from empty water.",
       "Echolocation clicks are not a sound field. Detect range does not fall with PAR — darkness is not a starve.",
@@ -635,7 +635,7 @@ export const FAUNA = {
     about:
       "East Pacific jumbo flying squid, typically 0.8–2 m. Famous DVM: night in the upper 100 m, day 200–700 m, recorded to about 1200 m in the oxygen minimum. Hunts anchoveta, sardine, and lanternfish. Cannibalistic.",
     program:
-      "Scatter school, jet pulse–coast on the hashed-grid velocity (same integrator as market squid), not a Reynolds handful. Day DVM follows the OMZ core (`omzCoreY`); night the upper 100 m. Enlarges `gridMinY` when present. Neighbour-walk bites anchovy, sardine, mackerel, lanternfish, and jack mackerel (huntTaxa). In low PAR, lanternfish photophores restore a fraction of detect range so the day OMZ hunt is not a starve. Flees sperm whales downward (deep day band). East Pacific hull plus an OMZ presence gate. Sperm whales hunt this taxon (`huntTaxa`).",
+      "Scatter school, jet pulse–coast on the hashed-grid velocity (same integrator as market squid), not a Reynolds handful. Day DVM follows the OMZ core (`omzCoreY`); night the upper 100 m. Hungry packs leave that refuge toward lanternfish and surface forage. Enlarges `gridMinY` when present. Neighbour-walk bites anchovy, sardine, mackerel, lanternfish, and jack mackerel (huntTaxa); bite radius is at least a hashed-grid cell. In low PAR, lanternfish photophores restore a fraction of detect range so the day OMZ hunt is not a starve. Flees sperm whales downward (deep day band). East Pacific hull plus an OMZ presence gate. Sperm whales hunt this taxon (`huntTaxa`).",
     missing: [
       "Cannibalism is not a school-on-school huntTaxa loop on this pack.",
       "Rapid chromatophore flashing as pack communication is not a state.",
@@ -754,7 +754,7 @@ export const FAUNA = {
     about:
       "The deep oceanic squid sperm whales actually hunt. Mantle to about 2 m; total length often 8–13 m. Worldwide in ice-free deep water, typically 300–1000 m, recorded near 1200 m. Not a Humboldt jumbo: slower, deeper, and not tied to the East Pacific OMZ.",
     program:
-      "Jet vehicle on its own DVM (night ~−420 m, day ~−850 m, max −1200 m). Longer hang between pulses than Humboldt. Bites lanternfish, market squid, and Illex (huntTaxa). In low PAR, lanternfish photophores restore a fraction of detect range. Absent on shelves shallower than about 350 m. Sperm whales bite this vehicle (huntKinds). Starves if named prey is missing — no free calories.",
+      "Jet vehicle on its own DVM (night ~−420 m, day ~−850 m, max −1200 m). Hungry animals and stalking animals leave that clock toward live lanternfish or squid; satiated animals sit on the DVM. Longer hang between pulses than Humboldt. Bites lanternfish, market squid, and Illex (huntTaxa), including a single remaining scatter fish. In low PAR, lanternfish photophores restore a fraction of detect range. Absent on shelves shallower than about 350 m. Sperm whales bite this vehicle (huntKinds). Starves if named prey is missing — no free calories.",
     missing: [
       "Colossal squid (Mesonychoteuthis) is not a second hull.",
       "Ammonium chloride buoyancy is not a physics.",

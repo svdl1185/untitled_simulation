@@ -5,13 +5,15 @@ import { sampleFlow } from "./flow.js";
 import { columnQ10 } from "./temperature.js";
 import { o2MetabolicFactor, oxygenLimitY } from "./oxygen.js";
 import { TROPHIC } from "./plankton.js";
-import { visualHunter, visualScales } from "./light.js";
+import { visualHunter, visualScales, huntDetectRange } from "./light.js";
 
 const KINDS = [
   { scale: 1.02, aggression: 1.06, tint: { r: 1, g: 1, b: 1 } },
   { scale: 1.24, aggression: 1.2, tint: { r: 0.72, g: 0.7, b: 0.64 } },
   { scale: 0.78, aggression: 0.9, tint: { r: 1.12, g: 1.08, b: 1.18 } },
 ];
+
+const HUNT_SCHOOL_MIN_VEH = 1;
 
 /**
  * Reynolds-style vehicle: steer velocity toward a desired velocity,
@@ -76,6 +78,7 @@ export class Shark {
     this.pups = 0;
     this.filterTaken = 0;
     this.filterMeals = 0;
+    this.filterAcc = 0;
     this.energyIn = 0;
     this.cause = null;
     this.biteT = 0;
@@ -379,8 +382,12 @@ export class Shark {
       const gain = taken * (cfg.filterGain ?? 0.4);
       this.energy = Math.min(1, this.energy + gain);
       this.filterTaken = (this.filterTaken || 0) + taken;
-      this.filterMeals = (this.filterMeals || 0) + 1;
       this.energyIn = (this.energyIn || 0) + gain;
+      this.filterAcc = (this.filterAcc || 0) + gain;
+      if (this.filterAcc >= 0.05) {
+        this.filterMeals = (this.filterMeals || 0) + 1;
+        this.filterAcc -= 0.05;
+      }
     }
   }
 
@@ -648,17 +655,10 @@ export class Shark {
     let arriveR = 14;
     if (this.aiMode === "strike") {
       const detect = 7.2;
-      let visR = detect;
-      let glowR = detect;
-      if (visualHunter(cfg)) {
-        const vis = visualScales(this.y, look);
-        visR = detect * (0.1 + 0.9 * vis.clear);
-        const huntsGlow = !cfg.huntTaxa?.length || cfg.huntTaxa.some((id) => SPECIES[id]?.look?.photophores);
-        if (huntsGlow && vis.clear < 0.98) {
-          const dsl = detect * 0.5;
-          glowR = Math.max(visR, visR * vis.clear + dsl * (1 - vis.clear));
-        } else glowR = visR;
-      }
+      const huntsGlow =
+        !cfg.huntTaxa?.length || cfg.huntTaxa.some((id) => SPECIES[id]?.look?.photophores);
+      const visR = huntDetectRange(cfg, this.y, look, detect, 0);
+      const glowR = huntsGlow ? huntDetectRange(cfg, this.y, look, detect, 1) : visR;
       const prey =
         huntVehicle ||
         school.nearestFish(this.mouthX, this.mouthY, this.mouthZ, visR, cfg.huntTaxa, glowR) ||
@@ -761,7 +761,8 @@ export class Shark {
     if (this.cfg.gait === "benthic") {
       ty = seafloorHeight(tx, tz) + cfg.floorClearance + 1.6;
     } else if (cfg.nightDepth != null && this.aiMode !== "strike") {
-      ty = dvmY(look?.hour ?? 12, cfg);
+      const chase = (!satiated && (hungry || this.aiMode === "stalk")) || this.aiMode === "strike";
+      ty = chase ? cy : dvmY(look?.hour ?? 12, cfg);
     }
 
     if (cfg.breathes) {
@@ -883,7 +884,7 @@ export class Shark {
     const hungry = this.energy < (this.cfg.hungry ?? CONFIG.shark.hungry) / this.aggression;
     const satiated = this.energy > (this.cfg.satiated ?? CONFIG.shark.satiated);
     if (this.aiMode === "recover") {
-      if (hungry && school.count > 8) {
+      if (hungry && hasHuntPrey(this, school, pack, this.cfg)) {
         this.aiMode = "stalk";
         this.aiT = 1.5 + Math.random() * 1.4;
       } else {
@@ -896,7 +897,7 @@ export class Shark {
     } else if (this.aiMode === "patrol") {
       if (satiated) {
         this.aiT = 3 + Math.random() * 3.5;
-      } else if (school.count > 8 && (hungry || dist < 72)) {
+      } else if (hasHuntPrey(this, school, pack, this.cfg) && (hungry || dist < 72)) {
         this.aiMode = "stalk";
         this.aiT = hungry ? 2.8 + Math.random() * 2.2 : 6.5 + Math.random() * 4;
       } else {
@@ -907,7 +908,7 @@ export class Shark {
         this.aiMode = "patrol";
         this.aiT = 7 + Math.random() * 5;
         this._pickRoam();
-      } else if (dist < holdR * (hungry ? 1.18 : 1.05) && school.count > 8) {
+      } else if (dist < holdR * (hungry ? 1.18 : 1.05) && hasHuntPrey(this, school, pack, this.cfg)) {
         this.aiMode = "strike";
         this.aiT = hungry ? 2.35 : 1.9;
         this.startLunge();
@@ -931,9 +932,15 @@ export class Shark {
       }
     }
     let fallback = -1;
+    const want = this.cfg?.huntTaxa;
+    const minN = want?.length ? HUNT_SCHOOL_MIN_VEH : 40;
     for (let k = 1; k <= school.maxSchools; k++) {
       const idx = (this.huntIndex + k) % school.maxSchools;
-      if (school.schoolN[idx] <= 40) continue;
+      if (school.schoolN[idx] < minN) continue;
+      if (want?.length) {
+        const id = school.taxa[school.anchors[idx]?.taxon ?? 0]?.id;
+        if (!want.includes(id)) continue;
+      }
       if (fallback < 0) fallback = idx;
       if (!claimed.has(idx)) {
         this.huntIndex = idx;
@@ -1139,7 +1146,7 @@ function hasHuntPrey(self, school, pack, cfg) {
   if (!want?.length) return (school?.count ?? 0) > 8;
   if (!school) return false;
   for (let s = 0; s < school.maxSchools; s++) {
-    if (school.schoolN[s] < 8) continue;
+    if (school.schoolN[s] < HUNT_SCHOOL_MIN_VEH) continue;
     const id = school.taxa[school.anchors[s]?.taxon ?? 0]?.id;
     if (want.includes(id)) return true;
   }
@@ -1257,7 +1264,12 @@ export function spawnPredators(school, counts = {}) {
     const cfg = vehicleCfg(kind);
     const raw = counts[kind] !== undefined ? counts[kind] : cfg.count;
     const want = CONFIG.world?.lab ? Math.max(2, raw | 0) : raw | 0;
-    const count = Math.max(0, Math.min(cfg.max ?? want, want));
+    const forage = school?.count || 0;
+    const scaled =
+      !CONFIG.world?.lab && forage > 0 && forage < 280
+        ? Math.min(want, Math.max(1, Math.floor(forage / 8)))
+        : want;
+    const count = Math.max(0, Math.min(cfg.max ?? scaled, scaled));
     for (let i = 0; i < count; i++) pack.push(createShark(i, count, school, kind));
   }
   return pack;
@@ -1281,6 +1293,7 @@ export function resetSharks(pack, school) {
     s.pups = 0;
     s.filterTaken = 0;
     s.filterMeals = 0;
+    s.filterAcc = 0;
     s.energyIn = 0;
     s.cause = null;
     s.energy = 0.55 + Math.random() * 0.25;

@@ -395,6 +395,7 @@ export function applyPatch(patch) {
   setActivePatch(patch);
   CONFIG.world.lat = patch.originLat;
   CONFIG.world.lon = patch.originLon;
+  if (Number.isFinite(patch.dayIndex)) CONFIG.time.dayIndex = patch.dayIndex;
   CONFIG.world.synthetic = !!patch.synthetic;
   CONFIG.world.statics = !!patch.statics;
   CONFIG.world.lab = !!patch.lab;

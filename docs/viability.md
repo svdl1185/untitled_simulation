@@ -33,6 +33,8 @@ npm run viability:cells       # every coupled named cell, 3 days, smaller cap
 
 `--cell` is a Cells picker id: `catalog`, `pelagic`, `omz`, `shelf`, `antarctic`, `polar`, plus gap tiles `reef`, `coast`, `demersal`, `hadal`. `--cell all` is every **coupled** demo; add `--gaps` to include gap tiles. `--place lab|shelf` still works.
 
+Named coupled cells stamp a productive-season day-of-year (`observeDayIndex`): the Antarctic slope is a January window, not June polar night. Polar ice opens on midnight sun. The catalog tank and mid-latitude tiles stay day 180. That is the kilometre as a window, not a second calendar for map roam.
+
 `--species id,id` still runs the whole cell (prey has to be there) and prints only those rows. `--json` writes the compact census; `--trace` adds the time series (large). `--dt` is the integrator step. One sim day is `CONFIG.time.dayLength` (480 s ≈ 8 min wall). A few days is the useful span; 14 days is allowed and slow.
 
 The logger keeps the full trace for the requested span (`CONFIG.viability.maxSamples` grows with `--days`).

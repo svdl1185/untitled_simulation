@@ -171,6 +171,7 @@ function rebuildLife() {
   school.colliders = outcrops.colliders;
   school.colliderCount = outcrops.colliderCount;
   plankton = new Plankton();
+  plankton.acclimate(day.look);
   school.clipToBloom(plankton);
   disposeTree(bloom?.mesh);
   bloom = createPlanktonMesh(plankton, uniforms);
@@ -202,6 +203,7 @@ function rebuildLife() {
 }
 
 function bindWorld() {
+  if (Number.isFinite(CONFIG.time.dayIndex)) day.dayIndex = CONFIG.time.dayIndex;
   day.latitude = CONFIG.world.lat;
   day.sample();
   syncWorldUniforms(uniforms, day.look);
@@ -495,9 +497,13 @@ hud.on("fear", (on) => {
 hud.on("reset", () => {
   school.respawn(anySchoolPresent() ? Number(hud.get("fish")) : 0, day.look.hour);
   plankton.seed();
+  plankton.acclimate(day.look);
   school.clipToBloom(plankton);
   resetSharks(sharks, school);
-  day.dayIndex = 0;
+  const patch = getActivePatch();
+  day.dayIndex = Number.isFinite(patch?.dayIndex)
+    ? patch.dayIndex
+    : (CONFIG.time.dayIndex ?? 180);
 });
 hud.on("pilot", (on) => {
   if (shark && on !== shark.controlled) togglePilot(on);

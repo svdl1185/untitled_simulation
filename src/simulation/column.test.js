@@ -1,4 +1,4 @@
-import { attenuationKd, samplePAR, surfacePAR, visualClarity, visualHunter, visualRange } from "./light.js";
+import { attenuationKd, samplePAR, surfacePAR, visualClarity, visualHunter, visualRange, huntDetectRange } from "./light.js";
 import { bindCellTemperature, climatologySST, columnQ10, meanSST, mixedLayerY, q10Factor, sampleTemp } from "./temperature.js";
 import {
   bindCellOxygen,
@@ -10,13 +10,13 @@ import {
 } from "./oxygen.js";
 import { bindCellUpwell, climateUpwell, sampleFlow } from "./flow.js";
 import { bindCellIce, climateIce, iceAlgaeWant, iceThickness, iceTransmit } from "./ice.js";
-import { DayCycle, solarSinElev } from "./day.js";
+import { DayCycle, observeDayIndex, solarSinElev } from "./day.js";
 import { CONFIG, breathTargetY, photicLimitY, openPhoticY, columnZones, dvmY } from "../config.js";
 import { Plankton, TROPHIC } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
 import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
 import { faunaPresent } from "../config.js";
-import { School } from "./school.js";
+import { School, shoalHuntY, schoolBiteRadius } from "./school.js";
 import { spawnPredators } from "./shark.js";
 import { seafloorHeight, findWaterAtDepth } from "./obstacles.js";
 import { vehicleCfg, knobsFor, SPECIES, allocateMixedSchoolCounts, schoolDiet } from "../world/fauna.js";
@@ -76,6 +76,12 @@ function assert(cond, msg) {
   const july = climatologySST(50, 200);
   const jan = climatologySST(50, 15);
   assert(july > jan, "North Atlantic July should be warmer than January");
+  const antJan = climatologySST(-64.8, 15);
+  const antJun = climatologySST(-64.8, 180);
+  assert(antJan < 4.5, `Antarctic January SST should stay polar, got ${antJan.toFixed(1)}`);
+  assert(antJan > antJun, "austral summer should be milder than austral winter");
+  const barents = climatologySST(75.4, 172);
+  assert(barents < 8, `Barents June SST should not be temperate, got ${barents.toFixed(1)}`);
 }
 
 {
@@ -224,6 +230,88 @@ function assert(cond, msg) {
   assert(visualHunter(knobsFor("tuna")) === true, "skipjack is a visual hunter");
   assert(visualHunter(vehicleCfg("whaleshark")) === false, "whale shark filter skips visual detect");
   assert(visualHunter(knobsFor("humboldtsquid")) === true, "Humboldt is visual; lanternfish glow restores range");
+}
+
+{
+  const day = { night: 0, caustic: 1, sunDir: { y: 0.8 }, storm: 0 };
+  const echo = huntDetectRange(vehicleCfg("spermwhale"), -700, day, 7.2);
+  const eyeDark = huntDetectRange(vehicleCfg("giantsquid"), -700, day, 7.2);
+  const eyeGlow = huntDetectRange(vehicleCfg("giantsquid"), -700, day, 7.2, 1);
+  assert(echo > 35, `sperm whale echo detect should be tens of metres, got ${echo.toFixed(1)}`);
+  assert(echo > eyeDark * 4, `echo should beat dark vision (${echo.toFixed(1)} vs ${eyeDark.toFixed(1)})`);
+  assert(eyeGlow > eyeDark, "photophores should still enlarge giant-squid detect in the DSL");
+}
+
+{
+  applyPatch(makeTestPatch());
+  const bed = { habitat: "benthic", floorClearance: 2.4, diet: "bite", huntTaxa: ["herring"] };
+  const satiated = shoalHuntY(12, bed, 0, 0, 0.12, -18);
+  const hungry = shoalHuntY(12, bed, 0, 0, 0.88, -18);
+  assert(hungry > satiated + 10, `hungry benthic hunter should leave the bed toward prey (${hungry.toFixed(1)} vs ${satiated.toFixed(1)})`);
+  assert(Math.abs(hungry - -18) < 6, `hungry benthic hunter should occupy prey depth, got ${hungry.toFixed(1)}`);
+  const skipjack = knobsFor("tuna");
+  const refuge = shoalHuntY(12, skipjack, 0, 0, 0.1, -8);
+  const chase = shoalHuntY(12, skipjack, 0, 0, 0.8, -8);
+  assert(Math.abs(chase - -8) < Math.abs(refuge - -8), "hungry skipjack should close on surface prey Y");
+  assert(schoolBiteRadius({ biteRadius: 2.6 }) >= 3.79, "school bite must reach a hashed-grid cell");
+  assert(schoolBiteRadius({ biteRadius: 6 }) === 6, "a larger mouth keeps its radius");
+}
+
+{
+  applyPatch(makeTestPatch());
+  const bloom = new Plankton();
+  bloom.photicLight = 0.12;
+  bloom.prodIndex = 0.01;
+  bloom.meanZ = 0.04;
+  bloom.meanP = 0.04;
+  const school = new School(800, { hour: 12 });
+  const before = school.count;
+  school.clipToBloom(bloom);
+  assert(before > 200, `lab school should spawn a crowd, got ${before}`);
+  assert(school.count <= bloom.carryingCapacity(800) + 24, `clipToBloom should honour the bloom cap (${school.count} vs ${bloom.carryingCapacity(800)})`);
+  assert(school.count < before * 0.5, `clipToBloom should drop a seeded crowd (${before} → ${school.count})`);
+  const occupied = [];
+  for (let s = 0; s < school.maxSchools; s++) if (school.schoolN[s] > 0) occupied.push(school.schoolN[s]);
+  assert(occupied.length >= 1, "clip should leave at least one live pack");
+  assert(
+    occupied.every((n) => n >= 1) && occupied.some((n) => n >= 2 || occupied.length === 1),
+    `survivors should pack into live shoals, not one-fish scatter (${occupied.join(",")})`
+  );
+}
+
+{
+  applyPatch(makeTestPatch());
+  const bloom = new Plankton();
+  bloom.prodIndex = 0.001;
+  bloom.meanZ = 0.00005;
+  bloom.meanP = 0.00005;
+  const dead = bloom.carryingCapacity(4000);
+  bloom.prodIndex = 0.4;
+  bloom.meanZ = 0.22;
+  const live = bloom.carryingCapacity(4000);
+  assert(dead < live * 0.5, `a collapsed bloom should carry less than a live one (${dead} vs ${live})`);
+  const polar = new Plankton();
+  polar.acclimate({ night: 0.9, caustic: 0, sunDir: { y: -0.2 }, storm: 0 }, 12, 0.4);
+  const summer = new Plankton();
+  summer.acclimate({ night: 0, caustic: 0.85, sunDir: { y: 0.8 }, storm: 0 }, 12, 0.4);
+  assert(polar.prodIndex <= summer.prodIndex, "a dark column should not out-produce a lit one");
+  assert(polar.photicLight < summer.photicLight, "a dark column should have less photic light");
+  assert(
+    polar.carryingCapacity(4000) <= summer.carryingCapacity(4000),
+    `a dark column should not carry more grazers (${polar.carryingCapacity(4000)} vs ${summer.carryingCapacity(4000)})`
+  );
+  const dim = new Plankton();
+  dim.photicLight = 0.12;
+  dim.prodIndex = 0.02;
+  dim.meanZ = 0.1;
+  const bright = new Plankton();
+  bright.photicLight = 0.72;
+  bright.prodIndex = 0.3;
+  bright.meanZ = 0.22;
+  assert(
+    dim.carryingCapacity(4000) < bright.carryingCapacity(4000) * 0.45,
+    `a dim cold column should carry fewer grazers (${dim.carryingCapacity(4000)} vs ${bright.carryingCapacity(4000)})`
+  );
 }
 
 {
@@ -430,6 +518,18 @@ function assert(cond, msg) {
 }
 
 {
+  const ids = ["anchovy", "sardine", "lanternfish", "humboldtsquid", "tuna", "yellowfin", "mahi"];
+  const taxa = ids.map((id) => ({ id, share: SPECIES[id].share, cfg: knobsFor(id) }));
+  const alloc = allocateMixedSchoolCounts(4000, taxa, 96, 0);
+  const byId = Object.fromEntries(alloc.map((r) => [r.id, r.n]));
+  const biters = alloc.reduce((n, r) => n + (schoolDiet(knobsFor(r.id)) === "bite" ? r.n : 0), 0);
+  const grazers = alloc.reduce((n, r) => n + (schoolDiet(knobsFor(r.id)) !== "bite" ? r.n : 0), 0);
+  assert(grazers <= 96 + 4, `tight bloom should cap grazers, got ${grazers}`);
+  assert(byId.humboldtsquid >= 1, `Humboldt should still get a pack on a tight bloom, got ${byId.humboldtsquid}`);
+  assert(biters <= 20, `piscivores should stay a slice, got ${biters}`);
+}
+
+{
   const north = climateIce(56, 3.2, 80);
   const barentsWinter = climateIce(75.4, 32.1, 80);
   const barentsSummer = climateIce(75.4, 32.1, 200);
@@ -490,4 +590,10 @@ function assert(cond, msg) {
   assert(day.look.night < 0.15, "North Sea noon is still day");
 }
 
-console.log("column physics: 22 checks ok");
+{
+  assert(observeDayIndex(-64.8) === 15, "antarctic observe day is austral summer");
+  assert(observeDayIndex(75.4) === 172, "arctic observe day is midnight sun");
+  assert(observeDayIndex(56) === 180, "North Sea observe day stays 180");
+}
+
+console.log("column physics: 28 checks ok");
