@@ -643,8 +643,7 @@ export function createHUD() {
     setCameraLive,
     setEntered(on) {
       entered = !!on;
-      if (entered && !values.oceanMap && !CELL_DOCKS.has(dock) && dock !== "demos") setDock("station");
-      else syncNav();
+      syncNav();
     },
     setSelectOptions(id, options, value) {
       const item = findItem(id);
