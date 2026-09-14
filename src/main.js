@@ -672,7 +672,7 @@ function hudView() {
       id: "bloom",
       label: "P / Z",
       value: `${Math.round((plankton.meanP ?? 0) * 100)} · ${Math.round((plankton.meanZ ?? 0) * 100)}`,
-      hint: "Column-mean phytoplankton and zooplankton on the 128×128 NPZD patch, scaled 0–100.",
+      hint: "Column-mean phytoplankton and zooplankton, scaled 0–100. Green slices in the photic are P; yellow spark at the DVM is Z.",
     },
     {
       id: "sst",

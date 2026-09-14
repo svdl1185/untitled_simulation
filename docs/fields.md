@@ -25,7 +25,7 @@ Sibling of `sampleFlow`.
 
 3D concentration is separable: \(C(x,y,z) = \mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). Horizontal mass is 128×128 (`n`, `p`, `z`, `d`). The column is a shared shape, not a second budget and not a 128³ grid: P follows the photic / DCM, Z a DVM, N a nutricline, D sinks. `sampleAt` / `grazeAt` apply the product and return 0 below the local seafloor. Production uses PAR weighted by the P profile; Z grazing uses P–Z column coincidence; detritus export to `benthos` scales with the column bottom. Cod graze that store on the bed.
 
-`overlap(look, y, layer)` is the 0–1 encounter weight. `grazeBenthos` is the demersal bite.
+`overlap(look, y, layer)` is the 0–1 encounter weight. `grazeBenthos` is the demersal bite. The renderer stacks slices on the live column bins so P is green in the photic and Z sparkles on the DVM.
 
 ## Flow — `src/simulation/flow.js`
 
