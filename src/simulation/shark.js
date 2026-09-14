@@ -1,5 +1,5 @@
 import { CONFIG, breathTargetY, clampHabitatY, dvmY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
-import { SPECIES, VEHICLE_IDS, vehicleCfg } from "../world/fauna.js";
+import { SPECIES, VEHICLE_IDS, vehicleCfg, tickBreathHold } from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, placeInColumn } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { columnQ10 } from "./temperature.js";
@@ -96,7 +96,9 @@ export class Shark {
         : 1.2 + Math.random() * 1.8;
     this.glideT = 0;
     this.surfacing = !!this.cfg.breathes && Math.random() < 0.28;
-    this.breathT = Math.random() * (this.cfg.diveTime ?? 20);
+    this.breathT = this.surfacing
+      ? Math.random() * (this.cfg.surfaceTime ?? 6)
+      : Math.random() * (this.cfg.diveTime ?? 20);
     this.blew = false;
     this.blowWait = 0;
     this.blowX = this.x;
@@ -391,12 +393,10 @@ export class Shark {
 
   _tickBreath(dt, cfg) {
     if (!cfg.breathes) return;
-    this.breathT = (this.breathT ?? 0) - dt;
-    if (this.breathT > 0) return;
-    this.surfacing = !this.surfacing;
-    this.breathT = this.surfacing
-      ? cfg.surfaceTime ?? 6
-      : cfg.diveTime ?? 28;
+    const atAir = this.y > (cfg.minDepth ?? -2) - 2.4;
+    const next = tickBreathHold(this.surfacing, this.breathT, dt, cfg, atAir);
+    this.surfacing = next.surfacing;
+    this.breathT = next.breathT;
   }
 
   _tickBlow(dt, cfg) {

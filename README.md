@@ -64,7 +64,7 @@ Near the camera only. One hashed-grid school (cap 20k, `UniformGrid3D`, 32768 bu
 
 **Vehicles** (`src/simulation/shark.js`) — gaits `burst` (glide between tail kicks), `ram` (must keep swimming), `benthic` (hug the bed), `jet` (pulse–coast, hang on the current). Swim: lateral tail, body wave, thunniform, vertical fluke, jet. Diets: `bite` school / `huntTaxa` / `huntKinds`, `filter` (`plankton.grazeAt` on `z`), `both` (minke). Sighted hunters (`sense: "sight"`, the default) scale detect, fear, and bite with `visualRange` / `samplePAR`; lanternfish photophores restore a fraction in the DSL. Sperm whale and orca `sense: "echo"` — darkness is not a starve. Energy drain, meals restore, starve after `starveDays`, carcass recycles. Females pup on a year-timer when energy and a mate are in range. Pilot mode drives the lead blue shark (`P`).
 
-**Air-breathers** (`vehicle.breathes`) — hang level at the surface for `surfaceTime`, blow (sperm: one forward-left spout; mysticetes: two columns; dolphin/orca: a short puff), then a flukes-up dive toward live prey or typical `forageDepth`, clamped by `min(maxDepth, local floor)`. Time is compressed, so `diveSpeed` is raised enough that a kilometre-scale chase can finish in one on-screen breath-hold. Empty water does not send them to the record. HUD shows remaining breath-hold.
+**Air-breathers** (`vehicle.breathes`) — hang level at the surface for `surfaceTime`, blow (sperm: one forward-left spout; mysticetes: two columns; dolphin/orca: a short puff), then a flukes-up dive toward live prey or typical `forageDepth`, clamped by `min(maxDepth, local floor)`. Recovery only counts at the air — the commute up does not burn the surface interval. `diveTime` / `surfaceTime` map typical nature minutes onto wall-clock (`breathHold`: 5× for orca, dolphin, rorquals; 15× for sperm whale so a 45 min forage is ~3 min on screen, not the whole 8 min day). `diveSpeed` is still raised so a kilometre-scale chase can finish in one on-screen breath-hold. Empty water does not send them to the record. HUD shows remaining breath-hold.
 
 **Spawn** — desired Y is DVM / forage / breath / bed for the current hour, then `placeInColumn` against the **local** seafloor. If the typical band does not fit, they walk downslope (or sit at the deepest water in the cell). `clampHabitatY` / `_keepInWater`: `max(floor + clearance, maxDepth, oxygenLimitY)`. Lighting is not a depth cap.
 
@@ -338,7 +338,7 @@ Species cards list **In nature** and per-taxon gaps under **Not in the model**. 
 
 ## Tests
 
-Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, visual range, SST, Q10, oxygen / OMZ, upwelling / mixed layer, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`.
+Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, visual range, SST, Q10, oxygen / OMZ, upwelling / mixed layer, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`. Air-breather breath-hold vs nature minutes: `src/simulation/breath.test.js`. Air-breather breath-hold vs nature minutes: `src/simulation/breath.test.js`.
 
 ```bash
 npm test

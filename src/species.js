@@ -314,7 +314,7 @@ function oxygenStat(s) {
     label: "Oxygen",
     value: `${Math.round(frac * 100)}%`,
     meter: frac,
-    hint: "Remaining breath-hold. Recovers at the surface; drains on a foraging dive.",
+    hint: "Remaining breath-hold. Recovers only at the surface; drains while submerged.",
   };
 }
 
