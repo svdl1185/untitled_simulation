@@ -95,6 +95,122 @@
               Basin: Eulerian fields.
             </figcaption>
           </figure>
+          <h3>Glossary</h3>
+          <dl class="about-glossary">
+            <div>
+              <dt>PAR</dt>
+              <dd>
+                Photosynthetically active radiation. The light phytoplankton can use. Dies with depth
+                (Beer–Lambert). Fog, caustics, growth, and visual hunt share it.
+              </dd>
+            </div>
+            <div>
+              <dt><em>K</em><sub>d</sub></dt>
+              <dd>
+                Diffuse attenuation. How fast PAR dies with depth (turbidity). Sets the 1% light
+                depth — the photic limit.
+              </dd>
+            </div>
+            <div>
+              <dt>NPZD</dt>
+              <dd>
+                Nutrients, phytoplankton, zooplankton, detritus. The bloom budget. N, P, Z, D. A
+                128×128 patch times a shared column, not a 128³ grid.
+              </dd>
+            </div>
+            <div>
+              <dt>DVM</dt>
+              <dd>
+                Diel vertical migration. Night near the surface to feed; day deeper as a visual
+                refuge. Zooplankton, forage fish, lanternfish, and Humboldt squid all run a schedule.
+              </dd>
+            </div>
+            <div>
+              <dt>OMZ</dt>
+              <dd>
+                Oxygen minimum zone. A hypoxic band below the mixed layer in eastern-boundary and
+                tropical cells. Humboldt’s day refuge. Tunas and sharks stay above their
+                <code>o2Min</code>.
+              </dd>
+            </div>
+            <div>
+              <dt>DSL</dt>
+              <dd>
+                Deep scattering layer. The mesopelagic sound and biomass layer. Lanternfish in this
+                catalog; photophores restore a fraction of visual detect in the dark.
+              </dd>
+            </div>
+            <div>
+              <dt>Q10</dt>
+              <dd>
+                How much a rate changes per 10 °C. Metabolism, graze, and NPZD all scale with column
+                temperature.
+              </dd>
+            </div>
+            <div>
+              <dt>SST</dt>
+              <dd>
+                Sea-surface temperature. Latitude climatology plus season plus the anomaly knob.
+                Gates some catalog rows.
+              </dd>
+            </div>
+            <div>
+              <dt>Mixed layer</dt>
+              <dd>
+                Well-mixed surface water. Winter mixes it deeper; storms mix it deeper still. Shear,
+                oxygen, and NPZD all read that depth.
+              </dd>
+            </div>
+            <div>
+              <dt>Nutricline</dt>
+              <dd>
+                The depth where nutrients increase. Climate upwell and storms shoal it so N sits in
+                the light.
+              </dd>
+            </div>
+            <div>
+              <dt>Photic</dt>
+              <dd>
+                The sunlit layer, down to ~1% light. Photosynthesis lives here. Below it the window
+                goes near-black, not herring-green.
+              </dd>
+            </div>
+            <div>
+              <dt>Benthos</dt>
+              <dd>
+                Carbon on the seafloor from sinking detritus. Cod graze that field. The animals of
+                the bed are not agents yet.
+              </dd>
+            </div>
+            <div>
+              <dt>Type II</dt>
+              <dd>
+                Saturating graze: fast when food is scarce, capped when it is dense. School fish on
+                <code>z</code> or <code>p</code>; filters on the bloom.
+              </dd>
+            </div>
+            <div>
+              <dt>GEBCO / GMRT / HYCOM</dt>
+              <dd>
+                Atlas. GEBCO tints the world map; GMRT is the seafloor under the animal; HYCOM is a
+                mean current when that service answers.
+              </dd>
+            </div>
+            <div>
+              <dt>Vehicle</dt>
+              <dd>
+                A handful of Reynolds integrators — sharks, tunas, whales, squid, cod — not a second
+                20k boid loop. The hashed grid is the school.
+              </dd>
+            </div>
+            <div>
+              <dt>Agents / Eulerian</dt>
+              <dd>
+                Near the camera: individuals. Kilometres out would be density. The basin is fields on
+                a grid. Not more fish farther out.
+              </dd>
+            </div>
+          </dl>
           <h3>Coupled now</h3>
           <ul class="about-inv">
             <li>

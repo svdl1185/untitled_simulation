@@ -813,6 +813,34 @@ kbd {
   color: var(--muted);
 }
 
+.about-glossary {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.about-glossary div {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 7.5rem) 1fr;
+  gap: 8px 12px;
+  align-items: start;
+}
+
+.about-glossary dt {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.about-glossary dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
 .about-inv {
   margin: 0;
   padding: 0;

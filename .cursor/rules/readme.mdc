@@ -12,15 +12,17 @@ alwaysApply: true
 1. **Mission** — a scientific ocean simulation aiming to be the most complete coupled ocean that can run in a browser: every kind of ocean, every factor that changes a budget, a habitat, or a sensory cue. The camera is a window. Not a fish game.
 2. **Coupling figure** — `public/cycles.svg`. Solid = coupled. Dashed = not yet. Keep it true to the live fields, NPZD loop, food web, and biome gaps.
 3. **What is coupled now** — precise inventory: cell/atlas, fields, agents, budgets, range gates, every catalog id, HUD/controls. Name the live modules.
-4. **What is not in the model yet** — honest gaps, split by system: ocean-as-a-system, seafloor besides tropical reefs, coral reefs, open ocean, polar/ice, coasts. Do not hide a gap behind a mesh.
-5. **Links** — relative links to `docs/fields.md`, `docs/viability.md`, `.cursor/rules/species.mdc`, `.cursor/rules/mission.mdc`.
+4. **Glossary** — the jargon the model uses (DVM, OMZ, NPZD, PAR, …). Same list as About.
+5. **What is not in the model yet** — honest gaps, split by system: ocean-as-a-system, seafloor besides tropical reefs, coral reefs, open ocean, polar/ice, coasts. Do not hide a gap behind a mesh.
+6. **Links** — relative links to `docs/fields.md`, `docs/viability.md`, `.cursor/rules/species.mdc`, `.cursor/rules/mission.mdc`.
 
 ## What the About panel must contain
 
 1. A short mission (complete ocean of every kind; camera is a window).
 2. The same coupling figure (`/cycles.svg`).
 3. **Coupled now** — fields, agents, budgets, range, HUD, every catalog id.
-4. **Not in the model yet** — the six gap systems, as lists not vibes.
+4. **Glossary** — the jargon the panel uses (DVM, OMZ, NPZD, PAR, …). Keep it short; add a row when a new term becomes load-bearing.
+5. **Not in the model yet** — the six gap systems, as lists not vibes.
 
 ## When you must edit them
 

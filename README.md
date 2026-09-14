@@ -29,6 +29,29 @@ The long-term target is a single catalog plus presence plus shared budgets that 
 
 How to add an animal: [`.cursor/rules/species.mdc`](.cursor/rules/species.mdc). Architecture for agents: [`.cursor/rules/mission.mdc`](.cursor/rules/mission.mdc). Keep this README and the in-app About panel in the same commit as the feature: [`.cursor/rules/readme.mdc`](.cursor/rules/readme.mdc). Public deploy: [`docs/deploy.md`](docs/deploy.md).
 
+## Glossary
+
+The jargon the model actually uses. Same list lives in the in-app **About** panel.
+
+| Term | Meaning |
+| --- | --- |
+| **PAR** | Photosynthetically active radiation. The light phytoplankton can use. Dies with depth (Beer–Lambert). Fog, caustics, growth, and visual hunt share it. |
+| **Kd** | Diffuse attenuation. How fast PAR dies with depth (turbidity). Sets the 1% light depth — the photic limit. |
+| **NPZD** | Nutrients, phytoplankton, zooplankton, detritus. The bloom budget. A 128×128 patch times a shared column, not a 128³ grid. |
+| **DVM** | Diel vertical migration. Night near the surface to feed; day deeper as a visual refuge. |
+| **OMZ** | Oxygen minimum zone. A hypoxic band below the mixed layer in eastern-boundary and tropical cells. Humboldt’s day refuge; tunas stay above their `o2Min`. |
+| **DSL** | Deep scattering layer. The mesopelagic sound and biomass layer. Lanternfish in this catalog. |
+| **Q10** | How much a rate changes per 10 °C. Metabolism, graze, and NPZD all scale with column temperature. |
+| **SST** | Sea-surface temperature. Latitude climatology plus season plus the anomaly knob. |
+| **Mixed layer** | Well-mixed surface water. Winter mixes it deeper; storms mix it deeper still. |
+| **Nutricline** | The depth where nutrients increase. Climate upwell and storms shoal it so N sits in the light. |
+| **Photic** | The sunlit layer, down to ~1% light. Photosynthesis lives here. |
+| **Benthos** | Carbon on the seafloor from sinking detritus. Cod graze that field. |
+| **Type II** | Saturating graze: fast when food is scarce, capped when it is dense. |
+| **GEBCO / GMRT / HYCOM** | Atlas: map tint, seafloor elevation, mean current. |
+| **Vehicle** | A Reynolds integrator (shark, whale, squid, cod), not a hashed-grid boid. |
+| **Agents / Eulerian** | Near the camera: individuals. Kilometres out: density. Basin: fields on a grid. |
+
 ## What is coupled now
 
 The live inventory. A module is listed here only if an animal or a budget actually reads it. Field sampling: [`docs/fields.md`](docs/fields.md).
