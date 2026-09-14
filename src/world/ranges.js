@@ -7,7 +7,7 @@
  * Predators still need prey in the cell (trophic gate), not a lat split.
  */
 
-import { emptyPresence, SCHOOL_IDS, SPECIES, VEHICLE_IDS, speciesLabel } from "./fauna.js";
+import { emptyPresence, SCHOOL_IDS, SPECIES, speciesLabel } from "./fauna.js";
 import { inTempNiche, meanSST } from "../simulation/temperature.js";
 import { inOxygenNiche } from "../simulation/oxygen.js";
 import { CONFIG } from "../config.js";
@@ -606,7 +606,7 @@ export function presenceAt(lat, lon) {
   if (prey && Math.abs(lat) < 32) p.sailfish = 1;
   if (prey && Math.abs(lat) < 40) p.commondolphin = 1;
 
-  for (const id of VEHICLE_IDS) {
+  for (const id of Object.keys(p)) {
     if ((p[id] ?? 0) <= 0.05) continue;
     if (!preySatisfied(SPECIES[id], p)) p[id] = 0;
   }

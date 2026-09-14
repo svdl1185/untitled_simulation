@@ -203,8 +203,9 @@
             <div>
               <dt>Vehicle</dt>
               <dd>
-                A handful of Reynolds integrators — sharks, tunas, whales, squid, cod — not a second
-                20k boid loop. The hashed grid is the school.
+                A rare Reynolds integrator — sharks, whales, giant squid, air-breathers. Abundance is
+                a catalog knob: numerous mesopredators are hashed-grid school with
+                <code>diet: "bite"</code>, not a second 20k loop.
               </dd>
             </div>
             <div>
@@ -234,17 +235,19 @@
               NPZD (128×128 patch × column: N, P, Z, D). Benthos: detritus flux onto the bed.
             </li>
             <li>
-              <strong>Agents.</strong> One hashed-grid school (cap 20k) plus a handful of vehicles.
-              Social modes: polarized, loose, scatter. Gaits: burst, ram, benthic, jet. Air-breathers
-              hang and blow, then a flukes-up dive. Spawn against the local seafloor;
-              <code>maxDepth</code> is biological, then the floor, then oxygen.
+              <strong>Agents.</strong> One hashed-grid school (cap 20k): grazers on a bloom cap,
+              piscivores on a prey-capped slice of the same grid. Vehicles are the rares and
+              air-breathers. Social modes: polarized, loose, scatter. Gaits on vehicles: burst, ram,
+              jet. Air-breathers hang and blow, then a flukes-up dive. Spawn against the local
+              seafloor; <code>maxDepth</code> is biological, then the floor, then oxygen.
             </li>
             <li>
-              <strong>Budgets.</strong> School ceiling = bloom mean × photic production. Type II graze
-              on <code>z</code> or <code>p</code>. Bites restore energy; missing prey is a starve.
-              Sperm whale × Humboldt / giant squid are the vehicle-on-vehicle bites. Q10 and hypoxia
-              scale rates. Closed mass: graze, excretion, carcass, sink, remineralisation, benthos
-              graze.
+              <strong>Budgets.</strong> Grazer ceiling = bloom mean × photic production. Piscivore
+              ceiling = live forage / prey ratio on the same grid. Type II graze on <code>z</code> or
+              <code>p</code>. Bites restore energy; missing prey is a starve. Sperm whale × giant
+              squid is the vehicle-on-vehicle bite; Humboldt is school <code>huntTaxa</code>. Q10 and
+              hypoxia scale rates. Closed mass: graze, excretion, carcass, sink, remineralisation,
+              benthos graze.
             </li>
             <li>
               <strong>Range.</strong> Hulls OR; trophic, thermal, OMZ, and shelf gates. Overlap is
@@ -262,16 +265,17 @@
             ><span>pilchard</span><span>anchovy</span><span>sardinella</span><span>mackerel</span
             ><span>flying fish</span><span>sprat</span><span>sand lance</span><span>polar cod</span
             ><span>Antarctic silverfish</span><span>Pacific saury</span><span>market squid</span
-            ><span>lanternfish</span><span>krill</span><span>jack mackerel</span><span>Illex</span>
+            ><span>lanternfish</span><span>krill</span><span>jack mackerel</span><span>Illex</span
+            ><span>skipjack</span><span>yellowfin</span><span>mahi</span><span>barracuda</span
+            ><span>sailfish</span><span>Atlantic cod</span><span>Antarctic toothfish</span
+            ><span>Humboldt squid</span>
           </p>
           <p class="about-label">Vehicles</p>
           <p class="about-taxa">
-            <span>blue shark</span><span>skipjack</span><span>yellowfin</span><span>bluefin</span
-            ><span>mahi</span><span>sailfish</span><span>barracuda</span><span>great white</span
+            <span>blue shark</span><span>bluefin</span><span>great white</span
             ><span>tiger shark</span><span>hammerhead</span><span>whale shark</span><span>minke</span
             ><span>humpback</span><span>sperm whale</span><span>orca</span><span>common dolphin</span
-            ><span>Humboldt squid</span><span>giant squid</span><span>Atlantic cod</span
-            ><span>Antarctic toothfish</span>
+            ><span>giant squid</span>
           </p>
           <p class="about-label">Field guild</p>
           <p class="about-taxa"><span>benthos</span></p>
@@ -293,8 +297,8 @@
               / OBIS / acoustic DSL; fishing mortality; age, stage, larval drift; spawn as a swim
               between cells; senses as fields (echolocation, olfaction, electroreception, lateral
               line, magnetoreception, soundscape); moon, lunar DVM, polar night / midnight sun; marine
-              snow / migratory carbon pump; size-structured plankton; vehicle–vehicle and
-              school–school bites beyond sperm whale × Humboldt / giant squid; disease; pressure /
+              snow / migratory carbon pump; size-structured plankton; vehicle–vehicle bites besides
+              sperm whale × giant squid; Humboldt cannibalism; disease; pressure /
               compressibility; authored meshes; sediment grain size and transport.
             </p>
             <p>

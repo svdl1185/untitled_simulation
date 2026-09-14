@@ -96,6 +96,23 @@ const sperm = {
 }
 
 {
+  const skipjack = { id: "tuna", agent: "school", diet: "bite", huntTaxa: null, huntKinds: null };
+  const r = diagnoseSpecies(
+    skipjack,
+    series({
+      n: [80, 80, 80],
+      energy: [0.55, 0.4, 0.28],
+      meals: [0, 0, 0],
+      graze: [0, 0, 0],
+      born: [0, 0, 0],
+      starved: [0, 0, 0],
+    }),
+    { days: 0.8, liveIds: new Set(["tuna", "herring"]) }
+  );
+  assert(r.flags.some((f) => f.code === "not-eating"), "school biter with prey and no meals");
+}
+
+{
   const r = diagnoseSpecies(
     sperm,
     series({

@@ -1,6 +1,6 @@
 import { CONFIG, faunaPresent } from "./config.js";
 import { getActivePatch } from "./world/patch.js";
-import { SPECIES, knobsFor, vehicleCfg, SCHOOL_IDS } from "./world/fauna.js";
+import { SPECIES, knobsFor, vehicleCfg, SCHOOL_IDS, schoolDiet, isSchoolBiter } from "./world/fauna.js";
 import { FAUNA } from "./world/fieldNotes.js";
 
 export { FAUNA };
@@ -19,7 +19,7 @@ export const LOCATIONS = {
     name: "Catalog tank",
     region: "10 × 10 km laboratory cell",
     about:
-      "A synthetic 10 km cell: a beach on +Z, an inner shelf near −40 m, a mid-shelf terrace near −110 m, an outer ledge near −220 m, a slope terrace near −800 m, a canyon and a seamount, and a basin to −2000 m. Every implemented animal is present. School fish share one bloom-capped budget; vehicles spawn in pairs or more. Not a biogeographic range — a test of the model.",
+      "A synthetic 10 km cell: a beach on +Z, an inner shelf near −40 m, a mid-shelf terrace near −110 m, an outer ledge near −220 m, a slope terrace near −800 m, a canyon and a seamount, and a basin to −2000 m. Every implemented animal is present. Grazers share a bloom-capped budget; piscivores share a prey-capped slice of the same hashed grid. Vehicles are the rares. Not a biogeographic range — a test of the model.",
     fauna: Object.values(FAUNA),
   },
   "north-sea-shelf": {
@@ -225,15 +225,23 @@ function fieldLive(kind, bloom) {
 
 function bitePreyIds(id) {
   const spec = SPECIES[id];
-  if (spec?.agent !== "vehicle") return [];
-  const v = vehicleCfg(id);
-  const diet = v.diet || "bite";
-  if (diet === "filter") return [];
-  if (v.huntTaxa?.length) return v.huntTaxa.slice();
+  if (!spec || spec.agent === "field") return [];
+  const cfg = spec.agent === "school" ? knobsFor(id) : vehicleCfg(id);
+  const diet = cfg.diet || schoolDiet(cfg);
+  if (diet === "filter" || diet === "z" || diet === "p") {
+    if (!isSchoolBiter(cfg)) return [];
+  }
+  if (cfg.huntTaxa?.length) return cfg.huntTaxa.slice();
   const prey = spec.prey || [];
   const named = prey.filter((p) => p !== "school" && p !== "bloom");
   if (named.length) return named;
-  if (diet === "bite" || diet === "both" || prey.includes("school")) return SCHOOL_IDS.slice();
+  if (diet === "bite" || diet === "both" || prey.includes("school")) {
+    return SCHOOL_IDS.filter((sid) => {
+      if (sid === id) return false;
+      const g = SPECIES[sid]?.guild;
+      return g === "forage" || g === "surface" || g === "cephalopod";
+    });
+  }
   return [];
 }
 
@@ -252,9 +260,19 @@ function dietLinks(id, ctx) {
   }
 
   if (spec?.agent === "school") {
-    const grazeP = knobsFor(id).grazeOn === "p";
-    if (grazeP && fieldLive("p", bloom)) add({ label: "Phytoplankton" });
-    else if (!grazeP && fieldLive("z", bloom)) add({ label: "Zooplankton" });
+    const cfg = knobsFor(id);
+    const diet = schoolDiet(cfg);
+    if ((diet === "p" || diet === "both") && fieldLive("p", bloom)) add({ label: "Phytoplankton" });
+    if ((diet === "z" || diet === "both") && fieldLive("z", bloom)) add({ label: "Zooplankton" });
+    if (cfg.benthosGraze > 0 && (counts.benthos || 0) > 0) {
+      add({ id: "benthos", label: faunaOf("benthos").common });
+    }
+    if (isSchoolBiter(cfg)) {
+      for (const pid of bitePreyIds(id)) {
+        if ((counts[pid] || 0) <= 0) continue;
+        add({ id: pid, label: faunaOf(pid).common });
+      }
+    }
   } else if (spec?.agent === "field") {
     add({ label: "Detritus" });
   } else if (spec?.agent === "vehicle") {
