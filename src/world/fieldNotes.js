@@ -779,7 +779,7 @@ export const FAUNA = {
     about:
       "The living and recently dead organic film on the seafloor: microbes, small invertebrates, and the carbon that fell from the pelagic. Not a crab or a worm loop yet — a density of recycled mass the demersal guild can actually eat.",
     program:
-      "Field agent. Detritus sinks from the NPZD column onto a 2D seafloor store. Cod graze it when they are on the bed. Remineralises back to dissolved N. Present in every wet cell.",
+      "Field agent. Detritus sinks down the shared NPZD column; the 2D patch holds mass; the seafloor store receives the bottom flux. Cod graze it when they are on the bed. Remineralises back to dissolved N. Present in every wet cell.",
     missing: [
       "Named benthic taxa (crabs, amphipods, polychaetes) are not agents.",
       "Sediment grain size and oxygen at the bed are not fields.",

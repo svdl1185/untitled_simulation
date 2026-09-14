@@ -33,7 +33,7 @@ How to add an animal: [`.cursor/rules/species.mdc`](.cursor/rules/species.mdc). 
 
 **Temperature** — climatological SST by latitude and season, mixed-layer depth, a vertical profile, Q10 on NPZD / metabolism / graze / predator drain (`src/simulation/temperature.js`). SST anomaly is a physical control. Some species drop out when mean SST is outside `temp.min` / `temp.max`.
 
-**NPZD + benthos** — 128×128 nutrients, phytoplankton, zooplankton, detritus, plus a vertical column so P lives in the photic and Z follows DVM. Detritus sinks onto a seafloor carbon field. Cod graze that field on the bed (`src/simulation/plankton.js`).
+**NPZD + benthos** — Separable 3D: a 128×128 horizontal patch times a shared vertical column (not a 128³ grid). Mass lives in the patch; the column is the photic / DCM, zooplankton DVM, nutricline, and sinking shape. `sampleAt` is the 3D concentration; production, grazing, and detritus export read that product. The column bottom feeds a seafloor carbon field. Cod graze that field on the bed (`src/simulation/plankton.js`).
 
 **Agents** — hashed-grid forage schools (one 20k budget, split by catalog `share`) and Reynolds vehicles (sharks, tunas, whales, squid, cod). Only near the camera. Silhouettes are guild stand-ins (`src/render/fish.js`, `src/render/sharkMesh.js`) with matching swim: lateral tail, body wave, thunniform, vertical fluke, jet pulse–coast. School squid pulse–coast on the grid, then hang on the current. Surface forage rise when fleeing; lanternfish and sand lance go down. Sharks actually glide between tail bursts. Air-breathers hang at the surface and blow (sperm: a single forward-left spout; mysticetes: two columns), then pitch into the dive. Replace later with authored models.
 
@@ -54,7 +54,6 @@ The honest list. Closing a row means moving it into **What is coupled now**, not
 | Dissolved oxygen / OMZ | Humboldt squid’s day refuge, lanternfish habitat |
 | Sea ice | Polar cod, krill overwinter, polar night as more than a clock |
 | Salinity | Baltic sprat, estuarine nurseries |
-| True 3D NPZD | Column × 2D patch is separable, not a 128³ grid |
 | Basin streaming of agents | Neighbour chunks cache patches; animals do not swim between cells |
 | Named benthos (crabs, worms) | Seafloor carbon is a field, not taxa |
 | Seals, birds, penguins, salmon | Diets and surface pressure still use DVM / missing notes |
@@ -67,7 +66,7 @@ Species cards list **In nature** and per-taxon gaps under **Not in the model**. 
 
 ## Tests
 
-Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, SST, Q10, benthos, giant-squid gates): `src/simulation/column.test.js`.
+Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, SST, Q10, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`.
 
 ```bash
 npm test

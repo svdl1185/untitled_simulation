@@ -23,9 +23,9 @@ Sibling of `sampleFlow`.
 
 ## NPZD + benthos — `src/simulation/plankton.js`
 
-Horizontal patchiness is 128×128 (`n`, `p`, `z`, `d`). Vertical structure is a column of bins: P lives where PAR reaches, Z follows a DVM shape, D sinks onto a 2D seafloor store (`benthos`). Cod graze that store on the bed.
+3D concentration is separable: \(C(x,y,z) = \mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). Horizontal mass is 128×128 (`n`, `p`, `z`, `d`). The column is a shared shape, not a second budget and not a 128³ grid: P follows the photic / DCM, Z a DVM, N a nutricline, D sinks. `sampleAt` / `grazeAt` apply the product and return 0 below the local seafloor. Production uses PAR weighted by the P profile; Z grazing uses P–Z column coincidence; detritus export to `benthos` scales with the column bottom. Cod graze that store on the bed.
 
-`overlap(look, y, layer)` is the column weight. `grazeBenthos` is the demersal bite.
+`overlap(look, y, layer)` is the 0–1 encounter weight. `grazeBenthos` is the demersal bite.
 
 ## Flow — `src/simulation/flow.js`
 

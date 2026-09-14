@@ -76,6 +76,30 @@ function assert(cond, msg) {
 }
 
 {
+  applyPatch(makeTestPatch());
+  const bloom = new Plankton();
+  const amp = bloom.sampleLayer(TROPHIC.P, 0, 0);
+  const w = bloom.profileAt(TROPHIC.P, -8);
+  const c = bloom.sampleAt(TROPHIC.P, 0, -8, 0);
+  assert(Math.abs(c - amp * w) < 1e-5, "sampleAt should be patch × column");
+  const ground = seafloorHeight(0, 0);
+  assert(bloom.sampleAt(TROPHIC.P, 0, ground - 12, 0) === 0, "sampleAt below the local floor should be empty");
+  assert(bloom.grazeAt(TROPHIC.Z, 0, ground - 12, 0, 0.2) === 0, "grazeAt below the floor should take nothing");
+  const day = { night: 0, caustic: 0.85, sunDir: { y: 0.8 }, storm: 0 };
+  const night = { night: 1, caustic: 0, sunDir: { y: -0.2 }, storm: 0 };
+  for (let i = 0; i < 10; i++) bloom._updateColumn(0.4, night);
+  const zNight = bloom.peakY(bloom.zCol);
+  for (let i = 0; i < 10; i++) bloom._updateColumn(0.4, day);
+  const zDay = bloom.peakY(bloom.zCol);
+  assert(zNight > zDay, `zooplankton DVM should rise at night (night ${zNight}, day ${zDay})`);
+  assert(bloom.photicLight >= 0 && bloom.photicLight <= 1.05, "photic-weighted PAR should be a fraction");
+  assert(bloom.pzCoincide >= 0 && bloom.pzCoincide <= 1.05, "P–Z column coincidence should be 0–1");
+  const before = bloom.sampleLayer(TROPHIC.Z, 0, 0);
+  bloom.grazeAt(TROPHIC.Z, 0, -12, 0, 0.05);
+  assert(bloom.sampleLayer(TROPHIC.Z, 0, 0) <= before, "3D graze should deplete the 2D patch");
+}
+
+{
   applyPatch(makeSyntheticPatch());
   assert(!faunaPresent("giantsquid"), "North Sea shelf is too shallow for giant squid");
   assert(faunaPresent("herring"), "synthetic shelf should still hold herring");
@@ -180,4 +204,4 @@ function assert(cond, msg) {
   assert(clamped === -2000, `maxDepth/floor should clamp a too-deep hunt, got ${clamped}`);
 }
 
-console.log("column physics: 11 checks ok");
+console.log("column physics: 12 checks ok");

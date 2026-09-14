@@ -22,7 +22,7 @@ The camera is a window. A new animal must change a budget, a habitat, or a senso
 Write the diet anyway. Then wire what exists.
 
 - **What it eats.** Taxon or field (zooplankton `p`/`z`, school agents, detritus, benthos, light-driven phytoplankton).
-- **How it eats.** Type II grazing, bites, filter, sit-and-wait. Name the function (`plankton.graze`, predator bite radius).
+- **How it eats.** Type II grazing, bites, filter, sit-and-wait. Name the function (`plankton.grazeAt`, predator bite radius).
 - **What limits it.** Shared bloom mean for school fish; catch rate and energy drain for vehicles; a cap in `CONFIG`. New life must eat something and be limited by something.
 - **Missing prey.** If the food is not in the model yet, do not fake fullness with a constant. Do not keep the animal shallow as a stand-in. Either leave it out, or let it perform the natural loop and starve / sit at carrying-capacity zero. List the gap in `FAUNA[id].missing` — the card shows that as **Not in the model**, a separate section, not buried in Program.
 
@@ -54,7 +54,7 @@ Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 
 ## 5. Flow and fields
 
 - **Sample `sampleFlow`.** Advection, shear, beach-normal tide. Do not give a species its own current.
-- **NPZD / bloom.** Does it graze `z`, shade `p`, recycle to `d`, or graze seafloor carbon (`grazeBenthos`)? School fish graze `z` unless `grazeOn: "p"` (krill). Carcasses recycle; whale shark / minke `plankton.graze` as filter; cod graze benthos on the bed.
+- **NPZD / bloom.** Does it graze `z`, shade `p`, recycle to `d`, or graze seafloor carbon (`grazeBenthos`)? School fish graze `z` unless `grazeOn: "p"` (krill). Sample with `plankton.sampleAt`; take with `plankton.grazeAt` (separable column × 2D patch). Carcasses recycle; whale shark / minke `plankton.grazeAt` as filter; cod graze benthos on the bed.
 - **Light.** `samplePAR(y, look)` — Beer–Lambert, shared with fog. Phytoplankton grow in the photic envelope.
 - **Temperature.** `sampleTemp` / `columnQ10`. Optional `temp: { min, max }` on the catalog row gates `presenceAt`.
 - **Later fields** (add here when they exist): dissolved oxygen, salinity, ice, pycnocline crossing cost.

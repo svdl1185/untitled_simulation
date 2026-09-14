@@ -2,26 +2,29 @@ import { CONFIG, clampHabitatY, hasBeach } from "../config.js";
 import { seafloorHeight } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { samplePAR } from "./light.js";
-import { columnQ10, productionQ10, q10Factor, sampleTemp } from "./temperature.js";
+import { columnQ10, productionQ10 } from "./temperature.js";
 
 const _grad = { x: 0, z: 0 };
+const _flowP = { x: 0, y: 0, z: 0 };
+const _flowZ = { x: 0, y: 0, z: 0 };
+const _flowN = { x: 0, y: 0, z: 0 };
+const _flowD = { x: 0, y: 0, z: 0 };
 
 /**
  * Trophic field for the pelagic web.
  *
- * Four 2D layers, not agents:
- *   n  dissolved nutrients
- *   p  phytoplankton (PAR × nutrients × Q10)
- *   z  zooplankton   (school forage)
- *   d  detritus      (sinks; seafloor carbon is `benthos`)
+ * 3D concentration is separable: C(x,y,z) = Patch(x,z) × Column(y).
+ * Mass lives on the 128×128 patch (`n`,`p`,`z`,`d`). The column is a
+ * shared vertical shape — photic / DCM, zooplankton DVM, nutricline,
+ * sinking — not a second budget and not a 128³ grid.
  *
- * Horizontal patchiness is 128×128. Vertical structure is a column of
- * bins: P lives where light reaches, Z follows a DVM shape, D sinks.
- * `sampleLayer` is the xz patch; `overlap` / `sampleAt` apply the column.
+ * `sampleLayer` is the xz amplitude. `sampleAt` / `grazeAt` apply the
+ * column and the local seafloor. Production, P–Z graze, and detritus
+ * export read the live column so the product stays one field.
  *
  * Future guilds should only touch this class:
- *   sampleLayer / grazeLayer / depositLayer / recycle / overlap / forageDepth
- *   grazeBenthos
+ *   sampleAt / grazeAt / sampleLayer / grazeLayer / depositLayer /
+ *   recycle / overlap / forageDepth / grazeBenthos
  * School fish graze `z` unless a taxon sets `grazeOn: "p"` (krill).
  * Carcasses and excretion return mass to `n` and `d`.
  * Keep new species on that API so the NPZD budget stays closed as the
@@ -59,6 +62,12 @@ export class Plankton {
     this.meanB = 0;
     this.prodIndex = 0;
     this.bloomY = CONFIG.thermoY;
+    this.zooY = CONFIG.thermoY;
+    this.nutY = CONFIG.thermoY;
+    this.detY = CONFIG.thermoY;
+    this.photicLight = 0.4;
+    this.pzCoincide = 0.75;
+    this.sinkFrac = 0;
     this._bytes = new Uint8Array(cells * 4);
     this.benthos = new Float32Array(cells);
     this._initColumn();
@@ -77,25 +86,47 @@ export class Plankton {
     if (!ys.length || ys[ys.length - 1] > floor + 12) ys.push(floor);
     this.ny = ys.length;
     this.layerY = new Float32Array(ys);
+    this.layerDy = new Float32Array(this.ny);
     this.pCol = new Float32Array(this.ny);
     this.zCol = new Float32Array(this.ny);
     this.nCol = new Float32Array(this.ny);
     this.dCol = new Float32Array(this.ny);
+    this._layoutDy();
     this._seedColumn();
+  }
+
+  _layoutDy() {
+    const { ny, layerY, layerDy } = this;
+    for (let i = 0; i < ny; i++) {
+      const y = layerY[i];
+      const yHi =
+        i === 0
+          ? Math.min(0, y + (ny > 1 ? (y - layerY[1]) * 0.5 : 4))
+          : 0.5 * (layerY[i - 1] + y);
+      const yLo = i === ny - 1 ? y : 0.5 * (y + layerY[i + 1]);
+      layerDy[i] = Math.max(1, yHi - yLo);
+    }
   }
 
   _seedColumn() {
     const { ny, layerY, pCol, zCol, nCol, dCol } = this;
     const thermo = CONFIG.thermoY ?? -30;
+    const dayLook = { night: 0, caustic: 0.75, sunDir: { y: 0.72 }, storm: 0 };
     for (let i = 0; i < ny; i++) {
       const y = layerY[i];
-      const photic = samplePAR(y, { night: 0, caustic: 0.7, sunDir: { y: 0.7 } });
+      const photic = samplePAR(y, dayLook);
       const deep = Math.min(1, Math.max(0, (thermo - y) / Math.max(40, -CONFIG.floorY)));
-      pCol[i] = Math.max(0.02, photic * 0.92);
-      zCol[i] = Math.max(0.04, 0.22 + 0.7 / (1 + ((y - thermo) * (y - thermo)) / 900));
-      nCol[i] = 0.18 + deep * 0.62;
-      dCol[i] = 0.06 + deep * 0.28;
+      nCol[i] = 0.14 + deep * 0.86;
+      pCol[i] = Math.max(1e-4, photic * (0.2 + 0.8 * (1 - deep * 0.5)));
+      const dy = y - thermo;
+      zCol[i] = Math.max(1e-4, Math.exp(-(dy * dy) / (2 * 22 * 22)));
+      dCol[i] = 0.08 + deep * 0.92;
     }
+    this._maxNormalize(pCol);
+    this._maxNormalize(zCol);
+    this._maxNormalize(nCol);
+    this._maxNormalize(dCol);
+    this._syncColumnStats(dayLook);
   }
 
   seed() {
@@ -236,8 +267,7 @@ export class Plankton {
 
   /**
    * Vertical overlap of a grazer at depth `y` with a column layer.
-   * Shape comes from the live NPZD column (P in the photic, Z on a DVM),
-   * not a herring-only Gaussian around thermoY.
+   * Shape comes from the live NPZD column (P in the photic, Z on a DVM).
    */
   overlap(look, y, layer = TROPHIC.Z) {
     const py = y ?? look?.preferredDepth ?? CONFIG.fish.preferredDepth;
@@ -245,8 +275,19 @@ export class Plankton {
     return 0.22 + 0.78 * w;
   }
 
+  _inWater(x, y, z) {
+    if (y > 0.05) return false;
+    return y >= seafloorHeight(x, z) + 0.2;
+  }
+
   sampleAt(layer, x, y, z) {
+    if (!this._inWater(x, y, z)) return 0;
     return this.sampleLayer(layer, x, z) * this.profileAt(layer, y);
+  }
+
+  grazeAt(layer, x, y, z, amount) {
+    if (amount <= 0 || !this._inWater(x, y, z)) return 0;
+    return this.graze(x, z, amount, layer);
   }
 
   profileAt(layer, y) {
@@ -330,9 +371,15 @@ export class Plankton {
     this.depositLayer(TROPHIC.D, x, z, eaten * cfg.detritus);
   }
 
-  /** Dead biomass (shark bite, starvation) returns to the water column. */
-  recycle(x, z, biomass) {
+  /** Dead biomass returns to the water column, or to the bed if the carcass is already there. */
+  recycle(x, z, biomass, y) {
     if (biomass <= 0) return;
+    const onBed = y != null && y < seafloorHeight(x, z) + 8;
+    if (onBed) {
+      this._splatter(this.benthos, x, z, biomass * 0.72);
+      this.depositLayer(TROPHIC.N, x, z, biomass * 0.28);
+      return;
+    }
     this.depositLayer(TROPHIC.D, x, z, biomass * 0.72);
     this.depositLayer(TROPHIC.N, x, z, biomass * 0.28);
   }
@@ -410,19 +457,20 @@ export class Plankton {
   }
 
   update(dt, look, t) {
+    this._updateColumn(dt, look);
     const { nx, nz, wet, cellX, cellZ, minX, minZ, vent } = this;
     const cfg = CONFIG.plankton;
     const storm = look?.storm ?? 0;
-    const night = look?.night ?? 0;
-    const dawn = look?.dawn ?? 0;
-    const dusk = look?.dusk ?? 0;
     const q10 = columnQ10();
-    const light = samplePAR(CONFIG.thermoY ?? -30, look);
     const flowT = t ?? 0;
     const mix = cfg.mix * (1 + storm * 2.4) * dt;
-    const growP = cfg.growP * light * productionQ10();
-    const grazeZ = cfg.grazeZ * (0.75 + 0.35 * (night + dusk + dawn)) * q10;
-    const sink = cfg.sink ?? 0.012;
+    const growP = cfg.growP * this.photicLight * productionQ10();
+    const grazeZ = cfg.grazeZ * (0.62 + 0.48 * this.pzCoincide) * q10;
+    const sinkFrac = this.sinkFrac;
+    const yP = this.bloomY;
+    const yZ = this.zooY;
+    const yN = this.nutY;
+    const yD = this.detY;
     const nextN = this._n;
     const nextP = this._p;
     const nextZ = this._z;
@@ -444,16 +492,16 @@ export class Plankton {
         }
         const x = minX + (ix + 0.5) * cellX;
         const z = minZ + (iz + 0.5) * cellZ;
-        const flow = sampleFlow(x, CONFIG.thermoY, z, flowT, storm);
-        const px = x - flow.x * dt;
-        const pz = z - flow.z * dt;
-        const back = this._indexWorld(px, pz);
-        const bx = Math.round(back.fx);
-        const bz = Math.round(back.fz);
-        nextN[i] = this._at(bx, bz, srcN);
-        nextD[i] = this._at(bx, bz, srcD);
-        nextP[i] = this._sampleField(srcP, px, pz);
-        nextZ[i] = this._sampleField(srcZ, px, pz);
+        sampleFlow(x, yN, z, flowT, storm, _flowN);
+        sampleFlow(x, yD, z, flowT, storm, _flowD);
+        sampleFlow(x, yP, z, flowT, storm, _flowP);
+        sampleFlow(x, yZ, z, flowT, storm, _flowZ);
+        const backN = this._indexWorld(x - _flowN.x * dt, z - _flowN.z * dt);
+        const backD = this._indexWorld(x - _flowD.x * dt, z - _flowD.z * dt);
+        nextN[i] = this._at(Math.round(backN.fx), Math.round(backN.fz), srcN);
+        nextD[i] = this._at(Math.round(backD.fx), Math.round(backD.fz), srcD);
+        nextP[i] = this._sampleField(srcP, x - _flowP.x * dt, z - _flowP.z * dt);
+        nextZ[i] = this._sampleField(srcZ, x - _flowZ.x * dt, z - _flowZ.z * dt);
       }
     }
 
@@ -502,7 +550,7 @@ export class Plankton {
         nut += (mortP * 0.45 + mortZ * 0.35 + remin + upwell - uptake) * dt;
 
         const bed = this.benthos;
-        const toBed = Math.max(0, det) * sink * dt * (0.35 + deep * 0.8);
+        const toBed = Math.max(0, det) * sinkFrac * (0.35 + deep * 0.8);
         det -= toBed;
         let benthic = bed[i] + toBed;
         const bedRemin = cfg.remin * 0.42 * q10 * benthic * dt;
@@ -536,11 +584,10 @@ export class Plankton {
     this.meanB = sumB * inv;
     this.mean = this.meanZ;
     this.prodIndex = prod * inv;
-    this._updateColumn(dt, look, q10);
     this._toBytes();
   }
 
-  _updateColumn(dt, look, q10) {
+  _updateColumn(dt, look) {
     const { ny, layerY, pCol, zCol, nCol, dCol } = this;
     if (!ny) return;
     const cfg = CONFIG.plankton;
@@ -548,57 +595,79 @@ export class Plankton {
     const dawn = look?.dawn ?? 0;
     const dusk = look?.dusk ?? 0;
     const rise = Math.min(1, night * 0.9 + dusk * 0.55 + dawn * 0.4);
-    const zNight = -7.2;
-    const zDay = (CONFIG.thermoY ?? -30) - 4;
-    const zWant = zDay + (zNight - zDay) * rise;
-    let pBest = 0;
-    let pI = 0;
+    const thermo = CONFIG.thermoY ?? -30;
+    const zWant = thermo - 4 + (-7.2 - (thermo - 4)) * rise;
+    const sigZ = 18 + (1 - rise) * 10;
+    const dayLook = { night: 0, caustic: 0.8, sunDir: { y: 0.74 }, storm: look?.storm ?? 0 };
+    const kN = 1 - Math.exp(-0.08 * dt * 8);
+    const kP = 1 - Math.exp(-0.22 * dt * 8);
+    const kZ = 1 - Math.exp(-0.28 * dt * 8);
+    const kD = 1 - Math.exp(-0.12 * dt * 8);
+    const sinkK = (cfg.sink ?? 0.012) * 1.8 * dt;
+
     for (let i = 0; i < ny; i++) {
       const y = layerY[i];
-      const I = samplePAR(y, look);
-      const Tq = q10Factor(sampleTemp(0, y, 0));
-      const nut = nCol[i];
-      const uptake = cfg.growP * I * Tq * (nut / (nut + cfg.kN)) * pCol[i];
-      const zg = cfg.grazeZ * (0.75 + 0.35 * rise) * Tq * (pCol[i] / (pCol[i] + cfg.kP)) * zCol[i];
-      pCol[i] = _clamp01(pCol[i] + (uptake - zg - cfg.mortP * Tq * pCol[i]) * dt);
-      zCol[i] = _clamp01(zCol[i] + (cfg.effZ * zg - cfg.mortZ * Tq * zCol[i]) * dt);
-      nCol[i] = _clamp01(nut + (0.012 * (y < (CONFIG.thermoY ?? -30) ? 0.8 : 0.2) - uptake * 0.4) * dt);
-      dCol[i] = _clamp01(dCol[i] + ((1 - cfg.effZ) * zg - cfg.remin * Tq * dCol[i]) * dt);
-      const score = I * (nut + 0.08);
-      if (score > pBest) {
-        pBest = score;
-        pI = i;
-      }
+      const deep = Math.min(1, Math.max(0, (thermo - y) / Math.max(40, -CONFIG.floorY)));
+      nCol[i] += (0.12 + 0.88 * deep - nCol[i]) * kN;
+      const pWant = Math.max(1e-5, samplePAR(y, dayLook) * (0.18 + 0.82 * Math.max(0, nCol[i])));
+      pCol[i] += (pWant - pCol[i]) * kP;
+      const dy = y - zWant;
+      zCol[i] += (Math.exp(-(dy * dy) / (2 * sigZ * sigZ)) - zCol[i]) * kZ;
+      dCol[i] += (0.1 + 0.9 * deep - dCol[i]) * kD;
+      if (nCol[i] < 0) nCol[i] = 0;
+      if (pCol[i] < 0) pCol[i] = 0;
+      if (zCol[i] < 0) zCol[i] = 0;
+      if (dCol[i] < 0) dCol[i] = 0;
     }
-    const sink = (cfg.sink ?? 0.012) * 1.8 * dt;
     for (let i = 0; i < ny - 1; i++) {
-      const move = dCol[i] * sink;
-      dCol[i] = _clamp01(dCol[i] - move);
-      dCol[i + 1] = _clamp01(dCol[i + 1] + move);
+      const move = dCol[i] * sinkK;
+      dCol[i] -= move;
+      dCol[i + 1] += move;
     }
-    const bed = dCol[ny - 1] * sink;
-    dCol[ny - 1] = _clamp01(dCol[ny - 1] - bed);
-    this._relaxToward(pCol, pI, 0.22, dt);
-    let zI = 0;
-    let zBest = 1e9;
-    for (let i = 0; i < ny; i++) {
-      const d = Math.abs(layerY[i] - zWant);
-      if (d < zBest) {
-        zBest = d;
-        zI = i;
-      }
-    }
-    this._relaxToward(zCol, zI, 0.28, dt);
-    this.bloomY = this.peakY(pCol);
+    const bed = dCol[ny - 1] * sinkK;
+    dCol[ny - 1] = Math.max(0, dCol[ny - 1] - bed);
+    this._maxNormalize(pCol);
+    this._maxNormalize(zCol);
+    this._maxNormalize(nCol);
+    this._maxNormalize(dCol);
+    this.sinkFrac = (cfg.sink ?? 0.012) * dt * (0.28 + 0.72 * dCol[ny - 1]);
+    this._syncColumnStats(look);
   }
 
-  _relaxToward(col, peak, rate, dt) {
-    const k = 1 - Math.exp(-rate * dt * 8);
-    for (let i = 0; i < this.ny; i++) {
-      const dy = i - peak;
-      const want = Math.exp(-(dy * dy) / 3.2);
-      col[i] = _clamp01(col[i] + (want - col[i]) * k);
+  _maxNormalize(col) {
+    let m = 0;
+    for (let i = 0; i < col.length; i++) if (col[i] > m) m = col[i];
+    if (m < 1e-8) {
+      col.fill(1);
+      return;
     }
+    const inv = 1 / m;
+    for (let i = 0; i < col.length; i++) col[i] *= inv;
+  }
+
+  _syncColumnStats(look) {
+    const { ny, layerY, layerDy, pCol, zCol } = this;
+    let pNum = 0;
+    let pDen = 0;
+    let dot = 0;
+    let p2 = 0;
+    let z2 = 0;
+    for (let i = 0; i < ny; i++) {
+      const dy = layerDy[i];
+      const p = pCol[i];
+      const z = zCol[i];
+      pNum += samplePAR(layerY[i], look) * p * dy;
+      pDen += p * dy;
+      dot += p * z * dy;
+      p2 += p * p * dy;
+      z2 += z * z * dy;
+    }
+    this.photicLight = pDen > 1e-8 ? pNum / pDen : samplePAR(CONFIG.thermoY ?? -30, look);
+    this.pzCoincide = p2 > 1e-8 && z2 > 1e-8 ? dot / Math.sqrt(p2 * z2) : 0.7;
+    this.bloomY = this.peakY(pCol);
+    this.zooY = this.peakY(zCol);
+    this.nutY = this.peakY(this.nCol);
+    this.detY = this.peakY(this.dCol);
   }
 
   _lap(arr, wet, nx, nz, ix, iz) {

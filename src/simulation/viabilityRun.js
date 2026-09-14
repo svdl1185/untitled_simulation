@@ -66,7 +66,7 @@ export function runViability(opts = {}) {
     for (let i = sharks.length - 1; i >= 0; i--) {
       if (!sharks[i].dead) continue;
       log.noteVehicleExit(sharks[i]);
-      plankton.recycle(sharks[i].x, sharks[i].z, sharks[i].cfg?.carcass ?? CONFIG.shark.carcass);
+      plankton.recycle(sharks[i].x, sharks[i].z, sharks[i].cfg?.carcass ?? CONFIG.shark.carcass, sharks[i].y);
       sharks.splice(i, 1);
     }
     const pup = tryBreed(sharks);

@@ -3,6 +3,7 @@ import { SPECIES, VEHICLE_IDS, vehicleCfg } from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, placeInColumn } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { columnQ10 } from "./temperature.js";
+import { TROPHIC } from "./plankton.js";
 
 const KINDS = [
   { scale: 1.02, aggression: 1.06, tint: { r: 1, g: 1, b: 1 } },
@@ -349,7 +350,7 @@ export class Shark {
     const bloom = school?._plankton;
     if (!bloom || !(cfg.filterGraze > 0)) return;
     const ov = bloom.overlap(look, this.y);
-    const taken = bloom.graze(this.x, this.z, cfg.filterGraze * dt * ov);
+    const taken = bloom.grazeAt(TROPHIC.Z, this.x, this.y, this.z, cfg.filterGraze * dt * ov);
     if (taken > 0) {
       const gain = taken * (cfg.filterGain ?? 0.4);
       this.energy = Math.min(1, this.energy + gain);
