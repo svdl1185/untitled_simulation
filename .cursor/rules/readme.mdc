@@ -10,7 +10,7 @@ alwaysApply: true
 ## What the README must contain
 
 1. **Mission** — a scientific ocean simulation aiming to be the most complete coupled ocean that can run in a browser: every factor that changes a budget, a habitat, or a sensory cue. The camera is a window. Not a fish game.
-2. **What is coupled now** — fields, agents, budgets, scale. Name the live modules.
+2. **What is coupled now** — precise inventory: cell/atlas, fields, agents, budgets, range gates, every catalog id, HUD/controls. Name the live modules.
 3. **What is not in the model yet** — honest gaps, split by system: ocean-as-a-system, seafloor besides tropical reefs, coral reefs, open ocean, polar/ice, coasts. Do not hide a gap behind a mesh.
 4. **Links** — relative links to `docs/fields.md`, `docs/viability.md`, `.cursor/rules/species.mdc`, `.cursor/rules/mission.mdc`.
 
