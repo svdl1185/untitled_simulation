@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 740" role="img" aria-labelledby="cycle-title cycle-desc">
+  <title id="cycle-title">Coupled ocean cycles in one cell</title>
+  <desc id="cycle-desc">Physical fields drive an NPZD loop that feeds forage schools and predators. Detritus sinks to benthos and remineralises. Dashed boxes are biomes and pathways not yet in the model.</desc>
+  <defs>
+    <marker id="arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#7fd8cf"/>
+    </marker>
+    <marker id="arr-dim" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#9bb8b4"/>
+    </marker>
+    <marker id="arr-gap" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#a89068"/>
+    </marker>
+    <linearGradient id="photic" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4ec4b8" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#1a5a62" stop-opacity="0.12"/>
+    </linearGradient>
+    <linearGradient id="twilight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16384a" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#0b1c28" stop-opacity="0.75"/>
+    </linearGradient>
+    <linearGradient id="midnight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#071018" stop-opacity="0.88"/>
+      <stop offset="1" stop-color="#03080c" stop-opacity="1"/>
+    </linearGradient>
+    <clipPath id="col">
+      <rect x="28" y="108" width="268" height="392" rx="6"/>
+    </clipPath>
+  </defs>
+
+  <rect width="640" height="740" rx="8" fill="#061218"/>
+
+  <text x="20" y="28" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" letter-spacing="0.16em">ONE CELL &#183; EVERY CYCLE AT ONCE</text>
+  <text x="20" y="50" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15" font-weight="600">Mass, light, and habitat</text>
+  <text x="620" y="50" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" text-anchor="end">solid = coupled &#183; dashed = not yet</text>
+
+  <!-- Physical forcing -->
+  <g font-family="ui-sans-serif, system-ui, sans-serif">
+    <rect x="12" y="64" width="114" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="69" y="79" fill="#e7f4f2" font-size="11" font-weight="600" text-anchor="middle">Light</text>
+    <text x="69" y="92" fill="#9bb8b4" font-size="9" text-anchor="middle">PAR &#183; Kd &#183; turbidity</text>
+
+    <rect x="134" y="64" width="114" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="191" y="79" fill="#e7f4f2" font-size="11" font-weight="600" text-anchor="middle">Temperature</text>
+    <text x="191" y="92" fill="#9bb8b4" font-size="9" text-anchor="middle">SST &#183; mixed layer &#183; Q10</text>
+
+    <rect x="256" y="64" width="114" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="313" y="79" fill="#e7f4f2" font-size="11" font-weight="600" text-anchor="middle">Flow</text>
+    <text x="313" y="92" fill="#9bb8b4" font-size="9" text-anchor="middle">tide &#183; HYCOM &#183; upwell</text>
+
+    <rect x="378" y="64" width="114" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="435" y="79" fill="#e7f4f2" font-size="11" font-weight="600" text-anchor="middle">Oxygen</text>
+    <text x="435" y="92" fill="#9bb8b4" font-size="9" text-anchor="middle">saturation &#183; OMZ</text>
+
+    <rect x="500" y="64" width="128" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="564" y="79" fill="#e7f4f2" font-size="11" font-weight="600" text-anchor="middle">Seafloor</text>
+    <text x="564" y="92" fill="#9bb8b4" font-size="9" text-anchor="middle">GMRT &#183; beach &#183; clamp</text>
+  </g>
+
+  <!-- Water column -->
+  <g clip-path="url(#col)">
+    <rect x="28" y="108" width="268" height="92" fill="url(#photic)"/>
+    <rect x="28" y="200" width="268" height="110" fill="url(#twilight)"/>
+    <rect x="28" y="310" width="268" height="145" fill="url(#midnight)"/>
+    <rect x="28" y="455" width="268" height="45" fill="#3a3228"/>
+  </g>
+  <rect x="28" y="108" width="268" height="392" rx="6" fill="none" stroke="rgba(160,230,220,0.35)"/>
+  <path d="M36 116 C 70 108, 110 124, 148 116 S 220 108, 256 118 S 280 112, 288 116" fill="none" stroke="#7fd8cf" stroke-width="1.4"/>
+
+  <g font-family="ui-sans-serif, system-ui, sans-serif" fill="#9bb8b4" font-size="8" letter-spacing="0.08em">
+    <text x="40" y="128">PHOTIC</text>
+    <text x="40" y="218">TWILIGHT</text>
+    <text x="40" y="328">MIDNIGHT &#183; OMZ</text>
+    <text x="40" y="472">SEAFLOOR</text>
+  </g>
+
+  <g font-family="ui-sans-serif, system-ui, sans-serif" fill="#e7f4f2" font-size="10">
+    <text x="40" y="148">P bloom &#183; night forage &#183; flying fish</text>
+    <text x="40" y="162">minke / humpback lunge &#183; whale shark filter</text>
+    <text x="40" y="238">day refuge &#183; Z DVM &#183; tunas &#183; dolphins</text>
+    <text x="40" y="252">herring pancake &#183; school squid</text>
+    <text x="40" y="348">lanternfish DSL &#183; Humboldt in the OMZ</text>
+    <text x="40" y="362">sperm whale forage &#183; giant squid</text>
+    <text x="40" y="488" fill="#e7f4f2">benthos carbon &#183; cod graze</text>
+  </g>
+
+  <!-- PAR down -->
+  <g stroke="#7fd8cf" stroke-width="1.1" fill="none" marker-end="url(#arr)">
+    <path d="M250 128 L250 168"/>
+    <path d="M268 128 L268 188" stroke-opacity="0.65"/>
+    <path d="M286 128 L286 158" stroke-opacity="0.4"/>
+  </g>
+  <text x="252" y="124" fill="#7fd8cf" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8">PAR</text>
+
+  <!-- DVM -->
+  <path d="M270 175 L270 300" fill="none" stroke="#c4d46a" stroke-width="1.1" stroke-dasharray="3 3" marker-end="url(#arr-dim)"/>
+  <path d="M278 300 L278 175" fill="none" stroke="#c4d46a" stroke-width="1.1" stroke-dasharray="3 3" marker-end="url(#arr-dim)"/>
+  <text x="232" y="244" fill="#c4d46a" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8">DVM</text>
+
+  <!-- Detritus sink -->
+  <path d="M54 170 L54 450" fill="none" stroke="#c4a070" stroke-width="1.15" stroke-dasharray="4 3" marker-end="url(#arr-dim)"/>
+  <text x="58" y="300" fill="#c4a070" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" transform="rotate(-90 62 300)">detritus sink</text>
+
+  <!-- Upwelling -->
+  <path d="M20 430 L20 200" fill="none" stroke="#6aa8d4" stroke-width="1.3" marker-end="url(#arr)"/>
+  <text x="8" y="318" fill="#6aa8d4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" transform="rotate(-90 12 318)">upwell N</text>
+
+  <!-- Ghost primary production -->
+  <rect x="148" y="112" width="72" height="22" rx="3" fill="none" stroke="#a89068" stroke-dasharray="3 2"/>
+  <text x="184" y="126" fill="#a89068" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">ice algae</text>
+
+  <rect x="160" y="428" width="88" height="22" rx="3" fill="none" stroke="#a89068" stroke-dasharray="3 2"/>
+  <text x="204" y="442" fill="#a89068" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">vents / seeps</text>
+
+  <!-- NPZD cycle -->
+  <text x="330" y="122" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" letter-spacing="0.14em">NPZD LOOP</text>
+
+  <rect x="428" y="128" width="94" height="36" rx="4" fill="#12351c" stroke="#7dcf7a"/>
+  <text x="475" y="143" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">P</text>
+  <text x="475" y="156" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">phytoplankton</text>
+
+  <rect x="526" y="208" width="94" height="36" rx="4" fill="#2a3314" stroke="#c4d46a"/>
+  <text x="573" y="223" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">Z</text>
+  <text x="573" y="236" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">zooplankton</text>
+
+  <rect x="428" y="288" width="94" height="36" rx="4" fill="#2a2214" stroke="#c4a070"/>
+  <text x="475" y="303" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">D</text>
+  <text x="475" y="316" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">detritus</text>
+
+  <rect x="330" y="208" width="94" height="36" rx="4" fill="#102838" stroke="#6aa8d4"/>
+  <text x="377" y="223" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">N</text>
+  <text x="377" y="236" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">nutrients</text>
+
+  <path d="M424 226 L428 164" fill="none" stroke="#7fd8cf" stroke-width="1.15" marker-end="url(#arr)"/>
+  <path d="M522 164 L560 208" fill="none" stroke="#7fd8cf" stroke-width="1.15" marker-end="url(#arr)"/>
+  <path d="M560 254 L522 288" fill="none" stroke="#7fd8cf" stroke-width="1.15" marker-end="url(#arr)"/>
+  <path d="M428 306 L424 254" fill="none" stroke="#7fd8cf" stroke-width="1.15" marker-end="url(#arr)"/>
+
+  <text x="400" y="186" fill="#7dcf7a" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8">uptake</text>
+  <text x="548" y="186" fill="#c4d46a" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8">graze</text>
+  <text x="548" y="280" fill="#c4a070" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8">excrete</text>
+  <text x="392" y="280" fill="#6aa8d4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8">remin</text>
+
+  <path d="M475 164 L475 288" fill="none" stroke="#c4a070" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#arr-dim)"/>
+  <text x="478" y="268" fill="#c4a070" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">senescence</text>
+
+  <!-- Benthos -->
+  <rect x="428" y="348" width="94" height="32" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+  <text x="475" y="361" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" font-weight="600" text-anchor="middle">Benthos</text>
+  <text x="475" y="373" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">seafloor C</text>
+  <path d="M475 324 L475 348" fill="none" stroke="#c4a070" stroke-width="1.15" marker-end="url(#arr)"/>
+  <path d="M428 364 C 360 364, 360 250, 377 244" fill="none" stroke="#6aa8d4" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+
+  <!-- Food web -->
+  <text x="330" y="404" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" letter-spacing="0.14em">FOOD WEB</text>
+
+  <rect x="330" y="412" width="132" height="44" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+  <text x="396" y="430" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" font-weight="600" text-anchor="middle">Forage schools</text>
+  <text x="396" y="444" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">Type II on z or p</text>
+
+  <rect x="490" y="412" width="130" height="44" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+  <text x="555" y="430" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" font-weight="600" text-anchor="middle">Predators</text>
+  <text x="555" y="444" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">bite &#183; filter &#183; jet</text>
+
+  <path d="M462 434 L490 434" fill="none" stroke="#7fd8cf" stroke-width="1.2" marker-end="url(#arr)"/>
+  <path d="M560 244 L396 412" fill="none" stroke="#c4d46a" stroke-width="1" marker-end="url(#arr)"/>
+  <path d="M455 164 C 400 164, 360 300, 380 412" fill="none" stroke="#7dcf7a" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <path d="M475 380 L475 400 L396 412" fill="none" stroke="#7fd8cf" stroke-width="1" marker-end="url(#arr)"/>
+
+  <text x="500" y="400" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8">bite restores energy</text>
+  <text x="338" y="468" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8">carcasses recycle to N and D &#183; Q10 and hypoxia scale rates</text>
+  <text x="338" y="482" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8">o2Min / OMZ gate habitat &#183; seafloor always wins on depth</text>
+
+  <!-- Biomes -->
+  <text x="20" y="528" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" letter-spacing="0.14em">EVERY KIND OF OCEAN</text>
+  <text x="620" y="528" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="9" text-anchor="end">this cell is pelagic &#183; the rest still has to land</text>
+
+  <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">
+    <rect x="12" y="540" width="148" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="86" y="555" fill="#e7f4f2" font-weight="600" text-anchor="middle">Open pelagic</text>
+    <text x="86" y="568" fill="#9bb8b4" font-size="8" text-anchor="middle">coupled &#183; still a thin slice</text>
+
+    <rect x="168" y="540" width="148" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="242" y="555" fill="#e7f4f2" font-weight="600" text-anchor="middle">Mesopelagic / OMZ</text>
+    <text x="242" y="568" fill="#9bb8b4" font-size="8" text-anchor="middle">DSL &#183; Humboldt &#183; sperm</text>
+
+    <rect x="324" y="540" width="148" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="398" y="555" fill="#e7f4f2" font-weight="600" text-anchor="middle">Shelf carbon</text>
+    <text x="398" y="568" fill="#9bb8b4" font-size="8" text-anchor="middle">benthos field &#183; cod only</text>
+
+    <rect x="480" y="540" width="148" height="36" rx="4" fill="none" stroke="#a89068" stroke-dasharray="4 3"/>
+    <text x="554" y="555" fill="#d4c4a0" font-weight="600" text-anchor="middle">Demersal fauna</text>
+    <text x="554" y="568" fill="#a89068" font-size="8" text-anchor="middle">infauna &#183; flatfish &#183; kelp</text>
+
+    <rect x="12" y="584" width="148" height="36" rx="4" fill="none" stroke="#a89068" stroke-dasharray="4 3"/>
+    <text x="86" y="599" fill="#d4c4a0" font-weight="600" text-anchor="middle">Coral reef</text>
+    <text x="86" y="612" fill="#a89068" font-size="8" text-anchor="middle">calcification &#183; bleaching</text>
+
+    <rect x="168" y="584" width="148" height="36" rx="4" fill="none" stroke="#a89068" stroke-dasharray="4 3"/>
+    <text x="242" y="599" fill="#d4c4a0" font-weight="600" text-anchor="middle">Polar ice</text>
+    <text x="242" y="612" fill="#a89068" font-size="8" text-anchor="middle">ice algae &#183; seals &#183; polynya</text>
+
+    <rect x="324" y="584" width="148" height="36" rx="4" fill="none" stroke="#a89068" stroke-dasharray="4 3"/>
+    <text x="398" y="599" fill="#d4c4a0" font-weight="600" text-anchor="middle">Coast / estuary</text>
+    <text x="398" y="612" fill="#a89068" font-size="8" text-anchor="middle">mangrove &#183; seagrass &#183; salt</text>
+
+    <rect x="480" y="584" width="148" height="36" rx="4" fill="none" stroke="#a89068" stroke-dasharray="4 3"/>
+    <text x="554" y="599" fill="#d4c4a0" font-weight="600" text-anchor="middle">Vent / seep / hadal</text>
+    <text x="554" y="612" fill="#a89068" font-size="8" text-anchor="middle">chemosynthesis &#183; trenches</text>
+  </g>
+
+  <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="9" fill="#9bb8b4">
+    <rect x="12" y="636" width="10" height="10" rx="2" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="28" y="645">coupled now - a budget, a habitat, or a sensory cue already reads it</text>
+    <rect x="12" y="656" width="10" height="10" rx="2" fill="none" stroke="#a89068" stroke-dasharray="3 2"/>
+    <text x="28" y="665">not in the model yet - still a gap, even if a mesh could fake it</text>
+    <text x="28" y="688" fill="#7fd8cf">Near the camera: agents. Kilometres out: density. Basin: Eulerian fields. Not more boids.</text>
+    <text x="28" y="704" fill="#9bb8b4">Clock: 8 min ~ 1 day. Storms mix deeper and shoal the nutricline. Air-breathers hang and blow, then dive.</text>
+  </g>
+</svg>

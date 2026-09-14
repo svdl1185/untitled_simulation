@@ -74,47 +74,162 @@
         <h3>About</h3>
         <div class="about-body">
           <p class="about-kicker">untitled_ocean_simulation</p>
-          <p class="about-title">World ocean</p>
+          <p class="about-title">A complete ocean</p>
           <p>
-            A coupled ocean: physics first, then chemistry, then life. The camera is a window into that
-            system, not the point of it.
+            The aim is the most complete coupled ocean that can run in a browser — every kind of ocean,
+            not one pretty tank. A North Sea shelf, a Humboldt upwelling cell, an Antarctic slope, a
+            tropical gyre, a coral reef, an ice edge, a hydrothermal vent: each kilometre should be a
+            living system, not a backdrop.
           </p>
           <p>
-            Light sets photosynthesis. Photosynthesis sets plankton. Plankton and currents set where
-            forage fish go. Forage fish set where predators hunt. If a feature does not change a budget,
-            a habitat, or a sensory cue, it does not belong.
+            Physics first, then chemistry, then life. Light, nutrients, oxygen, and the seafloor set
+            the budgets; animals only exist if they eat something and are limited by something. The
+            camera is a window. If a feature does not change a budget, a habitat, or a sensory cue, it
+            does not belong yet.
           </p>
-          <h3>A nested model</h3>
+          <h3>The system at once</h3>
+          <figure class="about-cycle">
+            <img src="/cycles.svg" width="640" height="740" alt="Water-column schematic: light, temperature, flow, oxygen, and the seafloor drive an NPZD loop that feeds forage schools and predators. Detritus sinks to benthos and remineralises. Solid boxes are coupled. Dashed boxes — ice algae, vents, coral reefs, polar ice, coasts — are not in the model yet." />
+            <figcaption>
+              Solid is live. Dashed is still open. Near the camera: agents. Kilometres out: density.
+              Basin: Eulerian fields.
+            </figcaption>
+          </figure>
+          <h3>Coupled now</h3>
+          <ul class="about-inv">
+            <li>
+              <strong>Cell and atlas.</strong> World map is home. Click water for a 1 km cell (GEBCO
+              tint, GMRT floor, HYCOM mean current when it answers). Land is not a cell. Catalog tank
+              is a 10 km lab: beach, stepped shelves, canyon, seamount, 2000 m — every catalogued
+              animal, not a real place. Neighbour chunks cache; animals do not swim between cells.
+              Clock: 8 min ≈ 1 day, twelve sim days per year. Storms mix deeper, shoal the nutricline,
+              and raise current.
+            </li>
+            <li>
+              <strong>Fields.</strong> One shared current (<code>sampleFlow</code>: tide, longshore,
+              shear, eddies, atlas mean, climate upwell). Beer–Lambert PAR (<code>samplePAR</code>)
+              shared by fog, caustics, phytoplankton, and visual hunt. Temperature and Q10
+              (<code>sampleTemp</code>). Dissolved oxygen and OMZ (<code>sampleO2</code>). Separable
+              NPZD (128×128 patch × column: N, P, Z, D). Benthos: detritus flux onto the bed.
+            </li>
+            <li>
+              <strong>Agents.</strong> One hashed-grid school (cap 20k) plus a handful of vehicles.
+              Social modes: polarized, loose, scatter. Gaits: burst, ram, benthic, jet. Air-breathers
+              hang and blow, then a flukes-up dive. Spawn against the local seafloor;
+              <code>maxDepth</code> is biological, then the floor, then oxygen.
+            </li>
+            <li>
+              <strong>Budgets.</strong> School ceiling = bloom mean × photic production. Type II graze
+              on <code>z</code> or <code>p</code>. Bites restore energy; missing prey is a starve.
+              Sperm whale × Humboldt / giant squid are the vehicle-on-vehicle bites. Q10 and hypoxia
+              scale rates. Closed mass: graze, excretion, carcass, sink, remineralisation, benthos
+              graze.
+            </li>
+            <li>
+              <strong>Range.</strong> Hulls OR; trophic, thermal, OMZ, and shelf gates. Overlap is
+              habitat. Empty is honest.
+            </li>
+            <li>
+              <strong>Window.</strong> Water, fog, and fish follow the same <em>K</em><sub>d</sub>.
+              Depth layers, census, field-notes cards, physical knobs (turbidity, SST anomaly, oxygen
+              anomaly, storm). Camera lamp is fill, not habitat.
+            </li>
+          </ul>
+          <p class="about-label">School (hashed grid)</p>
+          <p class="about-taxa">
+            <span>herring</span><span>capelin</span><span>menhaden</span><span>sardine</span
+            ><span>pilchard</span><span>anchovy</span><span>sardinella</span><span>mackerel</span
+            ><span>flying fish</span><span>sprat</span><span>sand lance</span><span>polar cod</span
+            ><span>Antarctic silverfish</span><span>Pacific saury</span><span>market squid</span
+            ><span>lanternfish</span><span>krill</span><span>jack mackerel</span><span>Illex</span>
+          </p>
+          <p class="about-label">Vehicles</p>
+          <p class="about-taxa">
+            <span>blue shark</span><span>skipjack</span><span>yellowfin</span><span>bluefin</span
+            ><span>mahi</span><span>sailfish</span><span>barracuda</span><span>great white</span
+            ><span>tiger shark</span><span>hammerhead</span><span>whale shark</span><span>minke</span
+            ><span>humpback</span><span>sperm whale</span><span>orca</span><span>common dolphin</span
+            ><span>Humboldt squid</span><span>giant squid</span><span>Atlantic cod</span
+            ><span>Antarctic toothfish</span>
+          </p>
+          <p class="about-label">Field guild</p>
+          <p class="about-taxa"><span>benthos</span></p>
+          <h3>Not in the model yet</h3>
           <p>
-            Click a kilometre of water to look through the camera. That cell loads GEBCO bathymetry, a
-            mean current, and every catalogued animal whose range covers it. Overlap is habitat: a
-            Humboldt cell can hold anchoveta and sardine; the North Sea can hold herring, mackerel,
-            sharks, and cod.
+            Closing a row means moving it into <strong>Coupled now</strong>, not deleting the gap. A
+            mesh without a budget is still a gap. Species cards keep per-taxon holes under
+            <strong>Not in the model</strong>.
           </p>
-          <p>
-            Near the camera you see agents. Kilometres out would be density. The basin is Eulerian
-            fields. This is not the global ocean as more fish.
+          <div class="about-gaps">
+            <p>
+              <strong>Ocean as a system.</strong> Salinity, density, pycnocline; nutrient species
+              beyond one N (Si, Fe, PO₄, NH₄ vs NO₃, N₂ fixation, denitrification); microbial loop,
+              DOM, viruses; full 3D NPZD; carbonate chemistry, pH, Ω; air–sea heat, freshwater, CO₂;
+              horizontal O₂ fronts, bed oxygen, dead zones; live wind, Ekman spiral, HYCOM
+              <em>w</em>; mesoscale eddies as 3D rotors; internal waves, baroclinic tides, seamount
+              mixing; surface gravity waves, Stokes drift, Langmuir; climate modes (ENSO, IOD, NAO,
+              PDO); basin streaming of agents; density / super-individuals beyond the camera; AquaMaps
+              / OBIS / acoustic DSL; fishing mortality; age, stage, larval drift; spawn as a swim
+              between cells; senses as fields (echolocation, olfaction, electroreception, lateral
+              line, magnetoreception, soundscape); moon, lunar DVM, polar night / midnight sun; marine
+              snow / migratory carbon pump; size-structured plankton; vehicle–vehicle and
+              school–school bites beyond sperm whale × Humboldt / giant squid; disease; pressure /
+              compressibility; authored meshes; sediment grain size and transport.
+            </p>
+            <p>
+              <strong>Seafloor besides tropical reefs.</strong> Named infauna and epifauna; crabs,
+              lobsters, shrimp; echinoderms; sponges, sea pens, gorgonians, glass-sponge reefs;
+              cold-water coral; flatfish, skates, rays, chimaeras; haddock, pollock, hake, whiting,
+              wolffish; grenadiers, cusk eels, snailfish, tripod fish, hagfish; sleeper sharks,
+              sixgill, Greenland shark, dogfish; kelp forests and urchin–otter coupling; maerl;
+              microphytobenthos; bioturbation and sediment redox; phytodetritus pulses; hydrothermal
+              vents; cold seeps, brine pools, hydrates; whale falls, wood falls; seamount sessile
+              fauna; canyon turbidity currents; hadal trenches; sand-lance burying; demersal eggs on
+              gravel; bottom water, contour currents, iceberg scour; trawl disturbance; octopus,
+              cuttlefish, benthic squid egg mops.
+            </p>
+            <p>
+              <strong>Coral reefs.</strong> Hard coral as a field agent; zooxanthellae, bleaching, OA;
+              rugosity / reef profile; crustose coralline algae; herbivory (parrotfish, surgeonfish,
+              <em>Diadema</em>); cryptobenthic fish; corallivores and invertivores; groupers, snappers,
+              morays; reef sharks and rays; octopus, reef squid, cleaners; anemones, giant clams,
+              sponges, soft corals; crown-of-thorns and algal phase shifts; mass spawning; reef
+              soundscape; wave energy; sediment, nutrients, island freshwater; grazing halos; seagrass
+              and mangrove connectivity; nocturnal shift; territoriality, sex change, cleaning
+              stations.
+            </p>
+            <p>
+              <strong>Open ocean.</strong> Gelatinous zooplankton; phytoplankton functional types; DSL
+              as sound; the rest of the mesopelagic fish; glass, colossal, and vampire squid; beaked
+              whales; blue, fin, sei, right whales; mako, thresher, oceanic whitetip, porbeagle; manta
+              / devil rays, ocean sunfish; sea turtles; seabirds; neuston, <em>Sargassum</em>,
+              flotsam, FADs; fronts and eddy rings; tuna–dolphin–bird associations; flying-fish glide;
+              counterillumination, chromatophores, ink; bait-ball hydrodynamics; endothermy in tunas
+              and lamnids; oligotrophic gyre vs bloom biome; western boundary currents as live jets;
+              migratory carbon pump; whale falls from this column; remoras, pilotfish; surface
+              boiling, lunge, spyhop / breach; school piscivory; lunar inhibition of DVM; diadromy.
+            </p>
+            <p>
+              <strong>Polar seas and ice.</strong> Sea ice; ice types; leads and polynyas; ice algae
+              and under-ice blooms; polar night / midnight sun as optics; ice-edge blooms; ice seals;
+              walrus, polar bear; penguins; beluga, narwhal, bowhead; Greenland shark; icefish and
+              other notothenioids; krill lipid overwinter; iceberg scour, dropstones, glacial plumes;
+              ice-shelf cavities, bottom-water formation; wave-washing seals off ice.
+            </p>
+            <p>
+              <strong>Coasts, estuaries, intertidal.</strong> Estuarine circulation and salt wedge;
+              tidal zonation; mangroves; salt marsh, mudflat, wrack; seagrass meadows; oyster reefs,
+              mussel beds, rocky intertidal; sandy-beach surf zone; anadromous and catadromous fish;
+              seals, sea lions, fur seals; coastal birds; manatee, dugong, sea otter; sea turtles on
+              beaches; hypoxic dead zones as a map; river plumes, CDOM, sediment; live wind-driven
+              upwelling coasts; harmful algal blooms; inlet larval ingress, fjord sills, lagoons;
+              beach-spawning die-offs; flats; bull shark / sawfish in rivers.
+            </p>
+          </div>
+          <p class="about-attr">
+            This panel is the live inventory of the model. 1 km cells · Esc returns to the last cell if
+            you have entered one.
           </p>
-          <h3>Catalog tank</h3>
-          <p>
-            Lab is a 10 km tank with every implemented animal — beach, stepped shelves, a canyon, a
-            seamount, 2000 m of water. For coexistence and depth, not a real place.
-          </p>
-          <h3>What is coupled now</h3>
-          <p>
-            <strong>Fields</strong> — tide, longshore, shear, eddies; PAR, temperature, dissolved
-            oxygen (including the OMZ); a 128×128 NPZD grid (nutrients, phytoplankton, zooplankton,
-            detritus).
-          </p>
-          <p>
-            <strong>Agents</strong> — hashed-grid forage schools and a few Reynolds vehicles (sharks,
-            tunas, whales, squid, cod), only near the camera.
-          </p>
-          <p>
-            <strong>Budgets</strong> — bloom mean caps the school; grazing depletes zooplankton; bites
-            restore predator energy; carcasses recycle. Depth is biological, then the seafloor.
-          </p>
-          <p class="about-attr">1 km cells · Esc returns to the last cell if you have entered one</p>
         </div>
       </section>
       <section class="hud-panel" id="menu" hidden>

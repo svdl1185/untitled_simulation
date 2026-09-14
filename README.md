@@ -1,8 +1,12 @@
 # untitled_simulation
 
-A scientific ocean simulation. The aim is the most complete coupled ocean that can run in a browser: every factor that changes a **budget**, a **habitat**, or a **sensory cue**, so any kilometre of the world ocean can be a living cell rather than a backdrop.
+A scientific ocean simulation. The aim is the most complete coupled ocean that can run in a browser — **every kind of ocean**, not one pretty tank. A North Sea shelf, a Humboldt upwelling cell, an Antarctic slope, a tropical gyre, a coral reef, an ice edge, a hydrothermal vent: each kilometre should be a living cell rather than a backdrop. Every factor that changes a **budget**, a **habitat**, or a **sensory cue** belongs.
 
 The camera is a window into that system, not the point of it. There is no score, no collectible, no species that exists only to look like another species.
+
+![Mass, light, and habitat in one cell](public/cycles.svg)
+
+Solid nodes are coupled now. Dashed nodes are still open. The in-app **About** panel is the same live inventory, condensed.
 
 ```bash
 npm install
@@ -21,9 +25,9 @@ Physics first, then chemistry, then life.
 
 Light sets photosynthesis. Photosynthesis sets plankton. Plankton, temperature, and currents set where forage fish go. Forage fish set where predators hunt. Detritus sinks; the seafloor holds carbon; demersal animals eat it. If a feature does not change a budget, a habitat, or a sensory cue, it does not belong yet.
 
-The long-term target is a single catalog plus presence plus shared budgets that can hold any ocean ecosystem — pelagic, mesopelagic, demersal, reef, polar, coastal, upwelling — without a second 20k boid loop. Near the camera: agents. Kilometres out: density. Basin: Eulerian fields.
+The long-term target is a single catalog plus presence plus shared budgets that can hold any ocean ecosystem — pelagic, mesopelagic, demersal, reef, polar, coastal, upwelling, vent — without a second 20k boid loop. Near the camera: agents. Kilometres out: density. Basin: Eulerian fields. The kilometre we load today is a pelagic cell; the other systems are first-class ocean, not later colour.
 
-How to add an animal: [`.cursor/rules/species.mdc`](.cursor/rules/species.mdc). Architecture for agents: [`.cursor/rules/mission.mdc`](.cursor/rules/mission.mdc). Keep this README in the same commit as the feature: [`.cursor/rules/readme.mdc`](.cursor/rules/readme.mdc). Public deploy: [`docs/deploy.md`](docs/deploy.md).
+How to add an animal: [`.cursor/rules/species.mdc`](.cursor/rules/species.mdc). Architecture for agents: [`.cursor/rules/mission.mdc`](.cursor/rules/mission.mdc). Keep this README and the in-app About panel in the same commit as the feature: [`.cursor/rules/readme.mdc`](.cursor/rules/readme.mdc). Public deploy: [`docs/deploy.md`](docs/deploy.md).
 
 ## What is coupled now
 

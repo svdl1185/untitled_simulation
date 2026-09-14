@@ -424,6 +424,7 @@ export function createHUD() {
     if (about) about.hidden = dock !== "about";
     if (menu) menu.hidden = dock !== "menu";
     notes.classList.toggle("is-collapsed", !dock);
+    notes.classList.toggle("is-about", dock === "about");
     if (columnRoot) columnRoot.hidden = !cell;
     document.body.classList.toggle("has-column", cell);
     if (backdrop) backdrop.hidden = true;

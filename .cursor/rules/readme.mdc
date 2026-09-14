@@ -1,25 +1,33 @@
 ---
-description: Keep README.md in lockstep with the live model — mission, what is coupled, what is not.
+description: Keep README.md and the in-app About in lockstep with the live model — mission, what is coupled, what is not.
 alwaysApply: true
 ---
 
-# README is the live inventory
+# README and About are the live inventory
 
-`README.md` is the public description of this simulation. **Update it in the same change as the feature.** Do not land a field, species, budget, or control and leave the README describing the previous ocean.
+`README.md` is the public description of this simulation. The in-app **About** panel (`index.html` `#about`) is the same inventory, condensed, with the coupling figure. **Update both in the same change as the feature.** Do not land a field, species, budget, or control and leave either describing the previous ocean.
 
 ## What the README must contain
 
-1. **Mission** — a scientific ocean simulation aiming to be the most complete coupled ocean that can run in a browser: every factor that changes a budget, a habitat, or a sensory cue. The camera is a window. Not a fish game.
-2. **What is coupled now** — precise inventory: cell/atlas, fields, agents, budgets, range gates, every catalog id, HUD/controls. Name the live modules.
-3. **What is not in the model yet** — honest gaps, split by system: ocean-as-a-system, seafloor besides tropical reefs, coral reefs, open ocean, polar/ice, coasts. Do not hide a gap behind a mesh.
-4. **Links** — relative links to `docs/fields.md`, `docs/viability.md`, `.cursor/rules/species.mdc`, `.cursor/rules/mission.mdc`.
+1. **Mission** — a scientific ocean simulation aiming to be the most complete coupled ocean that can run in a browser: every kind of ocean, every factor that changes a budget, a habitat, or a sensory cue. The camera is a window. Not a fish game.
+2. **Coupling figure** — `public/cycles.svg`. Solid = coupled. Dashed = not yet. Keep it true to the live fields, NPZD loop, food web, and biome gaps.
+3. **What is coupled now** — precise inventory: cell/atlas, fields, agents, budgets, range gates, every catalog id, HUD/controls. Name the live modules.
+4. **What is not in the model yet** — honest gaps, split by system: ocean-as-a-system, seafloor besides tropical reefs, coral reefs, open ocean, polar/ice, coasts. Do not hide a gap behind a mesh.
+5. **Links** — relative links to `docs/fields.md`, `docs/viability.md`, `.cursor/rules/species.mdc`, `.cursor/rules/mission.mdc`.
 
-## When you must edit it
+## What the About panel must contain
+
+1. A short mission (complete ocean of every kind; camera is a window).
+2. The same coupling figure (`/cycles.svg`).
+3. **Coupled now** — fields, agents, budgets, range, HUD, every catalog id.
+4. **Not in the model yet** — the six gap systems, as lists not vibes.
+
+## When you must edit them
 
 - New field (`sampleTemp`, PAR, oxygen, ice, …)
 - New catalog species or guild
 - New budget coupling (graze, Q10, benthos sink, …)
 - New physical control in `MENU`
-- A gap that closed (move it from “not yet” to “coupled now”)
+- A gap that closed (move it from “not yet” to “coupled now”, and restyle that node in `public/cycles.svg` from dashed to solid)
 
 Keep the tone of the rest of the repo: physical, specific, no arcade copy.
