@@ -743,6 +743,11 @@ function hudView() {
   return { general, subject, day, census, placeName: loc.name || loc.region, column };
 }
 
+function hudHit(clientX, clientY) {
+  const hit = document.elementFromPoint(clientX, clientY);
+  return !!hit?.closest("#hud-notes, .nav-bar, #menu, #hud-column, #pilot-hint");
+}
+
 function pickSubject(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   if (!rect.width || !rect.height) return null;
@@ -1024,7 +1029,7 @@ function frame(now) {
     if (oceanMap.isOpen()) {
       hud.tick(dt, hudView());
     } else {
-      if (pointer.click) {
+      if (pointer.click && !hudHit(pointer.click.x, pointer.click.y)) {
         inspect = pickSubject(pointer.click.x, pointer.click.y);
       }
       if (tracking?.kind === "herring" && tracking.id >= school.count) stopFollow();

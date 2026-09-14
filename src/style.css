@@ -590,6 +590,13 @@ h3 {
   color: var(--ink);
 }
 
+.stat-links,
+.diet-link {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+}
+
 .diet-link {
   cursor: pointer;
   text-decoration: underline;

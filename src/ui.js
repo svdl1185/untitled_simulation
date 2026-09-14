@@ -837,6 +837,7 @@ function bindNotes(root) {
 
 function bindStats(root, tip, onPick) {
   const rows = new Map();
+  let orderKey = "";
   function hideTip() {
     if (tip) tip.hidden = true;
   }
@@ -874,11 +875,23 @@ function bindStats(root, tip, onPick) {
           class: "diet-link",
           "data-id": link.id,
           text: link.label,
+          title: `Look at ${link.label}`,
         });
-        btn.addEventListener("pointerdown", (e) => e.stopPropagation());
+        let handled = false;
+        btn.addEventListener("pointerdown", (e) => {
+          e.stopPropagation();
+          handled = false;
+        });
+        btn.addEventListener("pointerup", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handled = true;
+          onPick(link.id);
+        });
         btn.addEventListener("click", (e) => {
           e.preventDefault();
           e.stopPropagation();
+          if (handled) return;
           onPick(link.id);
         });
         row.links.append(btn);
@@ -938,7 +951,8 @@ function bindStats(root, tip, onPick) {
         } else {
           row.detail.hidden = true;
         }
-        if (item.hint) {
+        const hintable = item.hint && !hasLinks;
+        if (hintable) {
           row.node.dataset.hint = item.hint;
           row.node.setAttribute("tabindex", "0");
           row.node.setAttribute("aria-label", `${item.label}: ${next}. ${item.hint}`);
@@ -947,7 +961,14 @@ function bindStats(root, tip, onPick) {
           row.node.removeAttribute("tabindex");
           row.node.removeAttribute("aria-label");
         }
-        root.append(row.node);
+      }
+      const nextOrder = (list || []).filter((item) => item?.id).map((item) => item.id).join("|");
+      if (nextOrder !== orderKey) {
+        for (const item of list || []) {
+          const row = item?.id ? rows.get(item.id) : null;
+          if (row) root.append(row.node);
+        }
+        orderKey = nextOrder;
       }
       for (const [id, row] of rows) {
         if (seen.has(id)) continue;
