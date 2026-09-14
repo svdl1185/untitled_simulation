@@ -17,7 +17,7 @@ Open the URL Vite prints. The **world map** is home. Click water to load that ki
 
 The public host is a Cloudflare Worker with the Vite `dist`. Atlas paths `/gebco`, `/gmrt`, `/hycom` are the same in `npm run dev` and in production (Vite proxy locally, Worker fetch on the edge). Attach a domain: [`docs/deploy.md`](docs/deploy.md).
 
-Menu: `M` / `Tab`. Toggles start off. Prefer a physical control (turbidity, SST anomaly, oxygen anomaly) over a cosmetic one.
+Controls: `M` / `Tab`. Toggles start off. Prefer a physical control (turbidity, SST anomaly, oxygen anomaly) over a cosmetic one.
 
 ## Mission
 
@@ -175,7 +175,7 @@ Water, caustics, fog, and sky follow the photic envelope and the day look (`src/
 
 HUD (real state only): zone and camera depth, clock, weather, school count vs bloom cap, vehicle count, P/Z, SST, mixed layer, nutricline, O₂ at the camera, 1% light depth, PAR at the camera, benthos, follow rig. Field-notes card from `FAUNA`: **In nature**, **Not in the model** (only if `missing` is non-empty), live diet in this cell (click a name) or **None in cell** with the natural diet under it, breath-hold meter for air-breathers.
 
-Menu (`M` / `Tab`) starts most toggles off. Physical knobs: turbidity, SST anomaly, oxygen anomaly, storm (mixed layer + nutricline + current), school cap, blue-shark headcount. Map: current overlay.
+**Controls** (`M` / `Tab`) starts most toggles off. Physical knobs: turbidity, SST anomaly, oxygen anomaly, storm (mixed layer + nutricline + current), school cap, blue-shark headcount. Map: current overlay.
 
 Knobs live in `src/config.js` / `SPECIES[id].fish` / `SPECIES[id].vehicle`. Wire new rows with `hud.on` in `src/main.js`.
 
@@ -374,6 +374,6 @@ npm run viability
 
 ## Extending it
 
-Knobs: `src/config.js`. Menu: `MENU` in `src/ui.js`, then `hud.on` in `src/main.js`. Fields under `src/simulation/`; meshes under `src/render/`.
+Knobs: `src/config.js`. Controls panel: `MENU` in `src/ui.js`, then `hud.on` in `src/main.js`. Fields under `src/simulation/`; meshes under `src/render/`.
 
 A new animal needs a guild, a food, a flow coupling, a range, and a reason it is not the last one. A new field needs `sample…` cheap enough to call per fish, a closed budget, and a README row in the same change.

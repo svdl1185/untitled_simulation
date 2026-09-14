@@ -2,7 +2,7 @@ import { CONFIG } from "./config.js";
 import { CAMERA_MODES } from "./camera.js";
 
 /**
- * Add a parameter: push an item into MENU, then hud.on(id, handler) in main.js.
+ * Add a control: push an item into MENU, then hud.on(id, handler) in main.js.
  * Or at runtime: hud.addSection(...) / hud.addItem(...).
  * Toggles default to off unless `value` is true. Sliders/selects keep the value you set here.
  * `mapOnly` / `cellOnly` hide a row until that view is active.
@@ -32,43 +32,6 @@ export const MENU = [
         step: 0.05,
         value: 10.4,
         format: formatClock,
-      },
-    ],
-  },
-  {
-    id: "life",
-    title: "Life",
-    items: [
-      {
-        id: "fish",
-        kind: "slider",
-        label: "School cap",
-        hint: "Forage-fish ceiling in this cell. The bloom still caps how many it can carry.",
-        min: 2000,
-        max: CONFIG.maxFish,
-        step: 500,
-        value: CONFIG.initialFish,
-        format: (n) => Number(n).toLocaleString(),
-        cellOnly: true,
-      },
-      {
-        id: "sharks",
-        kind: "slider",
-        label: "Blue sharks",
-        hint: "Headcount for blue sharks only. Other predators follow range and catalog counts.",
-        min: 0,
-        max: CONFIG.shark.max,
-        step: 1,
-        value: CONFIG.shark.count,
-        cellOnly: true,
-      },
-      {
-        id: "reset",
-        kind: "action",
-        label: "Reset school",
-        hint: "Respawn forage and reseed the bloom.",
-        key: "R",
-        cellOnly: true,
       },
     ],
   },
@@ -123,6 +86,43 @@ export const MENU = [
     ],
   },
   {
+    id: "life",
+    title: "Life",
+    items: [
+      {
+        id: "fish",
+        kind: "slider",
+        label: "School cap",
+        hint: "Forage-fish ceiling in this cell. The bloom still caps how many it can carry.",
+        min: 2000,
+        max: CONFIG.maxFish,
+        step: 500,
+        value: CONFIG.initialFish,
+        format: (n) => Number(n).toLocaleString(),
+        cellOnly: true,
+      },
+      {
+        id: "sharks",
+        kind: "slider",
+        label: "Blue sharks",
+        hint: "Headcount for blue sharks only. Other predators follow range and catalog counts.",
+        min: 0,
+        max: CONFIG.shark.max,
+        step: 1,
+        value: CONFIG.shark.count,
+        cellOnly: true,
+      },
+      {
+        id: "reset",
+        kind: "action",
+        label: "Reset school",
+        hint: "Respawn forage and reseed the bloom.",
+        key: "R",
+        cellOnly: true,
+      },
+    ],
+  },
+  {
     id: "map",
     title: "Map",
     items: [
@@ -137,7 +137,7 @@ export const MENU = [
   },
   {
     id: "view",
-    title: "View",
+    title: "Window",
     items: [
       {
         id: "fear",
@@ -196,7 +196,7 @@ export const MENU = [
 ];
 
 const KEY_HELP = [
-  ["M / Tab", "Open or close parameters"],
+  ["M / Tab", "Open or close controls"],
   ["O", "World map (home)"],
   ["I", "Census, when a cell is open"],
   ["Click census", "Jump to that animal"],
@@ -244,7 +244,6 @@ export function createHUD() {
   const body = document.getElementById("menu-body");
   const menu = document.getElementById("menu");
   const about = document.getElementById("about");
-  const backdrop = document.getElementById("menu-backdrop");
   const btnMenu = document.getElementById("btn-menu");
   const btnAbout = document.getElementById("btn-about");
   const btnMap = document.getElementById("btn-map");
@@ -309,14 +308,16 @@ export function createHUD() {
   const help = el("section", { class: "menu-section menu-help" }, [
     el("h3", { text: "Keys" }),
   ]);
+  const keys = el("dl", { class: "about-glossary menu-keys" });
   for (const [key, text] of KEY_HELP) {
-    help.append(
-      el("p", { class: "menu-help-row" }, [
-        el("kbd", { text: key }),
-        el("span", { text }),
+    keys.append(
+      el("div", {}, [
+        el("dt", { text: key }),
+        el("dd", { text }),
       ])
     );
   }
+  help.append(keys);
   body.append(help);
 
   function emit(id, value) {
@@ -424,11 +425,9 @@ export function createHUD() {
     if (about) about.hidden = dock !== "about";
     if (menu) menu.hidden = dock !== "menu";
     notes.classList.toggle("is-collapsed", !dock);
-    notes.classList.toggle("is-about", dock === "about");
+    notes.classList.toggle("is-wide", dock === "about" || dock === "menu");
     if (columnRoot) columnRoot.hidden = !cell;
     document.body.classList.toggle("has-column", cell);
-    if (backdrop) backdrop.hidden = true;
-    document.body.classList.remove("menu-open");
     syncFields();
   }
 
