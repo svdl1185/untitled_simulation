@@ -5,6 +5,7 @@ import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lo
 import { sampleFlow } from "./flow.js";
 import { TROPHIC } from "./plankton.js";
 import { columnQ10 } from "./temperature.js";
+import { o2MetabolicFactor, oxygenLimitY } from "./oxygen.js";
 
 function packOf(sharks) {
   return Array.isArray(sharks) ? sharks : sharks ? [sharks] : [];
@@ -257,7 +258,7 @@ export class School {
       z = Math.sin(a) * rz + zOff;
     }
     const placed = placeInColumn(x, z, wantY, {
-      maxDepth: cfg.maxDepth,
+      maxDepth: oxygenLimitY(cfg),
       clearance: cfg.floorClearance,
       minWater: cfg.minWater,
     });
@@ -387,7 +388,7 @@ export class School {
           y = home.y + (Math.random() - 0.5) * rest * 1.6;
           z = home.z + (Math.random() - 0.5) * spread * 2.4;
         }
-        y = clampLocalY(y, x, z, cfg.maxDepth, cfg.floorClearance);
+        y = clampLocalY(y, x, z, oxygenLimitY(cfg), cfg.floorClearance);
         this.pos[i3] = x;
         this.pos[i3 + 1] = y;
         this.pos[i3 + 2] = z;
@@ -470,7 +471,7 @@ export class School {
         c.y + (Math.random() - 0.5) * rest * 2,
         x,
         z,
-        tcfg.maxDepth,
+        oxygenLimitY(tcfg),
         tcfg.floorClearance
       );
       this.pos[i3 + 2] = z;
@@ -772,8 +773,9 @@ export class School {
         wantY += (forageY - wantY) * Math.min(0.28, (hunger - 0.62) * 0.7);
       }
       a.y += (wantY - a.y) * Math.min(1, dt * 0.55);
-      const waterTop = this.shoalCfg(s).anchorTop ?? -3.2;
-      const waterBot = Math.max(groundA + 8, this.shoalCfg(s).maxDepth);
+      const scfgBot = this.shoalCfg(s);
+      const waterTop = scfgBot.anchorTop ?? -3.2;
+      const waterBot = Math.max(groundA + 8, oxygenLimitY(scfgBot));
       if (waterBot < waterTop) {
         if (a.y < waterBot) a.y = waterBot;
         else if (a.y > waterTop) a.y = waterTop;
@@ -1095,7 +1097,7 @@ export class School {
 
       const groundHold = seafloorHeight(px, pz);
       const ceilHold = -cfg.surfaceClearance;
-      const sandPad = Math.max(groundHold + cfg.floorClearance + 0.6, cfg.maxDepth);
+      const sandPad = Math.max(groundHold + cfg.floorClearance + 0.6, oxygenLimitY(cfg));
       const room = Math.max(2.2, (ceilHold - sandPad) * 0.5);
       const localH = Math.min(holdH, room);
       let holdY = hold.y;
@@ -1161,7 +1163,7 @@ export class School {
           cruiseZ += anchor.gz * pull;
         }
       }
-      e -= metabolism * q10 * dt * (1 + alarm * 1.45 + (look?.storm ?? 0) * 0.3);
+      e -= metabolism * q10 * o2MetabolicFactor(py, cfg) * dt * (1 + alarm * 1.45 + (look?.storm ?? 0) * 0.3);
       if (e < 0) e = 0;
       else if (e > 1) e = 1;
       this.energy[i] = e;
@@ -1233,7 +1235,7 @@ export class School {
         : 0);
       const floorKeep = Math.max(
         ground + cfg.floorClearance + 1.4 + shoreU * 2.6,
-        cfg.maxDepth
+        oxygenLimitY(cfg)
       );
       if (py < floorKeep) ay += (floorKeep - py) * (5.5 + shoreU * 9);
       if (shoreU > 0.02) {
@@ -1825,7 +1827,7 @@ export class School {
       c.y + (Math.random() - 0.5) * rest * 1.4,
       x,
       z,
-      tcfg.maxDepth,
+      oxygenLimitY(tcfg),
       tcfg.floorClearance
     );
     this.pos[i3 + 2] = z;

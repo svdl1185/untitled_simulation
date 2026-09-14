@@ -3,6 +3,7 @@ import { SPECIES, VEHICLE_IDS, vehicleCfg } from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, placeInColumn } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { columnQ10 } from "./temperature.js";
+import { o2MetabolicFactor, oxygenLimitY } from "./oxygen.js";
 import { TROPHIC } from "./plankton.js";
 
 const KINDS = [
@@ -229,7 +230,7 @@ export class Shark {
     this.y += flow.y * dt * (coasting ? 0.85 : 0.45);
     this.z += flow.z * dt * flowMul;
 
-    const drain = cfg.energyDrain * (this.lunging ? 2.4 : this.aiMode === "strike" ? 1.6 : 1) * columnQ10();
+    const drain = cfg.energyDrain * (this.lunging ? 2.4 : this.aiMode === "strike" ? 1.6 : 1) * columnQ10() * o2MetabolicFactor(this.y, cfg);
     this.energy = Math.max(0, this.energy - drain * dt);
     this._filterFeed(dt, school, look, cfg);
     this._benthosFeed(dt, school, cfg);
@@ -427,7 +428,7 @@ export class Shark {
 
   _columnFloor(x, z, cfg) {
     const ground = seafloorHeight(x, z) + (cfg.floorClearance ?? 6) * (this.scale || 1) + 1.2;
-    return Math.max(ground, cfg.maxDepth ?? -200);
+    return Math.max(ground, oxygenLimitY(cfg));
   }
 
   _breathTargetY(tx, tz, huntY, cfg) {
@@ -469,7 +470,7 @@ export class Shark {
     const ceil = cfg.minDepth;
     const floor = Math.max(
       ground + cfg.floorClearance * (0.72 + 0.28 * this.scale),
-      cfg.maxDepth ?? CONFIG.fish.maxDepth
+      oxygenLimitY(cfg)
     );
     const column = ceil - floor;
 
@@ -561,7 +562,7 @@ export class Shark {
 
     const tGround = seafloorHeight(tx, tz);
     ty = Math.min(ty, cfg.minDepth - 0.4);
-    ty = Math.max(ty, tGround + cfg.floorClearance + 1.2);
+    ty = Math.max(ty, tGround + cfg.floorClearance + 1.2, oxygenLimitY(cfg));
     tz = Math.min(tz, waterMaxZ() - 36);
 
     const follow = 1 - Math.exp(-dt * 2.2);
@@ -745,7 +746,7 @@ export class Shark {
 
     const tGround = seafloorHeight(tx, tz);
     ty = Math.min(ty, cfg.minDepth - 0.4);
-    ty = Math.max(ty, tGround + cfg.floorClearance + 1.2);
+    ty = Math.max(ty, tGround + cfg.floorClearance + 1.2, oxygenLimitY(cfg));
     if (tGround > -20) {
       const sl = seafloorSlope(tx, tz);
       tx -= sl.x * 28;
@@ -1081,7 +1082,7 @@ function seedVehiclePose(shark, i, count, school) {
     wantY = (kindCfg.minDepth ?? CONFIG.fish.preferredDepth) - 8 - i * 2;
   }
   const placed = placeInColumn(shark.x, shark.z, wantY, {
-    maxDepth: kindCfg.maxDepth,
+    maxDepth: oxygenLimitY(kindCfg),
     clearance: kindCfg.floorClearance,
     minWater: kindCfg.minWater,
   });

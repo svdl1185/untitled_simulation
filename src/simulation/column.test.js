@@ -1,5 +1,13 @@
 import { attenuationKd, samplePAR, surfacePAR } from "./light.js";
-import { climatologySST, columnQ10, meanSST, q10Factor, sampleTemp } from "./temperature.js";
+import { bindCellTemperature, climatologySST, columnQ10, meanSST, q10Factor, sampleTemp } from "./temperature.js";
+import {
+  bindCellOxygen,
+  climateOmz,
+  omzCoreY,
+  oxygenLimitY,
+  sampleO2,
+  saturationO2,
+} from "./oxygen.js";
 import { CONFIG, breathTargetY, photicLimitY } from "../config.js";
 import { Plankton, TROPHIC } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
@@ -204,4 +212,84 @@ function assert(cond, msg) {
   assert(clamped === -2000, `maxDepth/floor should clamp a too-deep hunt, got ${clamped}`);
 }
 
-console.log("column physics: 12 checks ok");
+{
+  const saved = {
+    lat: CONFIG.world.lat,
+    lon: CONFIG.world.lon,
+    lab: CONFIG.world.lab,
+    floorY: CONFIG.floorY,
+    thermoY: CONFIG.thermoY,
+    sst: CONFIG.water.sst,
+    omz: CONFIG.water.omz,
+    o2Anomaly: CONFIG.water.o2Anomaly,
+    o2Demand: CONFIG.water.o2Demand,
+    omzCoreY: CONFIG.water.omzCoreY,
+  };
+
+  CONFIG.world.lab = false;
+  CONFIG.floorY = -4000;
+  CONFIG.water.o2Anomaly = 0;
+  CONFIG.water.o2Demand = 0;
+
+  CONFIG.world.lat = -16;
+  CONFIG.world.lon = -76;
+  bindCellTemperature();
+  bindCellOxygen();
+  const peruSurf = sampleO2(0, -2, 0);
+  const peruCore = omzCoreY();
+  assert(climateOmz(-16, -76) > 0.5, "Peru should have a strong OMZ");
+  assert(peruCore != null && peruCore < -250 && peruCore > -900, `Peru OMZ core should be mesopelagic, got ${peruCore}`);
+  const peruOmz = sampleO2(0, peruCore, 0);
+  assert(peruSurf > peruOmz + 1.5, `Peru surface O2 (${peruSurf.toFixed(2)}) should beat the OMZ (${peruOmz.toFixed(2)})`);
+  assert(peruOmz < 1.4, `Peru OMZ should be hypoxic, got ${peruOmz.toFixed(2)}`);
+  const tunaFloor = oxygenLimitY(vehicleCfg("tuna"));
+  assert(tunaFloor > peruCore, `skipjack should stay above the OMZ core (${tunaFloor.toFixed(0)} vs ${peruCore.toFixed(0)})`);
+  assert(oxygenLimitY(vehicleCfg("humboldtsquid")) < -800, "Humboldt OMZ refuge is not an oxygen ceiling");
+
+  CONFIG.world.lat = 56;
+  CONFIG.world.lon = 3.2;
+  bindCellTemperature();
+  bindCellOxygen();
+  assert(climateOmz(56, 3.2) < 0.12, "North Sea should not have an OMZ");
+  assert(omzCoreY() == null, "North Sea omzCoreY should be null");
+  const ns80 = sampleO2(0, -80, 0);
+  assert(ns80 > 4, `North Sea at 80 m should stay oxygenated, got ${ns80.toFixed(2)}`);
+
+  assert(saturationO2(0) > saturationO2(28), "cold surface water holds more oxygen");
+
+  CONFIG.world.lat = -16;
+  CONFIG.world.lon = -76;
+  CONFIG.water.o2Anomaly = 0;
+  bindCellTemperature();
+  bindCellOxygen();
+  const core = omzCoreY();
+  const base = sampleO2(0, core, 0);
+  CONFIG.water.o2Anomaly = -1;
+  bindCellOxygen();
+  const low = sampleO2(0, omzCoreY() ?? core, 0);
+  assert(low < base - 0.4, "negative oxygen anomaly should intensify the OMZ");
+
+  CONFIG.world.lat = saved.lat;
+  CONFIG.world.lon = saved.lon;
+  CONFIG.world.lab = saved.lab;
+  CONFIG.floorY = saved.floorY;
+  CONFIG.thermoY = saved.thermoY;
+  CONFIG.water.sst = saved.sst;
+  CONFIG.water.omz = saved.omz;
+  CONFIG.water.o2Anomaly = saved.o2Anomaly;
+  CONFIG.water.o2Demand = saved.o2Demand;
+  CONFIG.water.omzCoreY = saved.omzCoreY;
+}
+
+{
+  applyPatch(makeTestPatch());
+  assert(CONFIG.water.omz > 0.5, "catalog tank should force an OMZ so Humboldt has a day refuge");
+  const labCore = omzCoreY();
+  assert(labCore != null && labCore < -200, `lab OMZ core should be mesopelagic, got ${labCore}`);
+  const peru = presenceAt(-16, -76);
+  assert(peru.humboldtsquid > 0, "eastern tropical Pacific should hold Humboldt squid");
+  const north = presenceAt(56, 3.2);
+  assert(!(north.humboldtsquid > 0), "North Sea should not hold Humboldt squid");
+}
+
+console.log("column physics: 14 checks ok");

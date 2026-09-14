@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { CONFIG, herringDvmY } from "../config.js";
 import { bindCellTemperature, climatologySST } from "./temperature.js";
+import { bindCellOxygen } from "./oxygen.js";
 import { surfacePAR } from "./light.js";
 
 const PRESETS = [
@@ -310,6 +311,7 @@ export class DayCycle {
         this.dayIndex += Math.floor(next / 24);
         CONFIG.time.dayIndex = this.dayIndex;
         bindCellTemperature();
+        bindCellOxygen();
       }
       this.hour = ((next % 24) + 24) % 24;
     }

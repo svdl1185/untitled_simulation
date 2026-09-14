@@ -9,6 +9,7 @@
 
 import { emptyPresence, SCHOOL_IDS, SPECIES, VEHICLE_IDS, speciesLabel } from "./fauna.js";
 import { inTempNiche, meanSST } from "../simulation/temperature.js";
+import { inOxygenNiche } from "../simulation/oxygen.js";
 import { CONFIG } from "../config.js";
 
 const HERRING_HULL = [
@@ -614,6 +615,7 @@ export function presenceAt(lat, lon) {
   for (const id of Object.keys(p)) {
     if ((p[id] ?? 0) <= 0.05) continue;
     if (!inTempNiche(sst, SPECIES[id]?.temp)) p[id] = 0;
+    if (!inOxygenNiche(lat, lon, SPECIES[id]?.o2)) p[id] = 0;
   }
   return p;
 }

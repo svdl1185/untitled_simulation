@@ -14,6 +14,7 @@ import { createEnvironment, createEatParticles, createBlowParticles } from "./re
 import { createPlanktonMesh } from "./render/plankton.js";
 import { samplePAR } from "./simulation/light.js";
 import { bindCellTemperature, sampleTemp } from "./simulation/temperature.js";
+import { bindCellOxygen, sampleO2 } from "./simulation/oxygen.js";
 import { createInput } from "./input.js";
 import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followCameraIndex } from "./camera.js";
 import { createHUD } from "./ui.js";
@@ -447,6 +448,11 @@ hud.on("turbidity", (n) => {
 hud.on("sstAnomaly", (n) => {
   CONFIG.water.sstAnomaly = Number(n);
   bindCellTemperature();
+  bindCellOxygen();
+});
+hud.on("o2Anomaly", (n) => {
+  CONFIG.water.o2Anomaly = Number(n);
+  bindCellOxygen();
 });
 
 function syncDepthZones() {
@@ -679,6 +685,12 @@ function hudView() {
       label: "SST",
       value: `${(day.look.sst ?? sampleTemp(0, -1, 0)).toFixed(1)} °C`,
       hint: "Climatological sea-surface temperature for this latitude and season, plus the SST-anomaly control.",
+    },
+    {
+      id: "o2",
+      label: "O₂",
+      value: `${sampleO2(0, camera.position.y, 0).toFixed(1)} ml/L`,
+      hint: "Dissolved oxygen at the camera. Mixed layer near saturation; the OMZ is the hypoxic band below.",
     },
     {
       id: "photic",

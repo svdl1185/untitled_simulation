@@ -65,6 +65,11 @@ export const CONFIG = {
     sst: 10,
     q10: 2,
     tRef: 10,
+    o2Anomaly: 0,
+    o2Sat: 6.4,
+    o2Demand: 0,
+    omz: 0,
+    omzCoreY: null,
   },
 
   fish: { ...FISH_DEFAULTS },
@@ -201,7 +206,11 @@ export function breathTargetY({ surfacing, huntY, forageDepth, minDepth, floor }
 }
 
 export function dvmY(hour, depths = CONFIG.fish) {
-  const f = depths;
+  let day = depths.dayDepth;
+  if (depths.omzRefuge) {
+    day = CONFIG.water?.omzCoreY ?? Math.max(depths.dayDepth ?? -220, -220);
+  }
+  const f = day === depths.dayDepth ? depths : { ...depths, dayDepth: day };
   const keys = [
     [0, f.nightDepth],
     [4.8, f.nightDepth],

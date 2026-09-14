@@ -108,6 +108,18 @@ export const MENU = [
         format: (n) => `${Number(n) >= 0 ? "+" : ""}${Number(n).toFixed(2)} °C`,
         cellOnly: true,
       },
+      {
+        id: "o2Anomaly",
+        kind: "slider",
+        label: "Oxygen anomaly",
+        hint: "ml/L added to the dissolved-oxygen column. Zero is climatology; negative intensifies the OMZ.",
+        min: -2,
+        max: 2,
+        step: 0.1,
+        value: 0,
+        format: (n) => `${Number(n) >= 0 ? "+" : ""}${Number(n).toFixed(1)} ml/L`,
+        cellOnly: true,
+      },
     ],
   },
   {

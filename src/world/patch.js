@@ -1,6 +1,7 @@
 import { CONFIG, bindCellFauna, bindColumnHabitat } from "../config.js";
 import { emptyPresence, fullPresence, SPECIES } from "./fauna.js";
 import { bindCellTemperature } from "../simulation/temperature.js";
+import { bindCellOxygen } from "../simulation/oxygen.js";
 
 export const PATCH_SIZE_M = 1000;
 export const LAB_SIZE_M = 10000;
@@ -381,6 +382,7 @@ export function applyPatch(patch) {
   CONFIG.flow.meanV = patch.current?.v ?? 0;
   CONFIG.maxSchools = patch.lab ? 48 : 32;
   CONFIG.schoolMinPer = patch.lab ? 80 : 0;
+  CONFIG.water.o2Demand = 0;
 
   if (patch.lab) {
     const half = (patch.sizeM || LAB_SIZE_M) / 2;
@@ -398,6 +400,7 @@ export function applyPatch(patch) {
     CONFIG.beach.duneY = Math.max(4, patch.centerY > 0 ? patch.centerY : 6);
     bindColumnHabitat(patch.floorY, true);
     bindCellTemperature();
+    bindCellOxygen();
     CONFIG.water.turbidity = 0.72;
     bindCellFauna();
     return patch;
@@ -416,6 +419,7 @@ export function applyPatch(patch) {
     CONFIG.thermoY = STOCK.thermoY;
     CONFIG.fish.preferredDepth = STOCK.preferredDepth;
     CONFIG.water.turbidity = 1;
+    bindCellOxygen();
     bindCellFauna();
     return patch;
   }
@@ -428,6 +432,7 @@ export function applyPatch(patch) {
   CONFIG.initialFish = 12000;
   bindColumnHabitat(patch.floorY, patch.hasLand);
   bindCellTemperature();
+  bindCellOxygen();
   if (patch.hasLand) {
     CONFIG.beach.enabled = true;
     CONFIG.beach.startZ = CONFIG.halfZ * 0.12;

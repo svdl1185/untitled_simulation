@@ -55,13 +55,12 @@ export const FAUNA = {
     about:
       "Western Atlantic filter feeder, typically 20–35 cm. Estuarine and inner-shelf; rarely below about 50 m. Schools in murky coastal water. Eaten by striped bass, sharks, and birds.",
     program:
-      "Polarized shoal with a higher graze multiplier on z (p is not a separate bite). Shallow DVM. Does not commute into the abyss.",
+      "Polarized shoal with a higher graze multiplier on z (p is not a separate bite). Shallow DVM. o2Min 2 ml/L: they will not sit in a hypoxic shelf. Does not commute into the abyss.",
     missing: [
       "Direct phytoplankton bites are not wired; graze still pulls z.",
       "Striped bass and coastal birds are not agents.",
       "Estuarine nurseries and larval ingress through inlets are not a habitat.",
       "Gill-raker particle-size filtering is a graze multiplier, not a filter on p versus z.",
-      "Hypoxic dead-zone avoidance is not a field.",
       "The reduction fishery is not mortality.",
     ],
   },
@@ -294,10 +293,9 @@ export const FAUNA = {
     about:
       "The deep-scattering layer. Typically 3–15 cm. Night in the upper 100 m; day a few hundred metres down. Recorded to about 450 m for the taxa we mesh. Photophores are real; the shader is still epipelagic. Food for Humboldt squid, sperm whales, and tunas.",
     program:
-      "Scatter shoal on the shared hashed grid. Type II graze on z. Own DVM (night ~−40 m, day ~−280 m, max −450 m). Fear steers down toward the day band, not up. Modest catalog share so it does not fill the 20k budget. Presence is oceanic (|lat| < 52°), not a hull. Enlarges gridMinY only when this taxon is in the cell. Photophore dots are on the mesh; they are not a light field.",
+      "Scatter shoal on the shared hashed grid. Type II graze on z. Own DVM (night ~−40 m, day ~−280 m, max −450 m). o2Min 0.08 ml/L so they can occupy the OMZ; tunas cannot follow. Fear steers down toward the day band, not up. Modest catalog share so it does not fill the 20k budget. Presence is oceanic (|lat| < 52°), not a hull. Enlarges gridMinY only when this taxon is in the cell. Photophore dots are on the mesh; they are not a light field.",
     missing: [
       "A true mesopelagic optical story (photophore lighting) is not in the shader. PAR now decays with depth and grows phytoplankton only in the photic envelope; the water still looks too green at 1500 m.",
-      "Oxygen-minimum habitat is not a field.",
       "Family is one catalog id, not thirty myctophid species.",
       "Species-specific photophore patterns are not a mate cue.",
       "Ventral counterillumination is not rendered.",
@@ -393,7 +391,7 @@ export const FAUNA = {
     about:
       "Tropical and subtropical tuna, typically 40–80 cm. Ram ventilator — must keep swimming. Usually 0–200 m; recorded to about 260 m. Schools with birds on surface forage. Broadcast spawner.",
     program:
-      "Ram gait vehicle. Hunts school fish in the photic-to-upper-mesopelagic band. Bite restores energy. Year-timer recruit stands in for a spawn batch. Absent without school prey, poleward of about 40°.",
+      "Ram gait vehicle. Hunts school fish in the photic-to-upper-mesopelagic band. o2Min 2.4 ml/L — they will not follow lanternfish or Humboldt into the OMZ. Bite restores energy. Year-timer recruit stands in for a spawn batch. Absent without school prey, poleward of about 40°.",
     missing: [
       "Bird-associated surface feeding is not a cue.",
       "Squid diet is school fish only.",
@@ -643,9 +641,8 @@ export const FAUNA = {
     about:
       "East Pacific jumbo flying squid, typically 0.8–2 m. Famous DVM: night in the upper 100 m, day 200–700 m, recorded to about 1200 m in the oxygen minimum. Hunts anchoveta, sardine, and lanternfish. Cannibalistic.",
     program:
-      "Jet vehicle (pulse–coast), not a school scatter and not a ram tuna. Follows its own DVM band (not the herring pancake). Hangs on the current between mantle pulses. Bites anchovy, sardine, mackerel, lanternfish, and jack mackerel (huntTaxa). Flees sperm whales downward as well as away. Fast energy drain. East Pacific hull. Sperm whales bite this vehicle.",
+      "Jet vehicle (pulse–coast), not a school scatter and not a ram tuna. Day DVM follows the OMZ core (`omzCoreY`), not a hardcoded −700 m; night still the upper 100 m. Hangs on the current between mantle pulses. Bites anchovy, sardine, mackerel, lanternfish, and jack mackerel (huntTaxa). Flees sperm whales downward as well as away. Fast energy drain. East Pacific hull plus an OMZ presence gate. Sperm whales bite this vehicle.",
     missing: [
-      "The oxygen-minimum zone is not a field.",
       "Cannibalism is not a huntKinds loop on this pack.",
       "Rapid chromatophore flashing as pack communication is not a state.",
       "Colour change (red at depth, paler at the surface) is not a shader.",
@@ -702,7 +699,7 @@ export const FAUNA = {
     sex: "Female / male.",
     about:
       "Tropical tuna, typically 1–1.8 m. Deeper and larger than skipjack. Often 0–250 m; recorded to about 500 m. Can share a cell with skipjack because skipjack stay shallower.",
-    program: "Ram gait. Hunts school fish. Tropical (|lat| < 32°).",
+    program: "Ram gait. Hunts school fish. o2Min 2 ml/L so the −500 m record is an oxygen ceiling, not a commute. Tropical (|lat| < 32°).",
     missing: [
       "FADs and dolphin-associated schools are not cues.",
       "Mixed-species tuna schools are pack spacing, not an association.",
@@ -782,7 +779,7 @@ export const FAUNA = {
       "Field agent. Detritus sinks down the shared NPZD column; the 2D patch holds mass; the seafloor store receives the bottom flux. Cod graze it when they are on the bed. Remineralises back to dissolved N. Present in every wet cell.",
     missing: [
       "Named benthic taxa (crabs, amphipods, polychaetes) are not agents.",
-      "Sediment grain size and oxygen at the bed are not fields.",
+      "Sediment grain size is not a field. Bed oxygen is the column sample at the seafloor, not a sediment profile.",
       "Bioturbation is not mixing.",
     ],
   },

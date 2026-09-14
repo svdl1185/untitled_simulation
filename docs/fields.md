@@ -1,6 +1,6 @@
 # Fields
 
-How the water column is sampled. Agents never get a private current, a private sun, or a private temperature — they read these.
+How the water column is sampled. Agents never get a private current, a private sun, a private temperature, or a private oxygen field — they read these.
 
 ## Light — `src/simulation/light.js`
 
@@ -20,6 +20,17 @@ Sibling of `sampleFlow`.
 - `sampleTemp(x, y, z)` returns °C.
 - `q10Factor` / `columnQ10` scale NPZD rates, school metabolism/graze, and vehicle drain.
 - Some catalog rows have `temp: { min, max }` and drop out of `presenceAt` when mean SST is outside the niche.
+
+## Dissolved oxygen — `src/simulation/oxygen.js`
+
+Sibling of `sampleTemp`. Units ml L⁻¹.
+
+- Surface saturation falls as SST rises. The mixed layer is near saturation.
+- Eastern-boundary and tropical cells get an oxygen-minimum zone below the mixed layer; deep water recovers. The catalog tank forces a refuge so Humboldt's day band is visible.
+- `sampleO2(x, y, z)` returns ml L⁻¹.
+- `oxygenLimitY(cfg)` is the deepest y an animal may occupy (`o2Min`, unless `omzRefuge`).
+- Detritus remineralisation is `setOxygenDemand` — a live subtract around the OMZ core.
+- Humboldt `o2: { needOmz }` gates presence; day DVM follows `omzCoreY`. `o2Anomaly` is a physical control.
 
 ## NPZD + benthos — `src/simulation/plankton.js`
 

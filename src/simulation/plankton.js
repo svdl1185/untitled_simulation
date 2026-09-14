@@ -3,6 +3,7 @@ import { seafloorHeight } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { samplePAR } from "./light.js";
 import { columnQ10, productionQ10 } from "./temperature.js";
+import { setOxygenDemand } from "./oxygen.js";
 
 const _grad = { x: 0, z: 0 };
 const _flowP = { x: 0, y: 0, z: 0 };
@@ -585,6 +586,7 @@ export class Plankton {
     this.mean = this.meanZ;
     this.prodIndex = prod * inv;
     this._toBytes();
+    setOxygenDemand(this.meanD, this.meanB);
   }
 
   _updateColumn(dt, look) {
