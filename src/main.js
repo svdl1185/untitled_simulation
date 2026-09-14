@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG, anySchoolPresent, columnZones, faunaPresent, photicLimitY, zoneAt } from "./config.js";
+import { CONFIG, anySchoolPresent, columnZones, faunaPresent, photicLimitY } from "./config.js";
 import { SPECIES, VEHICLE_IDS, vehicleCfg } from "./world/fauna.js";
 import { School } from "./simulation/school.js";
 import { spawnPredators, resetSharks, createShark, tryBreed } from "./simulation/shark.js";
@@ -20,11 +20,12 @@ import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followC
 import { createHUD } from "./ui.js";
 import { getLocation, sharkCard, herringCard, schoolCard, censusList } from "./species.js";
 import { seafloorHeight, findWaterAtDepth } from "./simulation/obstacles.js";
-import { applyPatch, applyPresence, makeBootPatch, formatLatLon, getActivePatch } from "./world/patch.js";
+import { applyPatch, applyPresence, makeBootPatch, getActivePatch } from "./world/patch.js";
 import { WorldStream } from "./world/stream.js";
 import { loadPatchById } from "./world/atlas.js";
 import { createOceanMap } from "./world/map.js";
 import { demoById, makeDemoPatch, stampLoadedPatch } from "./world/demos.js";
+import { stationBrief } from "./world/station.js";
 
 if (window.__schoolTeardown) window.__schoolTeardown();
 
@@ -601,12 +602,6 @@ function jumpToDepth(y) {
   hud.set("depthZone", best);
 }
 
-function zoneLabel() {
-  const z = zoneAt(camera.position.y);
-  const depth = Math.max(0, -camera.position.y);
-  return `${z.label} · ${depth.toFixed(0)} m`;
-}
-
 function occupiedSchoolIds() {
   const ids = [];
   for (let s = 0; s < school.maxSchools; s++) {
@@ -711,134 +706,43 @@ function cameraLabel() {
   return detail ? `${name} ${detail}` : name;
 }
 
-function clockText(hour) {
-  const h = Math.floor(((Number(hour) % 24) + 24) % 24);
-  const m = Math.floor((Number(hour) % 1) * 60);
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-function weatherText() {
-  if (day.storm > 0.2 || day.stormTarget > 0.5) return "Storm";
-  return "Calm";
-}
-
 function hudView() {
-  // Append another { id, label, value } when a new world or species
-  // readout exists. bindStats reuses DOM nodes by id.
   const foodCap = plankton.carryingCapacity(school.cap);
   const patch = getActivePatch();
   const loc = getLocation();
-  const depthM = patch ? Math.abs(Math.min(0, patch.floorY)) : Math.abs(CONFIG.floorY);
   const km = (CONFIG.halfX * 2) / 1000;
   const span = km >= 1.5 ? `${km.toFixed(0)} × ${km.toFixed(0)} km` : `${Math.round(CONFIG.halfX * 2)} m`;
-  const general = [
-    {
-      id: "place",
-      label: "Cell",
-      value: loc.region || formatLatLon(CONFIG.world.lat, CONFIG.world.lon),
-      hint: "Latitude and longitude of this nested patch.",
-    },
-    {
-      id: "depth",
-      label: "Floor",
-      value: `${depthM.toFixed(0)} m`,
-      hint: "Seafloor depth here. Biology may go shallower; the floor always wins.",
-    },
-    {
-      id: "span",
-      label: "Span",
-      value: span,
-      hint: "Horizontal extent of the simulated cell. World cells are 1 km; the catalog tank is 10 km.",
-    },
-    {
-      id: "zone",
-      label: "Zone",
-      value: zoneLabel(),
-      hint: "Water-column layer at the camera, and the camera's depth.",
-    },
-    {
-      id: "time",
-      label: "Time",
-      value: clockText(day.hour),
-      hint: "Local solar time. One on-screen day is 8 minutes.",
-    },
-    {
-      id: "weather",
-      label: "Weather",
-      value: weatherText(),
-      hint: "Storm state. Storms deepen the mixed layer, lift nutrients toward the light, and raise current speed.",
-    },
-    {
-      id: "fish",
-      label: "Forage",
-      value: `${school.count.toLocaleString()} · ${foodCap.toLocaleString()}`,
-      hint: "School fish in the cell, then the bloom-capped carrying capacity.",
-    },
-    {
-      id: "sharks",
-      label: "Predators",
-      value: String(sharks.length),
-      hint: "Vehicle predators currently in the cell (sharks, tunas, whales, squid, and the rest).",
-    },
-    {
-      id: "bloom",
-      label: "P / Z",
-      value: `${Math.round((plankton.meanP ?? 0) * 100)} · ${Math.round((plankton.meanZ ?? 0) * 100)}`,
-      hint: "Column-mean phytoplankton and zooplankton, scaled 0–100. Green slices in the sunlit layer are P; yellow spark at the DVM is Z.",
-    },
-    {
-      id: "sst",
-      label: "SST",
-      value: `${(day.look.sst ?? sampleTemp(0, -1, 0)).toFixed(1)} °C`,
-      hint: "Climatological sea-surface temperature for this latitude and season, plus the SST-anomaly control.",
-    },
-    {
-      id: "mld",
-      label: "Mixed layer",
-      value: `${Math.abs(CONFIG.thermoY).toFixed(0)} m`,
-      hint: "Well-mixed surface layer. Winter and storms mix it deeper. Temperature and shear follow this depth.",
-    },
-    {
-      id: "nutricline",
-      label: "Nutricline",
-      value: `${Math.abs(plankton.nutriclineY()).toFixed(0)} m`,
-      hint: "Depth where nutrients rise. Eastern-boundary cells and storms lift this toward the light, which is where phytoplankton can grow.",
-    },
-    {
-      id: "o2",
-      label: "O₂",
-      value: `${sampleO2(0, camera.position.y, 0).toFixed(1)} ml/L`,
-      hint: "Dissolved oxygen at the camera. Mixed layer near saturation; the OMZ is the hypoxic band below.",
-    },
-    {
-      id: "light",
-      label: "1% light",
-      value: `${Math.abs(photicLimitY()).toFixed(0)} m`,
-      hint: "Depth where 1% of surface sunlight remains. Phytoplankton grow above this. The old name is the photic zone.",
-    },
-    {
-      id: "par",
-      label: "PAR",
-      value: `${Math.round(samplePAR(camera.position.y, day.look) * 100)}%`,
-      hint: "Photosynthetically active radiation at the camera, as a fraction of surface PAR.",
-    },
-    {
-      id: "benthos",
-      label: "Benthos",
-      value: `${Math.round((plankton.meanB ?? 0) * 100)}`,
-      hint: "Mean seafloor carbon. Detritus sinks here; cod graze it on the bed.",
-    },
-    {
-      id: "camera",
-      label: "Camera",
-      value: cameraLabel(),
-      hint: "How you are looking: free roam, a follow rig, or piloting a shark.",
-    },
-  ];
+  const census = censusList(school, sharks, plankton);
+  const station = stationBrief({
+    loc,
+    patch,
+    hour: day.hour,
+    look: day.look,
+    storm: day.storm > 0.2 || day.stormTarget > 0.5,
+    census,
+    sharks,
+    floorY: patch?.floorY ?? CONFIG.floorY,
+    spanLabel: span,
+    sst: day.look.sst ?? sampleTemp(0, -1, 0),
+    mixedY: CONFIG.thermoY,
+    nutriclineY: plankton.nutriclineY(),
+    omzCoreY: CONFIG.water?.omzCoreY ?? null,
+    upwell: CONFIG.water?.upwell ?? 0,
+    photicY: photicLimitY(),
+    o2Cam: sampleO2(0, camera.position.y, 0),
+    parPct: samplePAR(camera.position.y, day.look) * 100,
+    meanP: plankton.meanP,
+    meanZ: plankton.meanZ,
+    meanB: plankton.meanB,
+    forageCount: school.count,
+    forageCap: foodCap,
+    cameraLabel: cameraLabel(),
+    lat: CONFIG.world.lat,
+    lon: CONFIG.world.lon,
+  });
   const sub = shownSubject();
   let subject = null;
   const following = sameSubject(sub, tracking) && isFollowing();
-  const census = censusList(school, sharks, plankton);
   const counts = {};
   for (const row of census) counts[row.id] = row.count;
   const dietCtx = {
@@ -870,7 +774,7 @@ function hudView() {
     camY: camera.position.y,
     zones: columnZones(day.look.preferredDepth),
   };
-  return { general, subject, day, census, placeName: loc.name || loc.region, column };
+  return { station, subject, day, census, placeName: loc.name || loc.region, column };
 }
 
 function hudHit(clientX, clientY) {
