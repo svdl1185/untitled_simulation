@@ -93,7 +93,7 @@
           </p>
           <h3>The system at once</h3>
           <figure class="about-cycle">
-            <img src="/cycles.svg" width="640" height="740" alt="Water-column schematic: light, temperature, flow, oxygen, and the seafloor drive an NPZD loop that feeds forage schools and predators. Detritus sinks to benthos and remineralises. Solid boxes are coupled. Dashed boxes — ice algae, vents, coral reefs, polar ice, coasts — are not in the model yet." />
+            <img src="/cycles.svg" width="640" height="740" alt="Water-column schematic: light, temperature, flow, oxygen, ice, and the seafloor drive an NPZD loop that feeds forage schools and predators. Detritus sinks to benthos and remineralises. Solid boxes are coupled. Dashed boxes — vents, coral reefs, coasts — are not in the model yet." />
             <figcaption>
               Solid is live. Dashed is still open. Near the camera: agents. Kilometres out: density.
               Basin: Eulerian fields.
@@ -180,6 +180,13 @@
               </dd>
             </div>
             <div>
+              <dt>Ice</dt>
+              <dd>
+                Sea-ice concentration and thickness from latitude and season. Pack ice shades PAR;
+                ice algae produces in the top metres. Polar night / midnight sun follow the sun.
+              </dd>
+            </div>
+            <div>
               <dt>Benthos</dt>
               <dd>
                 Carbon on the seafloor from sinking detritus. Cod graze that field. The animals of
@@ -223,16 +230,18 @@
               tint, GMRT floor, HYCOM mean current when it answers). Land is not a cell. <strong>Cells</strong>
               is a picker of named kilometres: the 10 km catalog tank (every species, stepped shelves, 2000 m)
               plus biomes from the coupling figure. Gap tiles still open the pelagic water at that site — they
-              do not invent coral or ice. Neighbour chunks cache; animals do not swim between cells.
-              Clock: 8 min ≈ 1 day, twelve sim days per year. Storms mix deeper, shoal the nutricline,
+              do not invent coral or a vent. Polar ice is coupled. Neighbour chunks cache; animals do not swim between cells.
+              Clock: 8 min ≈ 1 day, twelve sim days per year. Polar night follows the sun. Storms mix deeper, shoal the nutricline,
               and raise current.
             </li>
             <li>
               <strong>Fields.</strong> One shared current (<code>sampleFlow</code>: tide, longshore,
               shear, eddies, atlas mean, climate upwell). Beer–Lambert PAR (<code>samplePAR</code>)
-              shared by fog, caustics, phytoplankton, and visual hunt. A shelf floor inside the
+              shared by fog, caustics, phytoplankton, and visual hunt. Pack ice is an
+              <em>I</em><sub>0</sub> skin. A shelf floor inside the
               photic envelope stays sunlit. Temperature and Q10
-              (<code>sampleTemp</code>). Dissolved oxygen and OMZ (<code>sampleO2</code>). Separable
+              (<code>sampleTemp</code>). Dissolved oxygen and OMZ (<code>sampleO2</code>). Sea ice
+              (<code>climateIce</code>: concentration, thickness, ice algae). Separable
               NPZD (128×128 patch × column: N, P, Z, D). Benthos: detritus flux onto the bed.
             </li>
             <li>
@@ -257,7 +266,7 @@
             <li>
               <strong>Window.</strong> Water, fog, and fish follow the same <em>K</em><sub>d</sub>.
               Depth layers, station briefing for this kilometre, census, field-notes cards, physical knobs
-              (turbidity, SST anomaly, oxygen anomaly, storm). Camera lamp is fill, not habitat.
+              (turbidity, SST anomaly, oxygen anomaly, ice anomaly, storm). Camera lamp is fill, not habitat.
             </li>
           </ul>
           <p class="about-label">School (hashed grid)</p>
@@ -297,7 +306,7 @@
               PDO); basin streaming of agents; density / super-individuals beyond the camera; AquaMaps
               / OBIS / acoustic DSL; fishing mortality; age, stage, larval drift; spawn as a swim
               between cells; senses as fields (echolocation, olfaction, electroreception, lateral
-              line, magnetoreception, soundscape); moon, lunar DVM, polar night / midnight sun; marine
+              line, magnetoreception, soundscape); moon, lunar DVM; marine
               snow / migratory carbon pump; size-structured plankton; vehicle–vehicle bites besides
               sperm whale × giant squid; Humboldt cannibalism; disease; pressure /
               compressibility; authored meshes; sediment grain size and transport.
@@ -336,11 +345,11 @@
               boiling, lunge, spyhop / breach; school piscivory; lunar inhibition of DVM; diadromy.
             </p>
             <p>
-              <strong>Polar seas and ice.</strong> Sea ice; ice types; leads and polynyas; ice algae
-              and under-ice blooms; polar night / midnight sun as optics; ice-edge blooms; ice seals;
-              walrus, polar bear; penguins; beluga, narwhal, bowhead; Greenland shark; icefish and
-              other notothenioids; krill lipid overwinter; iceberg scour, dropstones, glacial plumes;
-              ice-shelf cavities, bottom-water formation; wave-washing seals off ice.
+              <strong>Polar seas and ice.</strong> Ice types, drift, and age; mapped leads and
+              polynyas; ice-edge blooms as a filament; ice seals; walrus, polar bear; penguins;
+              beluga, narwhal, bowhead; Greenland shark; icefish and other notothenioids; krill lipid
+              overwinter; iceberg scour, dropstones, glacial plumes; ice-shelf cavities, bottom-water
+              formation; wave-washing seals off ice.
             </p>
             <p>
               <strong>Coasts, estuaries, intertidal.</strong> Estuarine circulation and salt wedge;
@@ -365,7 +374,7 @@
           <p class="about-title">Physical knobs</p>
           <p>
             Knobs that change a budget, a habitat, or a sensory cue. Toggles start off. Prefer a
-            physical control — turbidity, SST, oxygen, storm — over a cosmetic one.
+            physical control — turbidity, SST, oxygen, ice, storm — over a cosmetic one.
           </p>
           <div id="menu-body"></div>
           <p class="about-attr">M / Tab opens this panel · Esc closes it</p>

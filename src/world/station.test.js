@@ -102,4 +102,34 @@ function assert(cond, msg) {
   assert(!text.includes("Climate upwell"), "gyre is not an upwell cell");
 }
 
-console.log("station brief: 3 checks ok");
+{
+  const brief = stationBrief({
+    loc: { region: "Barents Sea, north of 74°N", about: "A high-Arctic kilometre." },
+    patch: { demoId: "polar" },
+    hour: 12,
+    look: { name: "Midnight sun" },
+    lat: 75.4,
+    lon: 32.1,
+    floorY: -220,
+    photicY: -180,
+    mixedY: -24,
+    nutriclineY: -40,
+    ice: 0.72,
+    iceH: 1.5,
+    iceT: 0.28,
+    forageCount: 4000,
+    forageCap: 3500,
+    census: [
+      { id: "polarcod", common: "Polar cod", agent: "school", count: 3800 },
+      { id: "benthos", common: "Benthos", agent: "field", count: 8 },
+    ],
+    sharks: [],
+  });
+  const text = brief.now.join(" ");
+  assert(text.includes("Sea ice 72%"), "ice cover is a now-line");
+  assert(text.includes("Ice algae"), "ice algae named");
+  assert(text.includes("Polar cod") && text.includes("Under the ice"), "polar cod under ice");
+  assert(brief.column.some((row) => row.id === "ice" && row.value.includes("72")), "ice in column");
+}
+
+console.log("station brief: 4 checks ok");

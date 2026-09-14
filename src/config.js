@@ -74,6 +74,10 @@ export const CONFIG = {
     omzCoreY: null,
     upwell: 0,
     nutriclineY: null,
+    ice: 0,
+    iceH: 0,
+    iceT: 1,
+    iceAnomaly: 0,
   },
 
   fish: { ...FISH_DEFAULTS },
@@ -238,7 +242,15 @@ export function dvmY(hour, depths = CONFIG.fish) {
   const span = b[0] - a[0] || 1;
   const t = Math.min(1, Math.max(0, (hour - a[0]) / span));
   const s = t * t * (3 - 2 * t);
-  return clampHabitatY(a[1] + (b[1] - a[1]) * s, f.maxDepth);
+  let y = a[1] + (b[1] - a[1]) * s;
+  if (depths.iceAssociated) {
+    const ice = CONFIG.water?.ice ?? 0;
+    if (ice > 0.08) {
+      const under = -2.6 - (1 - ice) * 9;
+      y += (under - y) * Math.min(1, ice * 1.05);
+    }
+  }
+  return clampHabitatY(y, f.maxDepth);
 }
 
 export function herringDvmY(hour) {

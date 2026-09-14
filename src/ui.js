@@ -86,6 +86,18 @@ export const MENU = [
         format: (n) => `${Number(n) >= 0 ? "+" : ""}${Number(n).toFixed(1)} ml/L`,
         cellOnly: true,
       },
+      {
+        id: "iceAnomaly",
+        kind: "slider",
+        label: "Ice anomaly",
+        hint: "Added to climatological sea-ice concentration. Zero is the season; positive packs the cell.",
+        min: -1,
+        max: 1,
+        step: 0.05,
+        value: 0,
+        format: (n) => `${Number(n) >= 0 ? "+" : ""}${Number(n).toFixed(2)}`,
+        cellOnly: true,
+      },
     ],
   },
   {
@@ -1216,7 +1228,7 @@ function bindDemos(root, emit) {
   let status = "";
 
   const lead = el("p", {
-    text: "Named kilometres. Map is still free roam. Coupled tiles load a real place. Gap tiles still open the pelagic water at that site — they do not invent coral, ice, or a vent.",
+    text: "Named kilometres. Map is still free roam. Coupled tiles load a real place. Polar ice is a field. Gap tiles still open the pelagic water at that site — they do not invent coral or a vent.",
   });
   const grid = el("div", { class: "demo-grid" });
   const detail = el("div", { class: "demo-detail" });

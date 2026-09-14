@@ -1,12 +1,14 @@
-import { openPhoticY } from "../config.js";
+import { CONFIG, openPhoticY } from "../config.js";
+import { iceTransmit } from "./ice.js";
 
 /**
  * Photosynthetically active radiation. Optics and NPZD share this
  * Beer–Lambert envelope — turbidity shallows both fog and growth.
  *
  * I(z) = I0 · exp(−Kd · depth). Kd is set so the 1% light depth matches
- * `openPhoticY()` (turbidity). A shelf floor shallower than that is still
- * in the envelope — do not treat the sand as the 1% depth.
+ * `openPhoticY()` (turbidity). Ice is an I0 skin (`iceTransmit`), not Kd.
+ * A shelf floor shallower than that is still in the envelope — do not
+ * treat the sand as the 1% depth.
  */
 
 let _kd = 4.605170186 / 180;
@@ -35,9 +37,9 @@ export function surfacePAR(look) {
   return Math.max(0.02, day) * (1 - storm * 0.38);
 }
 
-/** PAR at depth `y` (metres, more negative = deeper). */
+/** PAR at depth `y` (metres, more negative = deeper). Ice is an I0 skin. */
 export function samplePAR(y, look) {
-  const I0 = surfacePAR(look);
+  const I0 = surfacePAR(look) * iceTransmit(CONFIG.water?.ice);
   const depth = Math.max(0, -y);
   return I0 * Math.exp(-attenuationKd() * depth);
 }

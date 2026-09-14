@@ -37,18 +37,25 @@ function clipY(y, floorY) {
   return Math.max(y, floor);
 }
 
-function scheduleY(phase, fish, omzCoreY) {
-  if (phase === "Night") return fish.nightDepth;
-  if (phase === "Dawn") return fish.dawnDepth ?? fish.nightDepth;
-  if (phase === "Dusk") return fish.duskDepth ?? fish.nightDepth;
-  if (fish.omzRefuge && Number.isFinite(omzCoreY)) return omzCoreY;
-  return fish.dayDepth;
+function scheduleY(phase, fish, omzCoreY, ice = 0) {
+  let y;
+  if (phase === "Night") y = fish.nightDepth;
+  else if (phase === "Dawn") y = fish.dawnDepth ?? fish.nightDepth;
+  else if (phase === "Dusk") y = fish.duskDepth ?? fish.nightDepth;
+  else if (fish.omzRefuge && Number.isFinite(omzCoreY)) y = omzCoreY;
+  else y = fish.dayDepth;
+  if (fish.iceAssociated && ice > 0.08) {
+    const under = -2.6 - (1 - ice) * 9;
+    y += (under - y) * Math.min(1, ice * 1.05);
+  }
+  return y;
 }
 
-function schoolBand(id) {
+function schoolBand(id, ice = 0) {
   const spec = SPECIES[id];
   const fish = knobsFor(id);
   const look = spec?.look || {};
+  if (fish.iceAssociated && ice > 0.12) return "ice";
   if (look.shape === "flying" || look.shape === "needle") return "surface";
   if (look.photophores) return "dsl";
   if (look.shape === "krill") return "krill";
@@ -63,14 +70,18 @@ function schoolBand(id) {
   return "forage";
 }
 
-function schoolBehavior(band, fish, phase, omzCoreY, floorY) {
-  const y = metres(clipY(scheduleY(phase, fish, omzCoreY), floorY));
+function schoolBehavior(band, fish, phase, omzCoreY, floorY, ice = 0) {
+  const y = metres(clipY(scheduleY(phase, fish, omzCoreY, ice), floorY));
   const night = metres(clipY(fish.nightDepth, floorY));
   const dayRaw = fish.omzRefuge && Number.isFinite(omzCoreY) ? omzCoreY : fish.dayDepth;
   const day = metres(clipY(dayRaw, floorY));
   const floorM = metres(floorY);
   const clipped = Number.isFinite(floorY) && Number.isFinite(dayRaw) && floorY + 8 > dayRaw;
   const clipNote = clipped ? ` The ${floorM} m floor clips that dive — they hit sand, not the abyss.` : "";
+
+  if (band === "ice") {
+    return `Under the ice. Typical DVM shoals toward the ice–water film; now around ${y} m. Polar cod graze z; krill graze ice-algal P.`;
+  }
 
   if (band === "surface") {
     return `Stay in the top ~20 m. Fear still steers them toward the air, in water. Now around ${y} m.`;
@@ -178,6 +189,9 @@ function columnLines({
   meanZ,
   forageCount,
   forageCap,
+  ice,
+  iceH,
+  iceT,
 }) {
   const lines = [];
   const floorM = metres(floorY);
@@ -190,6 +204,15 @@ function columnLines({
     );
   } else {
     lines.push(`Floor ${floorM} m. 1% light ${photicM} m. Mixed layer ${mixM} m; nutricline ${nutM} m.`);
+  }
+  if ((ice ?? 0) > 0.08) {
+    const pct = Math.round(ice * 100);
+    const h = Number(iceH) > 0.05 ? ` · ${Number(iceH).toFixed(1)} m` : "";
+    const t = Math.round((iceT ?? 1) * 100);
+    const leads = Math.max(0, 100 - pct);
+    lines.push(
+      `Sea ice ${pct}%${h}. Under-ice PAR is ${t}% of open water. Leads are ${leads}% of the surface — not a charted polynya. Ice algae produces in the top metres.`
+    );
   }
   if ((upwell ?? 0) > 0.25) {
     lines.push(
@@ -214,15 +237,15 @@ function columnLines({
   return lines;
 }
 
-function schoolNow(census, phase, omzCoreY, floorY) {
+function schoolNow(census, phase, omzCoreY, floorY, ice = 0) {
   const groups = new Map();
   for (const row of census || []) {
     if (row.agent !== "school" || !(row.count > 0)) continue;
-    const band = schoolBand(row.id);
+    const band = schoolBand(row.id, ice);
     if (!groups.has(band)) groups.set(band, []);
     groups.get(band).push(row);
   }
-  const order = ["forage", "filter-p", "surface", "krill", "squid", "dsl", "hunter", "omz-hunter", "benthic"];
+  const order = ["forage", "filter-p", "surface", "krill", "ice", "squid", "dsl", "hunter", "omz-hunter", "benthic"];
   const lines = [];
   for (const band of order) {
     const items = groups.get(band);
@@ -231,7 +254,7 @@ function schoolNow(census, phase, omzCoreY, floorY) {
     const fish = knobsFor(items[0].id);
     const n = items.reduce((s, row) => s + row.count, 0);
     lines.push(
-      `${nameList(items)} — ${n.toLocaleString()} in the cell. ${schoolBehavior(band, fish, phase, omzCoreY, floorY)}`
+      `${nameList(items)} — ${n.toLocaleString()} in the cell. ${schoolBehavior(band, fish, phase, omzCoreY, floorY, ice)}`
     );
   }
   return lines;
@@ -291,6 +314,9 @@ export function stationBrief(input = {}) {
     meanB = 0,
     forageCount = 0,
     forageCap = 0,
+    ice = 0,
+    iceH = 0,
+    iceT = 1,
     cameraLabel = "Free roam",
     fps = null,
     lat = 0,
@@ -318,8 +344,11 @@ export function stationBrief(input = {}) {
       meanZ,
       forageCount,
       forageCap,
+      ice,
+      iceH,
+      iceT,
     }),
-    ...schoolNow(census, phase, omzCoreY, floorY),
+    ...schoolNow(census, phase, omzCoreY, floorY, ice),
     ...vehicleNow(census, sharks, phase, omzCoreY, floorY),
     ...fieldNow(census, meanB),
   ];
@@ -335,6 +364,9 @@ export function stationBrief(input = {}) {
     Number.isFinite(omzCoreY)
       ? { id: "omz", label: "OMZ core", value: `${metres(omzCoreY)} m` }
       : { id: "omz", label: "OMZ", value: "None" },
+    (ice ?? 0) > 0.04
+      ? { id: "ice", label: "Sea ice", value: `${Math.round(ice * 100)}%` }
+      : { id: "ice", label: "Sea ice", value: "None" },
   ].filter(Boolean);
 
   const missing = (demo?.missing || []).slice();
