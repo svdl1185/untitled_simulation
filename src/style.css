@@ -565,6 +565,68 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+.stat-wide {
+  grid-column: 1 / -1;
+}
+
+.stat-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.diet-link,
+.diet-field {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.diet-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(160, 230, 220, 0.55);
+}
+
+.diet-link:hover,
+.diet-link:focus-visible {
+  color: #d7f6ef;
+  text-decoration-color: #9ee6d8;
+}
+
+.stat-detail {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.stat-meter {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(160, 230, 220, 0.16);
+  overflow: hidden;
+}
+
+.stat-meter i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: #8fd8c8;
+}
+
 #pilot-hint {
   left: 28px;
   right: 28px;
@@ -978,6 +1040,8 @@ body.ocean-map-open #pilot-hint {
     width: min(280px, calc(50vw - 20px));
   }
   .stat strong,
+  .diet-link,
+  .diet-field,
   .hud-subject-title {
     font-size: 16px;
   }

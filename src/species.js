@@ -1,6 +1,6 @@
 import { CONFIG, faunaPresent } from "./config.js";
 import { getActivePatch } from "./world/patch.js";
-import { SPECIES, knobsFor, vehicleCfg } from "./world/fauna.js";
+import { SPECIES, knobsFor, vehicleCfg, SCHOOL_IDS } from "./world/fauna.js";
 import { FAUNA } from "./world/fieldNotes.js";
 
 export { FAUNA };
@@ -206,87 +206,116 @@ function predatorState(s) {
   if (cfg.breathes && !s.surfacing) return "Foraging dive";
   if (s.sex === 0 && s.mateT <= 0 && s.energy >= cfg.mateEnergy) return "Courting";
   const modes = {
-    patrol: "AI patrol",
-    stalk: "AI stalk",
-    strike: "AI strike",
-    recover: "AI recover",
+    patrol: "Patrol",
+    stalk: "Stalk",
+    strike: "Strike",
+    recover: "Recover",
   };
   if (s.energy > cfg.satiated && s.aiMode === "patrol") return "Roaming";
-  return modes[s.aiMode] || "AI";
+  return modes[s.aiMode] || "Patrol";
 }
 
-function liveForage(school, i) {
-  const spec = faunaOf(school.taxonId?.(i) || "herring");
-  const sex = sexLabel(school.sex[i]).toLowerCase();
-  const alarm = school.alarm[i];
-  const energy = school.energy[i];
-  const sid = school.schoolId[i];
-  const mill = school.anchors[sid]?.mill ?? 0;
-  const cfg = school.taxonCfg?.(i) || CONFIG.fish;
-  if (alarm > 0.28) {
-    return `This ${sex} ${spec.common.toLowerCase()} is in the flee mix. Alarm spreads as a neighbour turn-wave.`;
-  }
-  if (energy < cfg.starveAt * 2.5) {
-    return `This ${sex} is energy-poor. Grazing is a Type II pull on zooplankton; below the starve floor the fish is removed and its mass returns to the NPZD field.`;
-  }
-  if (mill > 0.45) {
-    return `This ${sex} is milling with its ${spec.common.toLowerCase()} shoal — a slow gyre while food is rich and predators are far.`;
-  }
-  const social = school.taxonCfg?.(i)?.social || "polarized";
-  if (social === "loose") {
-    return `This ${sex} is in a loose surface aggregation — nearby fish, not a polarized school.`;
-  }
-  if (social === "scatter") {
-    return `This ${sex} is swimming independently, only avoiding neighbours.`;
-  }
-  return `This ${sex} is schooling with its own species: same-shoal alignment, nearest-neighbour spacing, and a pancake envelope.`;
+const BLOOM_MIN = 0.02;
+
+function fieldLive(kind, bloom) {
+  if (kind === "p") return (bloom?.p ?? 0) > BLOOM_MIN;
+  if (kind === "z") return (bloom?.z ?? 0) > BLOOM_MIN;
+  if (kind === "b") return (bloom?.b ?? 0) > BLOOM_MIN;
+  return false;
 }
 
-function livePredator(s) {
-  const spec = faunaOf(s.kind || "shark");
+function bitePreyIds(id) {
+  const spec = SPECIES[id];
+  if (spec?.agent !== "vehicle") return [];
+  const v = vehicleCfg(id);
+  const diet = v.diet || "bite";
+  if (diet === "filter") return [];
+  if (v.huntTaxa?.length) return v.huntTaxa.slice();
+  const prey = spec.prey || [];
+  const named = prey.filter((p) => p !== "school" && p !== "bloom");
+  if (named.length) return named;
+  if (diet === "bite" || diet === "both" || prey.includes("school")) return SCHOOL_IDS.slice();
+  return [];
+}
+
+function dietLinks(id, ctx) {
+  const counts = ctx?.counts || {};
+  const bloom = ctx?.bloom || {};
+  const spec = SPECIES[id];
+  const links = [];
+  const seen = new Set();
+
+  function add(link) {
+    const key = link.id || `field:${link.label}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    links.push(link);
+  }
+
+  if (spec?.agent === "school") {
+    const grazeP = knobsFor(id).grazeOn === "p";
+    if (grazeP && fieldLive("p", bloom)) add({ label: "Phytoplankton" });
+    else if (!grazeP && fieldLive("z", bloom)) add({ label: "Zooplankton" });
+  } else if (spec?.agent === "field") {
+    add({ label: "Detritus" });
+  } else if (spec?.agent === "vehicle") {
+    const v = vehicleCfg(id);
+    const diet = v.diet || "bite";
+    if ((diet === "filter" || diet === "both" || v.filterGraze > 0) && fieldLive("z", bloom)) {
+      add({ label: "Zooplankton" });
+    }
+    if (v.benthosGraze > 0 && (counts.benthos || 0) > 0) {
+      add({ id: "benthos", label: faunaOf("benthos").common });
+    }
+    for (const pid of bitePreyIds(id)) {
+      if ((counts[pid] || 0) <= 0) continue;
+      add({ id: pid, label: faunaOf(pid).common });
+    }
+    for (const kid of v.huntKinds || []) {
+      if ((counts[kid] || 0) <= 0) continue;
+      add({ id: kid, label: faunaOf(kid).common });
+    }
+  }
+  return links;
+}
+
+function dietStat(id, ctx) {
+  const spec = faunaOf(id);
+  const links = dietLinks(id, ctx);
+  return {
+    id: "diet",
+    label: "Diet",
+    value: links.length ? links.map((l) => l.label).join(", ") : "None in cell",
+    links,
+    detail: spec.diet ? `In nature: ${spec.diet}` : "",
+    hint: spec.diet ? `Natural diet: ${spec.diet}` : "No modeled food in this cell.",
+    wide: true,
+  };
+}
+
+function breathOxygen(s) {
   const cfg = s.cfg || CONFIG.shark;
-  const sex = sexLabel(s.sex).toLowerCase();
-  const floor = depthText(CONFIG.floorY);
-  const cap = depthText(Math.max(CONFIG.floorY + (cfg.floorClearance ?? 4), cfg.maxDepth));
-  const forage = cfg.forageDepth != null ? depthText(cfg.forageDepth) : cap;
-  if (s.controlled) return `This ${sex} is piloted. Energy still drains and eating still restores it.`;
-  if (s.energy < cfg.starveAt) return `This ${sex} is starving. Without a meal it will die and recycle into the water column.`;
-  if (cfg.breathes && s.surfacing) {
-    return `This ${sex} is at the surface to breathe — a blow when the blowhole clears, then a hang. Next dive goes toward prey or typical forage ${forage}, clamped by ${cap} in this cell (floor ${floor}; biological max ${depthText(cfg.maxDepth)}).`;
+  if (!cfg.breathes) return null;
+  const minY = (cfg.minDepth ?? -2) - 2.4;
+  if (s.surfacing) {
+    if (s.y < minY) return 0;
+    const total = Math.max(0.01, cfg.surfaceTime ?? 6);
+    return Math.min(1, Math.max(0, 1 - (s.breathT ?? 0) / total));
   }
-  if (cfg.breathes && !s.surfacing) {
-    return `This ${sex} is on a foraging dive toward prey or typical forage ${forage}. ${cap} is the clamp in this cell (floor ${floor}; biological max ${depthText(cfg.maxDepth)}), not the resting depth. Time is compressed so a deep chase can finish in one breath-hold.`;
-  }
-  if (s.sex === 0 && s.mateT <= 0 && s.energy >= cfg.mateEnergy) {
-    return `This female is courting: the year-timer has elapsed and energy is high enough to seek a male.`;
-  }
-  if (s.aiMode === "stalk") return `This ${sex} is stalking, holding a flank on the hunted school.`;
-  if (s.aiMode === "strike") return `This ${sex} is striking.`;
-  if (s.aiMode === "recover") return `This ${sex} is recovering after a strike.`;
-  if ((cfg.diet || "bite") === "filter") {
-    return `This ${sex} is filter-feeding: a Type II pull on zooplankton at this depth, not a bite.`;
-  }
-  if (s.energy > cfg.satiated) return `This ${sex} is roaming — satiated, so it is not farming the school.`;
-  return `This ${sex} ${spec.common.toLowerCase()} is on patrol.`;
+  const total = Math.max(0.01, cfg.diveTime ?? 28);
+  return Math.min(1, Math.max(0, (s.breathT ?? 0) / total));
 }
 
-function liveSchool(school, id) {
-  const t = school.anchors[id]?.taxon ?? 0;
-  const spec = faunaOf(school.taxa[t]?.id || "herring");
-  const mill = school.anchors[id]?.mill ?? 0;
-  const hunger = school.schoolHunger[id] ?? 0.5;
-  const fem = school.schoolFem[id] || 0;
-  const mal = school.schoolMal[id] || 0;
-  const mix = `${spec.common} shoal (${fem.toLocaleString()} female / ${mal.toLocaleString()} male).`;
-  if (mill > 0.45) return `Milling. ${mix}`;
-  if ((school.shoalCfg?.(id)?.social || "polarized") === "loose") return `Loose aggregation. ${mix}`;
-  if ((school.shoalCfg?.(id)?.social || "polarized") === "scatter") return `Scattered. ${mix}`;
-  if (hunger > 0.55) return `Foraging up the bloom gradient. ${mix}`;
-  return `Polarized commute. ${mix}`;
-}
-
-function cfgFor(id) {
-  return SPECIES[id]?.agent === "vehicle" ? vehicleCfg(id) : knobsFor(id);
+function oxygenStat(s) {
+  const frac = breathOxygen(s);
+  if (frac == null) return null;
+  return {
+    id: "oxygen",
+    label: "Oxygen",
+    value: `${Math.round(frac * 100)}%`,
+    meter: frac,
+    hint: "Remaining breath-hold. Recovers at the surface; drains on a foraging dive.",
+  };
 }
 
 function depthCapText(cfg) {
@@ -297,26 +326,8 @@ function depthCapText(cfg) {
   return `${depthText(bio)} · here ${depthText(here)}`;
 }
 
-function cellDepthBlurb(id) {
-  const cfg = cfgFor(id);
-  const floor = CONFIG.floorY;
-  const cap = Math.max(floor + (cfg.floorClearance ?? 2), cfg.maxDepth);
-  let dvm = "";
-  if (cfg.nightDepth != null && cfg.dayDepth != null) {
-    dvm = ` DVM in this build: night ${depthText(cfg.nightDepth)}, day ${depthText(cfg.dayDepth)}.`;
-  }
-  if (cfg.breathes && cfg.forageDepth != null) {
-    dvm += ` Typical forage ${depthText(cfg.forageDepth)}; maxDepth is the clamp, not the commute.`;
-  }
-  return `Biological max ${depthText(cfg.maxDepth)}. This cell's floor is ${depthText(floor)}, so the deepest it can go here is ${depthText(cap)}.${dvm}`;
-}
-
-function speciesNotes(spec, live) {
-  const notes = [
-    { id: "behavior", label: "Now", text: live },
-    { id: "about", label: "In nature", text: spec.about },
-    { id: "program", label: "In this cell", text: `${spec.program} ${cellDepthBlurb(spec.id)}` },
-  ];
+function speciesNotes(spec) {
+  const notes = [{ id: "about", label: "In nature", text: spec.about }];
   if (spec.missing?.length) {
     notes.push({ id: "missing", label: "Not in the model", text: spec.missing.join(" ") });
   }
@@ -327,23 +338,28 @@ export function sharkCard(s, ctx) {
   const spec = faunaOf(s.kind || "shark");
   const cfg = s.cfg || CONFIG.shark;
   const sex = sexLabel(s.sex);
+  const o2 = oxygenStat(s);
+  const stats = [
+    { id: "sex", label: "Sex", value: sex },
+    { id: "size", label: "Size", value: predatorSize(s) },
+    { id: "length", label: "Length", value: `${(cfg.length * s.scale).toFixed(1)} m` },
+    { id: "maxdepth", label: "Max depth", value: depthCapText(cfg) },
+    { id: "hunger", label: "Energy", value: `${Math.round(s.energy * 100)}%` },
+  ];
+  if (o2) stats.push(o2);
+  stats.push(
+    { id: "state", label: "State", value: predatorState(s) },
+    { id: "depth", label: "Depth", value: depthText(s.y) },
+    { id: "speed", label: "Speed", value: speedText(s.vx, s.vy, s.vz) },
+    dietStat(spec.id, ctx),
+  );
   return {
     kindLabel: spec.guild,
     title: spec.common,
     subtitle: `${spec.latin} · ${sex}`,
     following: ctx.following,
-    stats: [
-      { id: "sex", label: "Sex", value: sex },
-      { id: "size", label: "Size", value: predatorSize(s) },
-      { id: "length", label: "Length", value: `${(cfg.length * s.scale).toFixed(1)} m` },
-      { id: "diet", label: "Diet", value: spec.diet },
-      { id: "maxdepth", label: "Max depth", value: depthCapText(cfg) },
-      { id: "hunger", label: "Energy", value: `${Math.round(s.energy * 100)}%` },
-      { id: "state", label: "State", value: predatorState(s) },
-      { id: "depth", label: "Depth", value: depthText(s.y) },
-      { id: "speed", label: "Speed", value: speedText(s.vx, s.vy, s.vz) },
-    ],
-    notes: speciesNotes(spec, livePredator(s)),
+    stats,
+    notes: speciesNotes(spec),
   };
 }
 
@@ -364,7 +380,6 @@ export function forageCard(school, i, ctx) {
     stats: [
       { id: "sex", label: "Sex", value: sex },
       { id: "size", label: "Size", value: forageSize(school.scale[i]) },
-      { id: "diet", label: "Diet", value: spec.diet },
       { id: "maxdepth", label: "Max depth", value: depthCapText(school.taxonCfg?.(i) || knobsFor(spec.id)) },
       { id: "energy", label: "Energy", value: `${Math.round(school.energy[i] * 100)}%` },
       { id: "school", label: "School", value: ctx.schoolLabel },
@@ -384,8 +399,9 @@ export function forageCard(school, i, ctx) {
       },
       { id: "depth", label: "Depth", value: depthText(school.pos[i3 + 1]) },
       { id: "speed", label: "Speed", value: speedText(school.vel[i3], school.vel[i3 + 1], school.vel[i3 + 2]) },
+      dietStat(spec.id, ctx),
     ],
-    notes: speciesNotes(spec, liveForage(school, i)),
+    notes: speciesNotes(spec),
   };
 }
 
@@ -406,7 +422,6 @@ export function schoolCard(school, id, ctx) {
       { id: "sex", label: "Sex", value: "Mixed" },
       { id: "sexes", label: "F / M", value: `${fem.toLocaleString()} / ${mal.toLocaleString()}` },
       { id: "members", label: spec.common, value: n.toLocaleString() },
-      { id: "diet", label: "Diet", value: spec.diet },
       { id: "maxdepth", label: "Max depth", value: depthCapText(school.shoalCfg?.(id) || knobsFor(spec.id)) },
       { id: "energy", label: "Energy", value: `${Math.round((1 - (school.schoolHunger[id] ?? 0.5)) * 100)}%` },
       { id: "id", label: "Shoal", value: ctx.schoolLabel },
@@ -423,7 +438,8 @@ export function schoolCard(school, id, ctx) {
                 ? "Scattered"
                 : "Foraging",
       },
+      dietStat(spec.id, ctx),
     ],
-    notes: speciesNotes(spec, liveSchool(school, id)),
+    notes: speciesNotes(spec),
   };
 }

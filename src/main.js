@@ -708,20 +708,28 @@ function hudView() {
   const sub = shownSubject();
   let subject = null;
   const following = sameSubject(sub, tracking) && isFollowing();
+  const census = censusList(school, sharks, plankton);
+  const counts = {};
+  for (const row of census) counts[row.id] = row.count;
+  const dietCtx = {
+    following,
+    counts,
+    bloom: { p: plankton.meanP, z: plankton.meanZ, b: plankton.meanB },
+  };
   if (sub?.kind === "shark") {
     const s = sharks[sub.id];
-    if (s) subject = sharkCard(s, { following });
+    if (s) subject = sharkCard(s, dietCtx);
   } else if (sub?.kind === "school") {
     const ids = occupiedSchoolIds();
     subject = schoolCard(school, sub.id, {
-      following,
+      ...dietCtx,
       schoolLabel: `${Math.max(1, ids.indexOf(sub.id) + 1)} of ${Math.max(1, ids.length)}`,
     });
   } else if (sub?.kind === "herring") {
     const ids = occupiedSchoolIds();
     const sid = school.schoolId[sub.id];
     subject = herringCard(school, sub.id, {
-      following,
+      ...dietCtx,
       schoolLabel: `${Math.max(1, ids.indexOf(sid) + 1)} of ${Math.max(1, ids.length)}`,
     });
   }
@@ -732,7 +740,7 @@ function hudView() {
     camY: camera.position.y,
     zones: columnZones(day.look.preferredDepth),
   };
-  return { general, subject, day, census: censusList(school, sharks, plankton), placeName: loc.name || loc.region, column };
+  return { general, subject, day, census, placeName: loc.name || loc.region, column };
 }
 
 function pickSubject(clientX, clientY) {

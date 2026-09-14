@@ -266,7 +266,10 @@ export function createHUD() {
     if (fn) fn(id);
   });
   const columnView = bindColumn(columnRoot, (y) => emit("jumpY", y));
-  const subjectRows = bindStats(subjectBody, tip);
+  const subjectRows = bindStats(subjectBody, tip, (id) => {
+    const fn = handlers.get("focusSpecies");
+    if (fn) fn(id);
+  });
   const noteRows = bindNotes(subjectNotes);
 
   let dock = null;
@@ -832,7 +835,7 @@ function bindNotes(root) {
   };
 }
 
-function bindStats(root, tip) {
+function bindStats(root, tip, onPick) {
   const rows = new Map();
   function hideTip() {
     if (tip) tip.hidden = true;
@@ -853,6 +856,37 @@ function bindStats(root, tip) {
     tip.style.left = `${left}px`;
     tip.style.top = `${top}px`;
   }
+  function syncLinks(row, item) {
+    const links = item.links || [];
+    const key = links.map((l) => `${l.id || ""}:${l.label}`).join("|");
+    if (key === row.linkKey) return;
+    row.linkKey = key;
+    row.links.replaceChildren();
+    if (!links.length) {
+      row.links.hidden = true;
+      return;
+    }
+    row.links.hidden = false;
+    for (const link of links) {
+      if (link.id && onPick) {
+        const btn = el("button", {
+          type: "button",
+          class: "diet-link",
+          "data-id": link.id,
+          text: link.label,
+        });
+        btn.addEventListener("pointerdown", (e) => e.stopPropagation());
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onPick(link.id);
+        });
+        row.links.append(btn);
+      } else {
+        row.links.append(el("span", { class: "diet-field", text: link.label }));
+      }
+    }
+  }
   return {
     set(list) {
       const seen = new Set();
@@ -863,18 +897,47 @@ function bindStats(root, tip) {
         if (!row) {
           const label = el("span");
           const value = el("strong");
-          const node = el("div", { class: "stat", "data-stat": item.id }, [label, value]);
+          const links = el("div", { class: "stat-links" });
+          const detail = el("p", { class: "stat-detail" });
+          const fill = el("i");
+          const meter = el("div", { class: "stat-meter", "aria-hidden": "true" }, [fill]);
+          links.hidden = true;
+          meter.hidden = true;
+          detail.hidden = true;
+          const node = el("div", { class: "stat", "data-stat": item.id }, [
+            label,
+            value,
+            links,
+            meter,
+            detail,
+          ]);
           node.addEventListener("pointerenter", () => showTip(node));
           node.addEventListener("pointerleave", hideTip);
           node.addEventListener("focus", () => showTip(node));
           node.addEventListener("blur", hideTip);
-          row = { node, label, value };
+          row = { node, label, value, links, detail, meter, fill, linkKey: null };
           rows.set(item.id, row);
           root.append(node);
         }
         if (row.label.textContent !== item.label) row.label.textContent = item.label;
         const next = item.value == null ? "—" : String(item.value);
-        if (row.value.textContent !== next) row.value.textContent = next;
+        const hasLinks = !!(item.links && item.links.length);
+        row.node.classList.toggle("stat-wide", !!item.wide);
+        syncLinks(row, item);
+        row.value.hidden = hasLinks;
+        if (!hasLinks && row.value.textContent !== next) row.value.textContent = next;
+        if (item.meter != null) {
+          row.meter.hidden = false;
+          row.fill.style.width = `${Math.round(Math.min(1, Math.max(0, item.meter)) * 100)}%`;
+        } else {
+          row.meter.hidden = true;
+        }
+        if (item.detail) {
+          row.detail.hidden = false;
+          if (row.detail.textContent !== item.detail) row.detail.textContent = item.detail;
+        } else {
+          row.detail.hidden = true;
+        }
         if (item.hint) {
           row.node.dataset.hint = item.hint;
           row.node.setAttribute("tabindex", "0");
@@ -884,6 +947,7 @@ function bindStats(root, tip) {
           row.node.removeAttribute("tabindex");
           row.node.removeAttribute("aria-label");
         }
+        root.append(row.node);
       }
       for (const [id, row] of rows) {
         if (seen.has(id)) continue;

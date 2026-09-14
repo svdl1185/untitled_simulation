@@ -1,7 +1,7 @@
 /**
  * Natural-history copy for every catalog id. Presence still lives on
- * SPECIES + ranges. Cards in species.js compose Now / In nature /
- * In this cell / Not in the model from these rows.
+ * SPECIES + ranges. Cards in species.js compose In nature /
+ * Not in the model from these rows.
  */
 export const FAUNA = {
   herring: {

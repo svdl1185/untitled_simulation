@@ -63,7 +63,7 @@ The honest list. Closing a row means moving it into **What is coupled now**, not
 | Fishing mortality | Not a budget |
 | AquaMaps / OBIS ranges | Hulls are coarse polygons |
 
-Species cards list per-taxon gaps under **Not in the model**.
+Species cards list **In nature** and per-taxon gaps under **Not in the model**. Diet is the live prey in this cell (click a name to look) or **None in cell**, with the natural diet kept underneath. Air-breathers show remaining breath-hold.
 
 ## Tests
 
