@@ -141,12 +141,21 @@ function _motes() {
   return new THREE.Points(geo, mat);
 }
 
+const PARK_Y = -1e5;
+
+function _park(pos, i) {
+  pos[i * 3] = 0;
+  pos[i * 3 + 1] = PARK_Y;
+  pos[i * 3 + 2] = 0;
+}
+
 export function createEatParticles() {
   const n = 220;
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(n * 3);
   const vel = new Float32Array(n * 3);
   const life = new Float32Array(n);
+  for (let i = 0; i < n; i++) _park(pos, i);
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   const mat = new THREE.PointsMaterial({
     color: 0xdde8e4,
@@ -157,11 +166,13 @@ export function createEatParticles() {
   });
   const points = new THREE.Points(geo, mat);
   points.frustumCulled = false;
+  points.visible = false;
   let cursor = 0;
 
   return {
     points,
     burst(x, y, z) {
+      points.visible = true;
       for (let k = 0; k < 14; k++) {
         const i = cursor++ % n;
         pos[i * 3] = x;
@@ -174,6 +185,8 @@ export function createEatParticles() {
       }
     },
     update(dt) {
+      if (!points.visible) return;
+      let live = 0;
       for (let i = 0; i < n; i++) {
         if (life[i] <= 0) continue;
         life[i] -= dt;
@@ -181,8 +194,10 @@ export function createEatParticles() {
         pos[i * 3 + 1] += vel[i * 3 + 1] * dt;
         pos[i * 3 + 2] += vel[i * 3 + 2] * dt;
         vel[i * 3 + 1] += 2.5 * dt;
-        if (life[i] <= 0) pos[i * 3 + 1] = -400;
+        if (life[i] <= 0) _park(pos, i);
+        else live++;
       }
+      points.visible = live > 0;
       geo.attributes.position.needsUpdate = true;
     },
   };
@@ -194,7 +209,7 @@ export function createBlowParticles() {
   const pos = new Float32Array(n * 3);
   const vel = new Float32Array(n * 3);
   const life = new Float32Array(n);
-  for (let i = 0; i < n; i++) pos[i * 3 + 1] = -800;
+  for (let i = 0; i < n; i++) _park(pos, i);
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   const mat = new THREE.PointsMaterial({
     color: 0xffffff,
@@ -208,6 +223,7 @@ export function createBlowParticles() {
   const points = new THREE.Points(geo, mat);
   points.frustumCulled = false;
   points.renderOrder = 6;
+  points.visible = false;
   let cursor = 0;
 
   function emit(x, y, z, count, vx0, vy0, vz0, spread, life0) {
@@ -226,6 +242,7 @@ export function createBlowParticles() {
   return {
     points,
     puff(x, y, z, kind = "", scale = 1, dir = {}) {
+      points.visible = true;
       const s = Math.max(0.55, scale);
       const fx = dir.fx ?? 0;
       const fz = dir.fz ?? 1;
@@ -252,7 +269,9 @@ export function createBlowParticles() {
       emit(x, y, z, Math.round(14 * s), 0, 5.5 * s, 0, 7.2 * s, 0.42);
     },
     update(dt) {
+      if (!points.visible) return;
       const drag = Math.exp(-dt * 1.05);
+      let live = 0;
       for (let i = 0; i < n; i++) {
         if (life[i] <= 0) continue;
         life[i] -= dt;
@@ -263,11 +282,12 @@ export function createBlowParticles() {
         vel[i * 3 + 2] *= drag;
         vel[i * 3 + 1] -= 2.4 * dt;
         vel[i * 3 + 1] *= 0.99;
-        if (pos[i * 3 + 1] < -2.8) {
+        if (pos[i * 3 + 1] < -2.8 || life[i] <= 0) {
           life[i] = 0;
-          pos[i * 3 + 1] = -800;
-        } else if (life[i] <= 0) pos[i * 3 + 1] = -800;
+          _park(pos, i);
+        } else live++;
       }
+      points.visible = live > 0;
       geo.attributes.position.needsUpdate = true;
     },
   };
