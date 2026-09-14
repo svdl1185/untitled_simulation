@@ -33,7 +33,7 @@
           About
         </button>
         <button type="button" id="btn-menu" aria-expanded="false" aria-controls="menu">
-          Parameters
+          Controls
           <kbd>M</kbd>
         </button>
       </nav>
@@ -349,12 +349,19 @@
         </div>
       </section>
       <section class="hud-panel" id="menu" hidden>
-        <h3>Parameters</h3>
-        <p class="menu-lead">Knobs that change a budget, a habitat, or a view. More will land here.</p>
-        <div id="menu-body"></div>
+        <h3>Controls</h3>
+        <div class="about-body">
+          <p class="about-kicker">untitled_ocean_simulation</p>
+          <p class="about-title">Physical knobs</p>
+          <p>
+            Knobs that change a budget, a habitat, or a sensory cue. Toggles start off. Prefer a
+            physical control — turbidity, SST, oxygen, storm — over a cosmetic one.
+          </p>
+          <div id="menu-body"></div>
+          <p class="about-attr">M / Tab opens this panel · Esc closes it</p>
+        </div>
       </section>
     </aside>
-    <div id="menu-backdrop" hidden></div>
     <p id="pilot-hint">Click water on the map to enter a 1 km cell · Lab opens the catalog tank</p>
     <script type="module" src="/src/main.js"></script>
   </body>
