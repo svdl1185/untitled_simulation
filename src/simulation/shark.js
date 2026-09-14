@@ -933,7 +933,7 @@ export class Shark {
     }
     let fallback = -1;
     const want = this.cfg?.huntTaxa;
-    const minN = want?.length ? HUNT_SCHOOL_MIN_VEH : 40;
+    const minN = HUNT_SCHOOL_MIN_VEH;
     for (let k = 1; k <= school.maxSchools; k++) {
       const idx = (this.huntIndex + k) % school.maxSchools;
       if (school.schoolN[idx] < minN) continue;

@@ -1020,12 +1020,12 @@ export const SPECIES = {
       floorClearance: 3.2,
       minWater: 14,
       minSpeed: 0.9,
-      maxSpeed: 4.8,
-      fleeSpeed: 7.2,
+      maxSpeed: 6.2,
+      fleeSpeed: 8.5,
       minSchoolSize: 4,
       metabolism: 0.007,
-      biteRadius: 3.8,
-      eatEnergy: 0.11,
+      biteRadius: 6.2,
+      eatEnergy: 0.13,
       fearRadius: 11,
       huntTaxa: ["silverfish"],
       groups: 3,
@@ -1229,7 +1229,7 @@ export const SPECIES = {
     label: "humpback",
     guild: "mysticete",
     agent: "vehicle",
-    prey: ["school"],
+    prey: ["bloom", "school"],
     vehicle: {
       count: 1,
       max: 3,
@@ -1244,22 +1244,24 @@ export const SPECIES = {
       forageDepth: -60,
       fearRadius: 58,
       lungeFearRadius: 66,
-      biteRadius: 4.5,
-      lungeBiteRadius: 7.2,
+      biteRadius: 5.2,
+      lungeBiteRadius: 8.4,
       mouthOffset: 5.5,
-      energyDrain: 0.0011,
-      eatEnergy: 0.14,
+      energyDrain: 0.00085,
+      eatEnergy: 0.18,
       starveDays: 6,
       gait: "burst",
       minSpeed: 2.0,
       turnSmooth: 2.6,
       mesh: "whale",
       swim: "fluke",
-      diet: "bite",
+      diet: "both",
       breathes: true,
       surfaceTime: breathHold(2.5),
       diveTime: breathHold(10),
       diveSpeed: 28,
+      filterGraze: 0.08,
+      filterGain: 0.42,
       tints: [{ scale: 1.0, aggression: 0.65, tint: { r: 0.28, g: 0.3, b: 0.34 } }],
     },
   },
@@ -1326,11 +1328,11 @@ export const SPECIES = {
       forageDepth: -90,
       fearRadius: 62,
       lungeFearRadius: 70,
-      biteRadius: 2.2,
-      lungeBiteRadius: 4.8,
+      biteRadius: 3.8,
+      lungeBiteRadius: 5.4,
       mouthOffset: 2.8,
-      energyDrain: 0.0022,
-      eatEnergy: 0.13,
+      energyDrain: 0.0016,
+      eatEnergy: 0.16,
       starveDays: 4,
       gait: "ram",
       minSpeed: 4.0,
@@ -1799,6 +1801,12 @@ export function isSchoolBiter(cfg = {}) {
 export function isSchoolGrazer(cfg = {}) {
   const d = schoolDiet(cfg);
   return d === "z" || d === "p" || d === "both";
+}
+
+{
+  const forage = Object.keys(SPECIES).filter((id) => SPECIES[id].agent === "school" && isForagePrey(id));
+  SPECIES.orca.vehicle.huntTaxa = forage;
+  SPECIES.orca.prey = forage.slice();
 }
 
 export function schoolHunts(eaterCfg, eaterId, preyId) {

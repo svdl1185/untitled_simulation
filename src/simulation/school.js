@@ -25,19 +25,35 @@ export function shoalTargetY(hour, cfg, x, z) {
 }
 
 /**
- * Typical band, then hungry biters leave it toward live prey.
- * Satiated benthic hunters stay on the bed. The seafloor still clamps later.
+ * Typical band, then hungry animals leave it toward food.
+ * Biters chase live prey Y. Grazers chase the bloom peak (Z, or P if grazeOn is p).
+ * Satiated benthic hunters stay on the bed. Hungry ones without a lock
+ * use the typical DVM band, not the abyssal floor. The seafloor still clamps later.
  */
 export function shoalHuntY(hour, cfg, x, z, hunger, preyY) {
   const refuge = shoalTargetY(hour, cfg, x, z);
-  if (!isSchoolBiter(cfg) || preyY == null || !Number.isFinite(preyY)) return refuge;
-  const benthic = cfg.habitat === "benthic";
-  if (benthic) return hunger > 0.3 ? preyY : refuge;
-  const gate = 0.18;
-  if (!(hunger > gate)) return refuge;
-  const t = Math.min(1, (hunger - gate) / 0.4);
-  const pull = 0.5 + t * 0.5;
-  return refuge + (preyY - refuge) * pull;
+  const foodY = Number.isFinite(preyY) ? preyY : null;
+  if (isSchoolBiter(cfg)) {
+    const benthic = cfg.habitat === "benthic";
+    if (foodY == null) {
+      if (benthic && hunger > 0.3) return dvmY(hour, cfg);
+      return refuge;
+    }
+    if (benthic) return hunger > 0.3 ? foodY : refuge;
+    const gate = 0.18;
+    if (!(hunger > gate)) return refuge;
+    const t = Math.min(1, (hunger - gate) / 0.4);
+    const pull = 0.5 + t * 0.5;
+    return refuge + (foodY - refuge) * pull;
+  }
+  if (isSchoolGrazer(cfg) && foodY != null) {
+    const gate = 0.18;
+    if (!(hunger > gate)) return refuge;
+    const t = Math.min(1, (hunger - gate) / 0.4);
+    const pull = 0.45 + t * 0.5;
+    return refuge + (foodY - refuge) * pull;
+  }
+  return refuge;
 }
 
 /** Neighbour-walk bite must reach at least one hashed-grid cell. */
@@ -832,6 +848,8 @@ export class School {
       a.hx += flowA.x * 0.07;
       a.hz += flowA.z * 0.07;
       const prey = biter ? this._preyCentroid(s, scfg) : null;
+      const bloomY = grazer && bloom ? (grazeP ? bloom.bloomY : bloom.forageDepth(look)) : null;
+      const foodY = prey?.y ?? bloomY;
       if (biter && !grazer) {
         if (prey) {
           let gx = prey.x - c.x;
@@ -902,8 +920,8 @@ export class School {
       const leadD = lead * huntLead * (1 - shore.urgency * 0.75);
       a.x = c.x + a.hx * leadD;
       a.z = c.z + a.hz * leadD;
-      let wantY = shoalHuntY(look?.hour ?? 12, scfg, c.x, c.z, hunger, prey?.y) + (s % 2 === 0 ? -3 : 2.2);
-      if (scfg.habitat !== "benthic" && !(biter && prey && hunger > 0.22)) {
+      let wantY = shoalHuntY(look?.hour ?? 12, scfg, c.x, c.z, hunger, foodY) + (s % 2 === 0 ? -3 : 2.2);
+      if (scfg.habitat !== "benthic" && !(biter && prey && hunger > 0.22) && !grazer) {
         const forageY = bloom ? bloom.forageDepth(look) : wantY;
         const night = look?.night ?? 0;
         if (night > 0.45) {
@@ -1433,7 +1451,7 @@ export class School {
         oxygenLimitY(cfg)
       );
       if (py < floorKeep) ay += (floorKeep - py) * (5.5 + shoreU * 9);
-      if (cfg.habitat === "benthic" && shoreU < 0.08 && this.energy[i] > 0.62) {
+      if (cfg.habitat === "benthic" && shoreU < 0.08 && this.energy[i] > 0.78) {
         const bed = ground + cfg.floorClearance + 1.2;
         ay += (bed - py) * 3.8;
       }
@@ -1954,7 +1972,11 @@ export class School {
         if ((shark.cfg?.diet || "bite") === "filter") continue;
         if (shark.cfg?.huntTaxa?.length && !shark.cfg.huntTaxa.includes(id)) continue;
         const scale = glow ? shark.biteGlowScale ?? 1 : shark.biteScale ?? 1;
-        const r = shark.biteRadius * scale;
+        const mouth =
+          shark.lunging || shark.aiMode === "strike"
+            ? shark.cfg?.lungeBiteRadius || shark.biteRadius
+            : shark.biteRadius;
+        const r = Math.max(mouth * scale, CONFIG.cellSize || 3.8);
         const dx = x - shark.mouthX;
         const dy = y - shark.mouthY;
         const dz = z - shark.mouthZ;

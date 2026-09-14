@@ -15,6 +15,7 @@ import { CONFIG, breathTargetY, photicLimitY, openPhoticY, columnZones, dvmY } f
 import { Plankton, TROPHIC } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
 import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
+import { demoById, makeDemoPatch } from "../world/demos.js";
 import { faunaPresent } from "../config.js";
 import { School, shoalHuntY, schoolBiteRadius } from "./school.js";
 import { spawnPredators } from "./shark.js";
@@ -136,6 +137,53 @@ function assert(cond, msg) {
 }
 
 {
+  applyPatch(makeTestPatch());
+  const bloom = new Plankton();
+  bloom.acclimate({ night: 0, caustic: 0.8, sunDir: { y: 0.72 }, storm: 0 }, 8, 0.4);
+  const z0 = bloom.meanZ;
+  for (let i = 0; i < 80; i++) bloom.update(0.4, { night: 0, caustic: 0.8, sunDir: { y: 0.72 }, storm: 0 }, i * 0.4);
+  assert(z0 > 0.02, `seeded Z should be a real stock, got ${z0.toFixed(4)}`);
+  assert(bloom.meanZ > z0 * 0.35, `Z should not crash in a lit column (${bloom.meanZ.toFixed(4)} vs start ${z0.toFixed(4)})`);
+}
+
+{
+  applyPatch(makeTestPatch());
+  const saved = CONFIG.water.ice;
+  CONFIG.water.ice = 0.7;
+  const bloom = new Plankton();
+  const day = { night: 0, caustic: 0.6, sunDir: { y: 0.55 }, storm: 0 };
+  for (let i = 0; i < 12; i++) bloom._updateColumn(0.4, day);
+  const film = bloom.profileAt(TROPHIC.Z, -3);
+  const mid = bloom.profileAt(TROPHIC.Z, -40);
+  CONFIG.water.ice = saved;
+  assert(film > 0.25, `under-ice Z should occupy the ice–water film by day, got ${film.toFixed(3)}`);
+  assert(mid > 0.15, `day Z should still have a thermocline lobe, got ${mid.toFixed(3)}`);
+}
+
+{
+  const dt = 0.8;
+  const tEnd = CONFIG.time.dayLength;
+  for (const id of ["polar", "antarctic", "shelf"]) {
+    applyPatch(makeDemoPatch(demoById(id)));
+    const bloom = new Plankton();
+    const clock = new DayCycle();
+    bloom.acclimate(clock.look, 8, 0.4);
+    const z0 = bloom.meanZ;
+    for (let t = 0; t < tEnd; t += dt) {
+      clock.update(dt);
+      bloom.update(dt, clock.look, t);
+    }
+    assert(z0 > 0.015, `${id} should seed a Z stock, got ${z0.toFixed(4)}`);
+    assert(
+      bloom.meanZ > 0.02,
+      `${id} Z should persist a sim day (Z ${bloom.meanZ.toFixed(4)} P ${bloom.meanP.toFixed(4)} ice ${CONFIG.water.ice.toFixed(2)})`
+    );
+    assert(bloom.meanP > 0.02, `${id} P should persist a sim day, got ${bloom.meanP.toFixed(4)}`);
+  }
+  applyPatch(makeTestPatch());
+}
+
+{
   applyPatch(makeSyntheticPatch());
   assert(!faunaPresent("giantsquid"), "North Sea shelf is too shallow for giant squid");
   assert(faunaPresent("herring"), "synthetic shelf should still hold herring");
@@ -253,6 +301,14 @@ function assert(cond, msg) {
   const refuge = shoalHuntY(12, skipjack, 0, 0, 0.1, -8);
   const chase = shoalHuntY(12, skipjack, 0, 0, 0.8, -8);
   assert(Math.abs(chase - -8) < Math.abs(refuge - -8), "hungry skipjack should close on surface prey Y");
+  const herring = knobsFor("herring");
+  const herringBand = shoalHuntY(12, herring, 0, 0, 0.1, -30);
+  const herringGraze = shoalHuntY(12, herring, 0, 0, 0.8, -30);
+  assert(Math.abs(herringGraze - -30) < Math.abs(herringBand - -30), "hungry herring should leave DVM toward the Z peak");
+  const tooth = knobsFor("toothfish");
+  const toothBed = shoalHuntY(12, tooth, 0, 0, 0.1, null);
+  const toothSeek = shoalHuntY(12, tooth, 0, 0, 0.8, null);
+  assert(toothSeek > toothBed + 40, `hungry toothfish without a lock should leave the bed (${toothSeek.toFixed(0)} vs ${toothBed.toFixed(0)})`);
   assert(schoolBiteRadius({ biteRadius: 2.6 }) >= 3.79, "school bite must reach a hashed-grid cell");
   assert(schoolBiteRadius({ biteRadius: 6 }) === 6, "a larger mouth keeps its radius");
 }
@@ -596,4 +652,4 @@ function assert(cond, msg) {
   assert(observeDayIndex(56) === 180, "North Sea observe day stays 180");
 }
 
-console.log("column physics: 28 checks ok");
+console.log("column physics: 31 checks ok");

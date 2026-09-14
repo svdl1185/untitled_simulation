@@ -499,15 +499,17 @@ export class Plankton {
     const cfg = CONFIG.plankton;
     const storm = look?.storm ?? 0;
     const q10 = columnQ10();
+    const qProd = productionQ10();
+    const qLoop = Math.min(q10, qProd);
     const flowT = t ?? 0;
     const mix = cfg.mix * (1 + storm * 2.4) * dt;
     const ice = CONFIG.water?.ice ?? 0;
-    const iceGrow = ice > 0.05 ? ice * 0.036 * (0.32 + 0.68 * this.photicLight) : 0;
-    const growP = cfg.growP * this.photicLight * productionQ10() + iceGrow;
+    const iceGrow = ice > 0.05 ? ice * 0.05 * (0.45 + 0.55 * this.photicLight) : 0;
+    const growP = cfg.growP * this.photicLight * qProd + iceGrow;
     const grazeZ =
       cfg.grazeZ *
       (0.62 + 0.48 * this.pzCoincide) *
-      q10 *
+      qLoop *
       (0.48 + 0.52 * Math.min(1, this.photicLight / 0.32));
     const sinkFrac = this.sinkFrac;
     const yP = this.bloomY;
@@ -572,8 +574,8 @@ export class Plankton {
 
         const uptake = growP * (nut / (nut + cfg.kN)) * phy;
         const zg = grazeZ * (phy / (phy + cfg.kP)) * zoa;
-        const mortP = cfg.mortP * phy * q10;
-        const mortZ = cfg.mortZ * zoa * q10;
+        const mortP = cfg.mortP * phy * qLoop;
+        const mortZ = cfg.mortZ * zoa * qLoop * (1 + zoa / 0.16);
         const remin = cfg.remin * det * q10;
         const ground = seafloorHeight(
           minX + (ix + 0.5) * cellX,
@@ -666,7 +668,13 @@ export class Plankton {
       );
       pCol[i] += (pWant - pCol[i]) * kP;
       const dy = y - zWant;
-      zCol[i] += (Math.exp(-(dy * dy) / (2 * sigZ * sigZ)) - zCol[i]) * kZ;
+      let zWantCol = Math.exp(-(dy * dy) / (2 * sigZ * sigZ));
+      const ice = CONFIG.water?.ice ?? 0;
+      if (ice > 0.08 && y > -14) {
+        const film = Math.max(0, 1 + y / 14);
+        zWantCol = Math.max(zWantCol, ice * 0.9 * film);
+      }
+      zCol[i] += (zWantCol - zCol[i]) * kZ;
       dCol[i] += (0.1 + 0.9 * deep - dCol[i]) * kD;
       if (nCol[i] < 0) nCol[i] = 0;
       if (pCol[i] < 0) pCol[i] = 0;

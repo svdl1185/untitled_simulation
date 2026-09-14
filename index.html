@@ -147,8 +147,9 @@
             <div>
               <dt>Q10</dt>
               <dd>
-                How much a rate changes per 10 °C. Metabolism, graze, and NPZD all scale with column
-                temperature.
+                How much a rate changes per 10 °C. Fish metabolism uses the mixed-layer clock;
+                phytoplankton growth is absolute (tropics faster). Polar Z graze and mortality
+                follow that same cold clock so copepods do not outrun the bloom.
               </dd>
             </div>
             <div>
@@ -242,24 +243,27 @@
               photic envelope stays sunlit. Temperature and Q10
               (<code>sampleTemp</code>; high-latitude amplitude is small). Dissolved oxygen and OMZ (<code>sampleO2</code>). Sea ice
               (<code>climateIce</code>: concentration, thickness, ice algae on the P patch). Separable
-              NPZD (128×128 patch × column: N, P, Z, D). Benthos: detritus flux onto the bed.
+              NPZD (128×128 patch × column: N, P, Z, D; Z keeps an under-ice film lobe). Benthos: detritus flux onto the bed.
             </li>
             <li>
               <strong>Agents.</strong> One hashed-grid school (cap 20k): grazers on a bloom cap,
               piscivores on a prey-capped slice of the same grid. Vehicles are the rares and
               air-breathers. Social modes: polarized, loose, scatter. Gaits on vehicles: burst, ram,
               jet. Hungry biters — including benthic cod and toothfish, and DVM giant squid — leave
-              refuge toward live prey; satiated animals sit in the typical band. A bloom clip packs
+              refuge toward live prey; hungry grazers leave DVM toward the Z or P peak. A vehicle
+              hunt lock does not wait for a 40-fish pack. Satiated animals sit in the typical band. A bloom clip packs
               survivors into live shoals. Outside the catalog tank, vehicle counts scale with live
               forage. Air-breathers hang
-              and blow, then a flukes-up dive. Echo detect is length-scaled, not PAR. Spawn against
+              and blow, then a flukes-up dive. Minke and humpback filter <code>z</code> and bite.
+              Orca hunt forage schools, not the handful of slope gadids. Echo detect is length-scaled, not PAR. Spawn against
               the local seafloor; <code>maxDepth</code> is biological, then the floor, then oxygen.
             </li>
             <li>
               <strong>Budgets.</strong> Grazer ceiling = bloom mean × photic production × live light × Q10. Piscivore
               ceiling = live forage / prey ratio on the same grid. Type II graze on <code>z</code> or
               <code>p</code>. Neighbour-walk bites reach at least one hashed-grid cell. Missing prey is a starve. Sperm whale × giant
-              squid is the vehicle-on-vehicle bite; Humboldt is school <code>huntTaxa</code>. Q10 and
+              squid is the vehicle-on-vehicle bite; Humboldt is school <code>huntTaxa</code>. A striking
+              vehicle uses its lunge mouth, at least one hashed-grid cell. Q10 and
               hypoxia scale rates. Closed mass: graze, excretion, carcass, sink, remineralisation,
               benthos graze.
             </li>

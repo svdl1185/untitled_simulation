@@ -544,7 +544,7 @@ export const FAUNA = {
     about:
       "Coastal migratory rorqual, typically 12–16 m. Feeds in high-latitude summers, winters in tropics. Lunge-feeds; recorded to about 500 m, usually much shallower. Must surface to breathe.",
     program:
-      "Burst vehicle, fluke swim, huge bite radius, long pecs, ventral grooves on the throat. Slow turn, little bank; pecs beat. Hunts school fish and krill. Air-breather: hangs level at the surface and blows two columns, then a foraging dive toward prey or typical forage ~60 m, clamped by min(500 m, this cell's floor). Typical 10 min dive / 2.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. Coastal migratory hulls. Needs school prey in the cell.",
+      "Burst vehicle, fluke swim, huge bite radius, long pecs, ventral grooves on the throat. Slow turn, little bank; pecs beat. Diet both: filter-graze z and bite school forage and krill. Air-breather: hangs level at the surface and blows two columns, then a foraging dive toward prey or typical forage ~60 m, clamped by min(500 m, this cell's floor). Typical 10 min dive / 2.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. Coastal migratory hulls.",
     missing: [
       "Song and breeding lagoons are not a season.",
       "Bubble-net hydrodynamics are not a field.",
@@ -589,7 +589,7 @@ export const FAUNA = {
     about:
       "Cosmopolitan dolphin, typically 5–8 m. Fish-eating (resident-type) ecotypes hunt herring, salmon, and other fish, usually in the upper 100–200 m; recorded to about 800 m. Must surface to breathe. Mammal-eating (transient) ecotypes hunt seals and whales.",
     program:
-      "Ram vehicle, orca mesh, tall dorsal (taller on males) and white patches. Tight pack, large fear radius. Bites school fish. Air-breather: hangs level at the surface and blows a short puff, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). Typical 6 min dive / ~1.2 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. This is the fish-eating programme. Banks in the turn like a dolphin, not a rorqual. sense is echo: PAR does not shrink detect or fear.",
+      "Ram vehicle, orca mesh, tall dorsal (taller on males) and white patches. Tight pack, large fear radius. Bites forage schools (huntTaxa: clupeids, capelin, polar cod, krill, squid) — not the handful of slope gadids. Air-breather: hangs level at the surface and blows a short puff, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). Typical 6 min dive / ~1.2 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. This is the fish-eating programme. Banks in the turn like a dolphin, not a rorqual. sense is echo: PAR does not shrink detect or fear.",
     missing: [
       "Mammal-eating ecotypes are not wired — seals and other whales are not prey.",
       "Salmon are not a school taxon.",
