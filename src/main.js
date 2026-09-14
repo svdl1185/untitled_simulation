@@ -324,7 +324,8 @@ function syncFish() {
       _q.multiply(_hang);
     }
     _p.set(pos[i3], pos[i3 + 1], pos[i3 + 2]);
-    const sc = scale[i] * (0.9 + 0.1 * school.energy[i]);
+    const bodyLen = school.taxonCfg(i).length || 0.95;
+    const sc = scale[i] * (bodyLen / 0.95) * (0.9 + 0.1 * school.energy[i]);
     _s.set(sc, sc, sc);
     _m.compose(_p, _q, _s);
     layer.mesh.setMatrixAt(k, _m);
@@ -772,13 +773,13 @@ function hudView() {
       id: "fish",
       label: "Forage",
       value: `${school.count.toLocaleString()} · ${foodCap.toLocaleString()}`,
-      hint: "School fish in the cell, then the bloom-capped carrying capacity.",
+      hint: "Hashed-grid animals in the cell (grazers and piscivores), then the bloom-capped grazer ceiling.",
     },
     {
       id: "sharks",
       label: "Predators",
       value: String(sharks.length),
-      hint: "Vehicle predators currently in the cell (sharks, tunas, whales, squid, and the rest).",
+      hint: "Rare vehicles currently in the cell (sharks, whales, giant squid, air-breathers). Skipjack, Humboldt, and cod count with the school.",
     },
     {
       id: "bloom",

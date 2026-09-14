@@ -11,7 +11,7 @@ This repo is a **scientific ocean simulation**. The camera is a window. Do not a
 
 1. **Fields** — flow, PAR, temperature, NPZD, benthos. Cheap to sample everywhere (`src/simulation/flow.js`, `light.js`, `temperature.js`, `plankton.js`).
 2. **Agents** — herring, sharks, squid. Nearby resolution only (`school.js`, `shark.js`).
-3. **Budgets** — bloom mean and photic production cap fish; grazing depletes bloom; eating restores shark energy; detritus sinks; Q10 scales rates. New life must eat something and be limited by something.
+3. **Budgets** — bloom mean and photic production cap grazers; school piscivores take a prey-capped slice of the same grid; grazing depletes bloom; bites restore energy; detritus sinks; Q10 scales rates. New life must eat something and be limited by something.
 
 A new species needs a guild, a food, a flow coupling, and a niche. Do not clone herring and retint the mesh. Two species that eat the same thing at the same depth are one species too many. Follow `.cursor/rules/species.mdc` and add to that list when the simulation grows a new constraint (light, temperature, a new field, a new predator).
 

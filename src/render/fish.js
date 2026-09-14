@@ -19,26 +19,46 @@ export function createFishGeometry(speciesId = "herring") {
   if (shape === "krill") return createKrillGeometry(look);
   if (shape === "lantern") return createLanternGeometry(look);
   if (shape === "flying") return createFlyingGeometry(look);
+  if (shape === "billfish") return createBillfishGeometry(look);
+  if (shape === "mahi") return createMahiGeometry(look);
   return createFishBody(look, shape);
 }
 
 function createFishBody(look, shape) {
-  const body = _latheBody(look, shape === "needle" ? needleProfile() : null);
+  const slim = shape === "needle" || shape === "barracuda" || shape === "billfish";
+  const body = _latheBody(look, slim ? needleProfile() : null);
   const pecScale = look.pec ?? 1;
-  const dorsalH = (look.dorsal ?? 1) * 0.14;
+  const dorsalH = (look.dorsal ?? 1) * (shape === "tuna" || shape === "mahi" ? 0.2 : 0.14);
   const dorsal = _fin(0.0, 0.12, -0.08, -0.16, dorsalH, look);
   const tail = _tail(look);
   const pec = _fin(0.07, 0.02, 0.08, -0.12 * Math.min(1.6, pecScale), 0.08 * Math.min(1.4, pecScale), look);
   const pec2 = pec.clone();
   pec2.rotateZ(Math.PI);
   const parts = [body, dorsal, tail, pec, pec2];
-  if (shape === "needle") {
+  if (slim) {
     const anal = _fin(0.0, -0.06, -0.12, -0.14, -0.08, look);
     parts.push(anal);
   }
+  if (shape === "billfish") parts.push(_spear(look));
   const geo = mergeGeometries(parts.map(prepare), false);
   geo.computeVertexNormals();
   return geo;
+}
+
+function createBillfishGeometry(look) {
+  return createFishBody(look, "billfish");
+}
+
+function createMahiGeometry(look) {
+  return createFishBody(look, "mahi");
+}
+
+function _spear(look) {
+  const g = new THREE.ConeGeometry(0.022, 0.52, 5);
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, 0, 0.68);
+  _paintLook(g, look);
+  return g;
 }
 
 function createFlyingGeometry(look) {
@@ -296,7 +316,9 @@ function fishSwim(look) {
   if (look.shape === "squid") return "jet";
   if (look.shape === "krill") return "paddle";
   if (look.shape === "flying") return "fly";
-  if (look.shape === "needle") return "eel";
+  if (look.shape === "needle" || look.shape === "barracuda") return "eel";
+  if (look.shape === "tuna" || look.shape === "billfish" || look.shape === "mahi") return "thunniform";
+  if (look.shape === "cod") return "body";
   return "tail";
 }
 
@@ -338,6 +360,20 @@ function fishVertex(swim) {
       transformed.x += sin(uTime * 16.0 + aPhase) * tail * tail * uTail;
       float wing = smoothstep(0.07, 0.22, abs(position.x));
       transformed.y += sin(uTime * 28.0 + aPhase) * wing * 0.14 * uTail;
+      `;
+  }
+  if (swim === "thunniform") {
+    return `
+      vec3 transformed = vec3(position);
+      float tail = smoothstep(-0.05, -0.52, position.z);
+      transformed.x += sin(uTime * 22.0 + aPhase) * tail * tail * uTail * 0.72;
+      `;
+  }
+  if (swim === "body") {
+    return `
+      vec3 transformed = vec3(position);
+      float along = smoothstep(0.35, -0.5, position.z);
+      transformed.x += sin(uTime * 11.0 + aPhase - position.z * 6.0) * along * uTail;
       `;
   }
   return `
