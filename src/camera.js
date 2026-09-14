@@ -29,7 +29,7 @@ export function cameraHint(mode, piloting, following = false) {
     return "Drag to look · Scroll zoom · WASD thrust · E/Q rise/dive · Shift boost · Space lunge · Esc release";
   }
   if (mode === CAM.FREE || !following) {
-    return "Click an animal · Drag to look · WASD fly · E/Q rise/dive · G depth zone · Scroll dolly · I census";
+    return "Click an animal · Drag to look · WASD fly · E/Q rise/dive · G named depth · Scroll dolly · I census";
   }
   return "C camera · N next · Drag orbit · Scroll zoom · V free roam";
 }
@@ -157,7 +157,13 @@ export function createCameraRig(camera) {
   }
 
   function jumpToY(y) {
-    camera.position.y = y;
+    jumpTo(camera.position.x, y, camera.position.z);
+  }
+
+  function jumpTo(x, y, z) {
+    if (Number.isFinite(x)) camera.position.x = x;
+    if (Number.isFinite(y)) camera.position.y = y;
+    if (Number.isFinite(z)) camera.position.z = z;
     clampCam(camera.position);
   }
 
@@ -335,6 +341,7 @@ export function createCameraRig(camera) {
     setMode,
     setExtents,
     jumpToY,
+    jumpTo,
     update,
     enterFree,
     get radius() {

@@ -19,6 +19,7 @@ import { createInput } from "./input.js";
 import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followCameraIndex } from "./camera.js";
 import { createHUD } from "./ui.js";
 import { getLocation, sharkCard, herringCard, schoolCard, censusList } from "./species.js";
+import { seafloorHeight, findWaterAtDepth } from "./simulation/obstacles.js";
 import { applyPatch, makeBootPatch, makeTestPatch, formatLatLon, getActivePatch } from "./world/patch.js";
 import { WorldStream } from "./world/stream.js";
 import { loadPatchById } from "./world/atlas.js";
@@ -471,7 +472,7 @@ function syncDepthZones() {
   if (!labels.length) return;
   let idx = Number(hud.get("depthZone") ?? 1);
   if (idx >= labels.length) idx = Math.max(0, labels.length - 1);
-  const epi = zones.findIndex((z) => z.id === "epipelagic");
+  const epi = zones.findIndex((z) => z.id === "sunlit");
   if (idx < 0) idx = epi >= 0 ? epi : 0;
   hud.setSelectOptions("depthZone", labels, idx);
 }
@@ -490,12 +491,30 @@ function jumpToDepth(y) {
     hud.setControl(false);
   }
   applyCamera(CAM.FREE);
-  rig.jumpToY(y);
+  const want = Math.min(-2.2, y);
+  const x0 = camera.position.x;
+  const z0 = camera.position.z;
+  const ground = seafloorHeight(x0, z0);
+  let x = x0;
+  let z = z0;
+  let py = want;
+  if (ground + 8 > want) {
+    const placed = findWaterAtDepth(x0, z0, want, {
+      maxDepth: CONFIG.floorY,
+      clearance: 6,
+    });
+    x = placed.x;
+    z = placed.z;
+    py = placed.y;
+  } else {
+    py = Math.max(want, ground + 1.8);
+  }
+  rig.jumpTo(x, py, z);
   const zones = columnZones(day.look.preferredDepth);
   let best = 0;
   let d = Infinity;
   for (let i = 0; i < zones.length; i++) {
-    const n = Math.abs(zones[i].y - y);
+    const n = Math.abs(zones[i].y - py);
     if (n < d) {
       d = n;
       best = i;
@@ -687,7 +706,7 @@ function hudView() {
       id: "bloom",
       label: "P / Z",
       value: `${Math.round((plankton.meanP ?? 0) * 100)} · ${Math.round((plankton.meanZ ?? 0) * 100)}`,
-      hint: "Column-mean phytoplankton and zooplankton, scaled 0–100. Green slices in the photic are P; yellow spark at the DVM is Z.",
+      hint: "Column-mean phytoplankton and zooplankton, scaled 0–100. Green slices in the sunlit layer are P; yellow spark at the DVM is Z.",
     },
     {
       id: "sst",
@@ -702,10 +721,10 @@ function hudView() {
       hint: "Dissolved oxygen at the camera. Mixed layer near saturation; the OMZ is the hypoxic band below.",
     },
     {
-      id: "photic",
-      label: "Photic",
+      id: "light",
+      label: "1% light",
       value: `${Math.abs(photicLimitY()).toFixed(0)} m`,
-      hint: "1% light depth from turbidity. Phytoplankton grow inside this envelope.",
+      hint: "Depth where 1% of surface sunlight remains. Phytoplankton grow above this. The old name is the photic zone.",
     },
     {
       id: "par",

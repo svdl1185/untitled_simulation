@@ -237,10 +237,10 @@ export function herringDvmY(hour) {
 
 const ZONE_CATALOG = [
   { id: "surface", label: "Surface", y: -2.5, minColumn: 6 },
-  { id: "epipelagic", label: "Epipelagic", y: -40, minColumn: 18 },
-  { id: "mesopelagic", label: "Mesopelagic", y: -600, minColumn: 250 },
-  { id: "bathypelagic", label: "Bathypelagic", y: -2000, minColumn: 1100 },
-  { id: "abyssal", label: "Abyssal", y: -4500, minColumn: 3200 },
+  { id: "sunlit", label: "Sunlit", y: -40, minColumn: 18 },
+  { id: "twilight", label: "Twilight", y: -200, minColumn: 160 },
+  { id: "midnight", label: "Midnight", y: -1000, minColumn: 700 },
+  { id: "abyssal", label: "Abyssal", y: -4000, minColumn: 2800 },
   { id: "benthos", label: "Seafloor", y: null, minColumn: 14 },
 ];
 
@@ -248,16 +248,27 @@ const ZONE_CATALOG = [
 export function columnZones(preferredY) {
   const floor = CONFIG.floorY;
   const column = Math.max(6, -floor);
-  const epi = clampHabitatY(preferredY ?? CONFIG.fish.preferredDepth, CONFIG.fish.maxDepth);
-  return ZONE_CATALOG.filter((z) => column >= z.minColumn).map((z) => {
-    let y = z.id === "benthos" ? floor + 8 : z.id === "epipelagic" ? epi : z.y;
+  const sunlitY = clampHabitatY(preferredY ?? CONFIG.fish.preferredDepth, CONFIG.fish.maxDepth);
+  const zones = ZONE_CATALOG.filter((z) => column >= z.minColumn).map((z) => {
+    let y = z.id === "benthos" ? floor + 8 : z.id === "sunlit" ? sunlitY : z.y;
     y = Math.min(-2.2, Math.max(floor + 6, y));
     return { id: z.id, label: z.label, y };
   });
+  const lightY = photicLimitY();
+  if (column > 24 && lightY < -12 && lightY > floor + 16) {
+    const close = zones.some((z) => Math.abs(z.y - lightY) < 40);
+    if (!close) {
+      const y = Math.min(-2.2, Math.max(floor + 6, lightY));
+      let i = zones.findIndex((z) => z.y <= y);
+      if (i < 0) i = zones.length;
+      zones.splice(i, 0, { id: "light", label: "1% light", y });
+    }
+  }
+  return zones;
 }
 
 export function zoneAt(y) {
-  const zones = columnZones(y);
+  const zones = columnZones(CONFIG.fish.preferredDepth);
   if (!zones.length) return { id: "water", label: "Water", y };
   let best = zones[0];
   let d = Math.abs(y - best.y);

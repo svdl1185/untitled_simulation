@@ -201,7 +201,7 @@ h3 {
   bottom: 72px;
   left: 16px;
   z-index: 5;
-  width: 72px;
+  width: 92px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -245,9 +245,19 @@ h3 {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   text-align: left;
+  line-height: 1.15;
   cursor: pointer;
   white-space: nowrap;
   pointer-events: auto;
+}
+
+.column-zone em {
+  display: block;
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.72;
 }
 
 .column-zone:hover,
@@ -268,7 +278,8 @@ h3 {
   box-shadow: 0 0 0 3px rgba(4, 14, 18, 0.85);
 }
 
-.column-you {
+.column-you,
+.column-hover {
   position: absolute;
   left: -10px;
   right: 0;
@@ -277,16 +288,27 @@ h3 {
   pointer-events: none;
 }
 
-.column-you i {
+.column-hover {
+  z-index: 3;
+  color: var(--ink);
+}
+
+.column-you i,
+.column-hover i {
   display: block;
   width: 12px;
   height: 2px;
   background: var(--ink);
 }
 
-.column-you span {
+.column-hover i {
+  background: var(--accent);
+}
+
+.column-you span,
+.column-hover span {
   position: absolute;
-  left: 16px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 11px;
@@ -294,6 +316,7 @@ h3 {
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
 }
 
 .census-list {

@@ -8,14 +8,14 @@ import {
   sampleO2,
   saturationO2,
 } from "./oxygen.js";
-import { CONFIG, breathTargetY, photicLimitY } from "../config.js";
+import { CONFIG, breathTargetY, photicLimitY, columnZones } from "../config.js";
 import { Plankton, TROPHIC } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
 import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
 import { faunaPresent } from "../config.js";
 import { School } from "./school.js";
 import { spawnPredators } from "./shark.js";
-import { seafloorHeight } from "./obstacles.js";
+import { seafloorHeight, findWaterAtDepth } from "./obstacles.js";
 import { vehicleCfg } from "../world/fauna.js";
 
 function assert(cond, msg) {
@@ -312,4 +312,18 @@ function assert(cond, msg) {
   assert(!(north.humboldtsquid > 0), "North Sea should not hold Humboldt squid");
 }
 
-console.log("column physics: 15 checks ok");
+{
+  applyPatch(makeTestPatch());
+  const zones = columnZones(-38);
+  const ids = zones.map((z) => z.id);
+  assert(ids.includes("sunlit"), "lab column should name the sunlit layer");
+  assert(ids.includes("twilight"), "2000 m lab should have twilight");
+  assert(ids.includes("midnight"), "2000 m lab should have midnight");
+  assert(ids.includes("benthos"), "lab column should end at the seafloor");
+  const shelf = findWaterAtDepth(0, 2200, -1000, { maxDepth: -2000, clearance: 6 });
+  const deepFloor = seafloorHeight(shelf.x, shelf.z);
+  assert(deepFloor < -180, `a 1000 m jump from the inner shelf should walk into deeper water (floor ${deepFloor.toFixed(0)})`);
+  assert(shelf.y < -180, `placed camera y should be deep, got ${shelf.y.toFixed(0)}`);
+}
+
+console.log("column physics: 16 checks ok");

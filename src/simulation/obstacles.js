@@ -148,6 +148,64 @@ export function placeInColumn(x, z, wantY, opts = {}) {
   return { x: bestX, y: clampLocalY(wantY, bestX, bestZ, maxDepth, clearance), z: bestZ };
 }
 
+/**
+ * Camera (or any visitor) that wants depth `wantY`. If this (x, z) is
+ * too shallow, pick the nearest wet sample that actually has that
+ * column. Empty elevation falls back to `placeInColumn`.
+ */
+export function findWaterAtDepth(x, z, wantY, opts = {}) {
+  const clearance = opts.clearance ?? 6;
+  const maxDepth = opts.maxDepth ?? CONFIG.floorY;
+  const here = seafloorHeight(x, z);
+  if (here <= wantY - clearance) {
+    return { x, y: clampLocalY(wantY, x, z, maxDepth, clearance), z };
+  }
+  const patch = getActivePatch();
+  const elev = patch?.elevation;
+  const nx = patch?.nx | 0;
+  const nz = patch?.nz | 0;
+  if (!elev || nx < 4 || nz < 4) {
+    return placeInColumn(x, z, wantY, { ...opts, clearance, maxDepth });
+  }
+  const need = wantY - clearance;
+  let bestX = x;
+  let bestZ = z;
+  let bestD = Infinity;
+  let deepX = x;
+  let deepZ = z;
+  let deepY = here;
+  const minX = patch.minX;
+  const minZ = patch.minZ;
+  const cellX = patch.cellX;
+  const cellZ = patch.cellZ;
+  for (let iz = 0; iz < nz; iz++) {
+    const gz = minZ + (iz + 0.5) * cellZ;
+    for (let ix = 0; ix < nx; ix++) {
+      const gy = elev[iz * nx + ix];
+      if (gy < deepY) {
+        deepY = gy;
+        deepX = minX + (ix + 0.5) * cellX;
+        deepZ = gz;
+      }
+      if (gy > need) continue;
+      const gx = minX + (ix + 0.5) * cellX;
+      const dx = gx - x;
+      const dz = gz - z;
+      const d = dx * dx + dz * dz;
+      if (d < bestD) {
+        bestD = d;
+        bestX = gx;
+        bestZ = gz;
+      }
+    }
+  }
+  if (!(bestD < Infinity)) {
+    bestX = deepX;
+    bestZ = deepZ;
+  }
+  return { x: bestX, y: clampLocalY(wantY, bestX, bestZ, maxDepth, clearance), z: bestZ };
+}
+
 export function waterColumn(x, z) {
   const cfg = CONFIG.fish;
   return -cfg.surfaceClearance - (seafloorHeight(x, z) + cfg.floorClearance);

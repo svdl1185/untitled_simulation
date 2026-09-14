@@ -88,7 +88,7 @@ export const MENU = [
         id: "turbidity",
         kind: "slider",
         label: "Turbidity",
-        hint: "Optical extinction. Higher is murkier and a shallower photic zone.",
+        hint: "Optical extinction. Higher is murkier and a shallower 1% light depth.",
         min: 0.35,
         max: 1.4,
         step: 0.05,
@@ -177,11 +177,11 @@ export const MENU = [
         id: "depthZone",
         kind: "select",
         label: "Water column",
-        hint: "Jump the camera to a zone that exists in this cell.",
-        options: ["Surface", "Epipelagic", "Seafloor"],
+        options: ["Surface", "Sunlit", "Seafloor"],
         value: 1,
         key: "G",
         cellOnly: true,
+        hint: "Jump the camera to a named layer. If the floor here is shallower than that depth, the camera walks into deeper water.",
       },
       {
         id: "pilot",
@@ -200,7 +200,7 @@ const KEY_HELP = [
   ["O", "World map (home)"],
   ["I", "Census, when a cell is open"],
   ["Click census", "Jump to that animal"],
-  ["Click column", "Jump to a depth zone"],
+  ["Click column", "Jump to that depth; walks offshore if the floor here is too shallow"],
   ["Click water", "Enter a 1 km cell"],
   ["Click animal", "Field notes on that individual"],
   ["Drag", "Look around · orbit when following"],
@@ -209,7 +209,7 @@ const KEY_HELP = [
   ["C", "Follow camera (after Follow)"],
   ["N", "Next followed animal"],
   ["V / Esc", "Free roam · Esc also closes map if a cell is open"],
-  ["WASD", "Move · E/Q rise/dive · G depth zone · Shift boost · Space lunge"],
+  ["WASD", "Move · E/Q rise/dive · G named depth · Shift boost · Space lunge"],
 ];
 
 function formatClock(hour) {
@@ -681,19 +681,33 @@ function bindColumn(root, onJump) {
   const you = root.querySelector("#hud-column-you");
   const depthRead = root.querySelector("#hud-column-depth");
   const floorRead = root.querySelector("#hud-column-floor");
+  const hover = root.querySelector("#hud-column-hover");
+  const hoverRead = hover?.querySelector("span");
   const zoneBtns = new Map();
   let zoneKey = "";
 
   function frac(y, surface, floor) {
     const span = surface - floor;
     if (!(span > 0.5)) return 0;
-    return Math.min(1, Math.max(0, (surface - y) / span));
+    const t = Math.min(1, Math.max(0, (surface - y) / span));
+    return Math.sqrt(t);
   }
 
   function yAt(clientY, surface, floor) {
     const r = track.getBoundingClientRect();
-    const t = r.height ? Math.min(1, Math.max(0, (clientY - r.top) / r.height)) : 0;
-    return surface - t * (surface - floor);
+    const u = r.height ? Math.min(1, Math.max(0, (clientY - r.top) / r.height)) : 0;
+    return surface - u * u * (surface - floor);
+  }
+
+  function showHover(clientY) {
+    if (!hover || !track) return;
+    const surface = Number(track.dataset.surface || 0);
+    const floor = Number(track.dataset.floor || -100);
+    const y = yAt(clientY, surface, floor);
+    const t = frac(y, surface, floor);
+    hover.hidden = false;
+    hover.style.top = `${t * 100}%`;
+    if (hoverRead) hoverRead.textContent = `${Math.max(0, -y).toFixed(0)} m`;
   }
 
   track?.addEventListener("pointerdown", (e) => {
@@ -701,6 +715,16 @@ function bindColumn(root, onJump) {
     const surface = Number(track.dataset.surface || 0);
     const floor = Number(track.dataset.floor || -100);
     onJump(yAt(e.clientY, surface, floor));
+  });
+  track?.addEventListener("pointermove", (e) => {
+    if (e.target.closest(".column-zone")) {
+      if (hover) hover.hidden = true;
+      return;
+    }
+    showHover(e.clientY);
+  });
+  track?.addEventListener("pointerleave", () => {
+    if (hover) hover.hidden = true;
   });
 
   return {
@@ -712,22 +736,26 @@ function bindColumn(root, onJump) {
       track.dataset.floor = String(floor);
       if (floorRead) floorRead.textContent = `${Math.abs(Math.min(0, floor)).toFixed(0)} m`;
       const zones = col.zones || [];
-      const nextKey = zones.map((z) => `${z.id}:${z.y}`).join("|");
+      const nextKey = zones.map((z) => `${z.id}:${z.y.toFixed(1)}`).join("|");
       if (nextKey !== zoneKey) {
         for (const btn of zoneBtns.values()) btn.remove();
         zoneBtns.clear();
         let lastT = -1;
         for (const z of zones) {
           const t = frac(z.y, surface, floor);
-          if (t - lastT < 0.06 && lastT >= 0) continue;
+          if (t - lastT < 0.035 && lastT >= 0) continue;
           lastT = t;
-          const btn = el("button", {
-            type: "button",
-            class: "column-zone",
-            "data-id": z.id,
-            text: z.label,
-            title: `${z.label} · ${Math.abs(z.y).toFixed(0)} m`,
-          });
+          const metres = `${Math.abs(z.y).toFixed(0)} m`;
+          const btn = el(
+            "button",
+            {
+              type: "button",
+              class: "column-zone",
+              "data-id": z.id,
+              title: `${z.label} · ${metres}. Click to go there. If this column is shallower, the camera walks into deeper water.`,
+            },
+            [el("span", { text: z.label }), el("em", { text: metres })]
+          );
           btn.style.top = `${t * 100}%`;
           btn.addEventListener("pointerdown", (e) => e.stopPropagation());
           btn.addEventListener("click", (e) => {
