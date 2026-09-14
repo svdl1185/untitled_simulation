@@ -51,8 +51,13 @@ function schoolBand(id) {
   const look = spec?.look || {};
   if (look.shape === "flying" || look.shape === "needle") return "surface";
   if (look.photophores) return "dsl";
-  if (look.shape === "squid") return "squid";
   if (look.shape === "krill") return "krill";
+  if (fish.diet === "bite" && (fish.habitat === "benthic" || spec?.guild === "demersal" || spec?.guild === "slope")) {
+    return "benthic";
+  }
+  if (fish.diet === "bite" && (fish.omzRefuge || spec?.guild === "cephalopod-predator")) return "omz-hunter";
+  if (fish.diet === "bite" || spec?.guild?.includes("predator")) return "hunter";
+  if (look.shape === "squid") return "squid";
   if (fish.grazeOn === "p") return "filter-p";
   if (fish.social === "loose") return "surface";
   return "forage";
@@ -83,6 +88,19 @@ function schoolBehavior(band, fish, phase, omzCoreY, floorY) {
   }
   if (band === "filter-p") {
     return `Type II graze on phytoplankton. Shallow DVM — now around ${y} m.${clipNote}`;
+  }
+  if (band === "benthic") {
+    return `On the hashed grid, hugging the bed. Live around ${y} m on a ${floorM} m floor.`;
+  }
+  if (band === "omz-hunter") {
+    return phase === "Night"
+      ? `On the hashed grid. Night in the upper ~100 m. Now around ${y} m.`
+      : `On the hashed grid. Day follows the OMZ core (~${day} m), not a clock. Now around ${y} m.`;
+  }
+  if (band === "hunter") {
+    const o2 = fish.o2Min;
+    const oxy = Number.isFinite(o2) && o2 >= 2 ? ` Stay above about ${o2} ml/L.` : "";
+    return `On the hashed grid — abundance is a catalog diet, not a Reynolds handful. Hunt school prey. Now around ${y} m.${oxy}`;
   }
   if (phase === "Night") {
     return `Night feeding near ${night} m on zooplankton.`;
@@ -190,7 +208,7 @@ function columnLines({
   const cap = Number(forageCap) || 0;
   if (cap > 0) {
     lines.push(
-      `Bloom P ${p} · Z ${z}. Forage ${live.toLocaleString()} against a carrying cap of ${cap.toLocaleString()}.`
+      `Bloom P ${p} · Z ${z}. Hashed-grid ${live.toLocaleString()} against a grazer cap of ${cap.toLocaleString()}.`
     );
   }
   return lines;
@@ -204,7 +222,7 @@ function schoolNow(census, phase, omzCoreY, floorY) {
     if (!groups.has(band)) groups.set(band, []);
     groups.get(band).push(row);
   }
-  const order = ["forage", "filter-p", "surface", "krill", "squid", "dsl"];
+  const order = ["forage", "filter-p", "surface", "krill", "squid", "dsl", "hunter", "omz-hunter", "benthic"];
   const lines = [];
   for (const band of order) {
     const items = groups.get(band);

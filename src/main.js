@@ -325,7 +325,8 @@ function syncFish() {
       _q.multiply(_hang);
     }
     _p.set(pos[i3], pos[i3 + 1], pos[i3 + 2]);
-    const sc = scale[i] * (0.9 + 0.1 * school.energy[i]);
+    const bodyLen = school.taxonCfg(i).length || 0.95;
+    const sc = scale[i] * (bodyLen / 0.95) * (0.9 + 0.1 * school.energy[i]);
     _s.set(sc, sc, sc);
     _m.compose(_p, _q, _s);
     layer.mesh.setMatrixAt(k, _m);

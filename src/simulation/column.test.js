@@ -17,7 +17,7 @@ import { faunaPresent } from "../config.js";
 import { School } from "./school.js";
 import { spawnPredators } from "./shark.js";
 import { seafloorHeight, findWaterAtDepth } from "./obstacles.js";
-import { vehicleCfg } from "../world/fauna.js";
+import { vehicleCfg, knobsFor, SPECIES, allocateMixedSchoolCounts, schoolDiet } from "../world/fauna.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -124,7 +124,7 @@ function assert(cond, msg) {
 {
   applyPatch(makeTestPatch());
   const hour = 12;
-  const school = new School(480, { hour });
+  const school = new School(6000, { hour });
   let buried = 0;
   let airborne = 0;
   for (let i = 0; i < school.count; i++) {
@@ -148,11 +148,19 @@ function assert(cond, msg) {
       assert(s.y < ground + 12, `${s.kind} should seed on the bed`);
     }
   }
-  const squid = pack.find((s) => s.kind === "humboldtsquid");
-  if (squid) {
-    const ground = seafloorHeight(squid.x, squid.z);
-    assert(squid.y > ground + 0.3, "Humboldt squid must not seed inside a dropoff");
-    assert(squid.y < -200, `Humboldt squid day band should be mesopelagic, got ${squid.y.toFixed(1)}`);
+  const squidN = [];
+  for (let i = 0; i < school.count; i++) {
+    if (school.taxonId(i) === "humboldtsquid") squidN.push(i);
+  }
+  assert(squidN.length > 4, `Humboldt squid should be a hashed-grid pack, got ${squidN.length}`);
+  for (const i of squidN.slice(0, 16)) {
+    const i3 = i * 3;
+    const x = school.pos[i3];
+    const y = school.pos[i3 + 1];
+    const z = school.pos[i3 + 2];
+    const ground = seafloorHeight(x, z);
+    assert(y > ground + 0.3, "Humboldt squid must not seed inside a dropoff");
+    assert(y < -200, `Humboldt squid day band should be mesopelagic, got ${y.toFixed(1)}`);
   }
   const giant = pack.find((s) => s.kind === "giantsquid");
   if (giant) {
@@ -192,9 +200,9 @@ function assert(cond, msg) {
   assert(visualHunter({ diet: "bite" }) === true, "sighted biters read PAR");
   assert(visualHunter(vehicleCfg("spermwhale")) === false, "sperm whale sense is echo");
   assert(visualHunter(vehicleCfg("orca")) === false, "orca sense is echo");
-  assert(visualHunter(vehicleCfg("tuna")) === true, "skipjack is a visual hunter");
+  assert(visualHunter(knobsFor("tuna")) === true, "skipjack is a visual hunter");
   assert(visualHunter(vehicleCfg("whaleshark")) === false, "whale shark filter skips visual detect");
-  assert(visualHunter(vehicleCfg("humboldtsquid")) === true, "Humboldt is visual; lanternfish glow restores range");
+  assert(visualHunter(knobsFor("humboldtsquid")) === true, "Humboldt is visual; lanternfish glow restores range");
 }
 
 {
@@ -263,9 +271,9 @@ function assert(cond, msg) {
   const peruOmz = sampleO2(0, peruCore, 0);
   assert(peruSurf > peruOmz + 1.5, `Peru surface O2 (${peruSurf.toFixed(2)}) should beat the OMZ (${peruOmz.toFixed(2)})`);
   assert(peruOmz < 1.4, `Peru OMZ should be hypoxic, got ${peruOmz.toFixed(2)}`);
-  const tunaFloor = oxygenLimitY(vehicleCfg("tuna"));
+  const tunaFloor = oxygenLimitY(knobsFor("tuna"));
   assert(tunaFloor > peruCore, `skipjack should stay above the OMZ core (${tunaFloor.toFixed(0)} vs ${peruCore.toFixed(0)})`);
-  assert(oxygenLimitY(vehicleCfg("humboldtsquid")) < -800, "Humboldt OMZ refuge is not an oxygen ceiling");
+  assert(oxygenLimitY(knobsFor("humboldtsquid")) < -800, "Humboldt OMZ refuge is not an oxygen ceiling");
 
   CONFIG.world.lat = 56;
   CONFIG.world.lon = 3.2;
@@ -385,4 +393,19 @@ function assert(cond, msg) {
   CONFIG.water.upwell = saved.upwell;
 }
 
-console.log("column physics: 17 checks ok");
+{
+  const ids = ["herring", "capelin", "sandlance", "cod"];
+  const taxa = ids.map((id) => ({ id, share: SPECIES[id].share, cfg: knobsFor(id) }));
+  const alloc = allocateMixedSchoolCounts(2000, taxa, 2000, 40);
+  const shares = Object.fromEntries(alloc.map((r) => [r.id, r.n]));
+  assert(shares.herring > shares.cod * 3, "grazer herring should outnumber school-cod on the prey cap");
+  assert(shares.cod > 8, "cod still get a prey-capped slice, not a vehicle pair");
+  assert(schoolDiet(knobsFor("cod")) === "bite", "cod is a school biter");
+  assert(SPECIES.tuna.agent === "school", "skipjack is a school tuna, not a vehicle");
+  assert(SPECIES.humboldtsquid.agent === "school", "Humboldt squid is a school pack");
+  assert(SPECIES.commondolphin.agent === "vehicle", "common dolphin stays a breathing vehicle");
+  assert(SPECIES.bluefin.agent === "vehicle", "bluefin stays a rare vehicle");
+  assert(SPECIES.orca.vehicle.count < shares.cod, "orca count stays below school-cod abundance");
+}
+
+console.log("column physics: 18 checks ok");

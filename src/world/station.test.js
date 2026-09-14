@@ -33,13 +33,11 @@ function assert(cond, msg) {
       { id: "anchovy", common: "Anchoveta", agent: "school", count: 4200 },
       { id: "sardine", common: "Pacific sardine", agent: "school", count: 3100 },
       { id: "lanternfish", common: "Lanternfish", agent: "school", count: 1800 },
-      { id: "humboldtsquid", common: "Humboldt squid", agent: "vehicle", count: 4 },
+      { id: "humboldtsquid", common: "Humboldt squid", agent: "school", count: 4 },
+      { id: "tuna", common: "Skipjack tuna", agent: "school", count: 6 },
       { id: "benthos", common: "Benthos", agent: "field", count: 4 },
     ],
-    sharks: [
-      { kind: "humboldtsquid", y: -274, surfacing: false, aiMode: "patrol", dead: false },
-      { kind: "humboldtsquid", y: -291, surfacing: false, aiMode: "stalk", dead: false },
-    ],
+    sharks: [],
   });
   const text = brief.now.join(" ");
   assert(brief.title === "Humboldt Current, off Peru", "title is the place");
@@ -48,7 +46,8 @@ function assert(cond, msg) {
   assert(text.includes("OMZ core"), "OMZ is named");
   assert(text.includes("Anchoveta") && text.includes("Pacific sardine"), "forage clustered");
   assert(text.includes("Deep scattering layer"), "lanternfish as DSL");
-  assert(text.includes("Humboldt squid") && text.includes("OMZ core"), "Humboldt day refuge");
+  assert(text.includes("Humboldt squid") && text.includes("hashed grid"), "Humboldt on the school grid");
+  assert(text.includes("Skipjack tuna") && text.includes("Hunt school prey"), "skipjack is a grid hunter");
   assert(brief.column.some((row) => row.id === "omz" && row.value.includes("280")), "OMZ in column");
   assert(brief.kicker.includes("16.00°S"), "kicker has lat/lon");
 }
@@ -70,12 +69,10 @@ function assert(cond, msg) {
     forageCap: 9000,
     census: [
       { id: "herring", common: "Atlantic herring", agent: "school", count: 5000 },
-      { id: "cod", common: "Atlantic cod", agent: "vehicle", count: 2 },
+      { id: "cod", common: "Atlantic cod", agent: "school", count: 2 },
       { id: "benthos", common: "Benthos", agent: "field", count: 12 },
     ],
-    sharks: [
-      { kind: "cod", y: -64, surfacing: false, aiMode: "patrol", dead: false },
-    ],
+    sharks: [],
   });
   const text = brief.now.join(" ");
   assert(text.includes("clips") || text.includes("sand"), "shelf DVM hits the floor");

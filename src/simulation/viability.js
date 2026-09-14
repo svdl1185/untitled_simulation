@@ -4,7 +4,7 @@
  * energy without a meal — the Lotka–Volterra readout for this cell.
  */
 import { CONFIG, faunaPresent } from "../config.js";
-import { PRESENCE_IDS, SPECIES, vehicleCfg } from "../world/fauna.js";
+import { PRESENCE_IDS, SPECIES, vehicleCfg, schoolDiet, knobsFor } from "../world/fauna.js";
 import { FAUNA } from "../world/fieldNotes.js";
 
 export const SEVERITY = {
@@ -39,14 +39,15 @@ export function catalogRow(id) {
   const spec = SPECIES[id];
   const note = FAUNA[id];
   const vehicle = spec?.agent === "vehicle" ? vehicleCfg(id) : null;
+  const fish = spec?.agent === "school" ? knobsFor(id) : null;
   return {
     id,
     common: note?.common || spec?.label || id,
     latin: note?.latin || "",
     guild: note?.guild || spec?.guild || "",
     agent: spec?.agent || "school",
-    diet: vehicle?.diet || (spec?.fish?.grazeOn === "p" ? "p" : "z"),
-    huntTaxa: vehicle?.huntTaxa || null,
+    diet: vehicle?.diet || (fish ? schoolDiet(fish) : "z"),
+    huntTaxa: vehicle?.huntTaxa || fish?.huntTaxa || null,
     huntKinds: vehicle?.huntKinds || null,
     energyDrain: vehicle?.energyDrain ?? spec?.fish?.metabolism ?? 0,
   };
@@ -98,6 +99,11 @@ function preyPresent(row, liveIds) {
   if (row.agent === "vehicle" && row.diet === "bite" && !taxa?.length && !kinds?.length) {
     for (const id of liveIds) {
       if (SPECIES[id]?.agent === "school") return true;
+    }
+  }
+  if (row.agent === "school" && (row.diet === "bite" || row.diet === "both") && !taxa?.length) {
+    for (const id of liveIds) {
+      if (SPECIES[id]?.agent === "school" && id !== row.id) return true;
     }
   }
   return false;
@@ -168,12 +174,29 @@ export function diagnoseSpecies(row, series, ctx = {}) {
     });
   }
 
-  if (school && nowN > 0 && days > 0.35 && grazeN <= 1e-6) {
+  if (school && !biter && nowN > 0 && days > 0.35 && grazeN <= 1e-6) {
     flags.push({
       code: "not-grazing",
       severity: "fail",
       text: "No Type II pull on the bloom. This shoal is not eating.",
     });
+  }
+
+  if (school && biter && nowN > 0 && days > 0.45) {
+    const ate = mealsN > 0 || grazeN > 1e-5;
+    if (!ate && !hasPrey) {
+      flags.push({
+        code: "no-prey",
+        severity: "watch",
+        text: "Named prey is not in this cell. Starvation is the programmed budget, not a missing meal cheat.",
+      });
+    } else if (!ate && hasPrey) {
+      flags.push({
+        code: "not-eating",
+        severity: "look",
+        text: "Prey is present but this hashed-grid piscivore has not landed a meal.",
+      });
+    }
   }
 
   if (!school && nowN > 0 && days > 0.45) {
@@ -416,7 +439,7 @@ export class ViabilityLog {
         s.energy.push(row.energy);
         s.hungry.push(row.hungry);
         s.graze.push(row.graze);
-        s.meals.push(0);
+        s.meals.push(row.meals || 0);
         s.born.push(row.born);
         s.starved.push(row.starved);
         s.eaten.push(row.eaten);

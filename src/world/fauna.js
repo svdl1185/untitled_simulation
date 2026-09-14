@@ -6,8 +6,12 @@
  * six sharks, squid, and kelp should still be a catalog lookup plus a
  * shared agent budget — never N copies of the 20k herring loop.
  *
- * `agent: "school"`  — pelagic individuals in the hashed-grid school.
- * `agent: "vehicle"` — few Reynolds vehicles (sharks, tuna, cod).
+ * `agent: "school"`  — hashed-grid individuals. Grazers share a bloom cap;
+ *   piscivores (`diet: "bite"`) share a prey-capped budget on the same grid.
+ *   Abundance is `share`, not the integrator. Skipjack and cod live here.
+ * `agent: "vehicle"` — rare Reynolds loops (sharks, whales, giant squid,
+ *   air-breathers). A handful by design; raise `count` for a pod, do not
+ *   put a shelf gadid here.
  * `agent: "field"`   — Eulerian guild (benthos). Later: `"density"` for super-individuals.
  */
 
@@ -60,6 +64,9 @@ export const FISH_DEFAULTS = {
   minSchoolSize: 280,
   joinSlack: 1.55,
   grazeMul: 1,
+  diet: "z",
+  eatEnergy: 0.08,
+  biteRadius: 1.15,
   o2Min: 1.4,
   anchorTop: -3.2,
   social: "polarized",
@@ -67,7 +74,7 @@ export const FISH_DEFAULTS = {
   swim: "tail",
 };
 
-/** Reynolds vehicles (sharks, tuna, whales). School knobs stay on FISH_DEFAULTS. */
+/** Reynolds vehicles (sharks, whales, giant squid). School knobs stay on FISH_DEFAULTS. */
 export const VEHICLE_DEFAULTS = {
   count: 3,
   max: 8,
@@ -459,6 +466,10 @@ export const SPECIES = {
       minSchoolSize: 80,
       metabolism: 0.013,
       grazeMul: 0.85,
+      diet: "both",
+      huntTaxa: ["herring", "capelin", "sprat", "sandlance", "anchovy", "sardine", "polarcod"],
+      biteRadius: 0.95,
+      eatEnergy: 0.045,
     },
     look: {
       body: [0.52, 1.08, 1],
@@ -894,159 +905,138 @@ export const SPECIES = {
     id: "tuna",
     label: "skipjack",
     guild: "pelagic-predator",
-    agent: "vehicle",
+    agent: "school",
+    social: "polarized",
+    share: 0.9,
     prey: ["school"],
     temp: { min: 16, max: 31 },
-    vehicle: {
-      count: 6,
-      max: 12,
-      spacing: 22,
-      length: 0.82,
-      cruiseSpeed: 12.4,
-      boostSpeed: 18,
-      lungeSpeed: 22,
-      maxForce: 11,
-      lungeForce: 20,
-      turnSmooth: 5.2,
-      mouseTurn: 0.78,
-      maxMouseStep: 0.06,
-      minDepth: -1.8,
-      maxDepth: -260,
-      o2Min: 2.4,
-      floorClearance: 4.2,
-      minWater: 10,
-      beachTurnWater: 20,
-      fearRadius: 28,
-      lungeFearRadius: 32,
-      biteRadius: 1.35,
-      lungeBiteRadius: 2.6,
-      mouthOffset: 0.42,
-      lungeTime: 1.45,
-      biteCooldown: 0.12,
-      lungeBiteCooldown: 0.08,
-      energyDrain: 0.0024,
-      eatEnergy: 0.07,
-      hungry: 0.4,
-      satiated: 0.84,
-      starveDays: 2.4,
-      mateEnergy: 0.7,
-      mateDist: 16,
-      pupCost: 0.16,
-      pupEnergy: 0.5,
-      carcass: 0.28,
-      gait: "ram",
-      minSpeed: 6.2,
-      mesh: "tuna",
-      swim: "thunniform",
+    fish: {
       diet: "bite",
-      tints: [
-        { scale: 1.02, aggression: 1.08, tint: { r: 0.55, g: 0.72, b: 0.95 } },
-        { scale: 0.88, aggression: 1.15, tint: { r: 0.7, g: 0.82, b: 0.4 } },
-        { scale: 1.12, aggression: 0.95, tint: { r: 0.45, g: 0.62, b: 0.88 } },
-      ],
+      restSpacing: 2.4,
+      sepRadius: 3.4,
+      schoolHeight: 7.2,
+      schoolRadius: 42,
+      length: 0.82,
+      nightDepth: -8,
+      dawnDepth: -22,
+      dayDepth: -48,
+      duskDepth: -18,
+      maxDepth: -260,
+      minSpeed: 6.2,
+      maxSpeed: 16,
+      fleeSpeed: 22,
+      minSchoolSize: 24,
+      metabolism: 0.018,
+      o2Min: 2.4,
+      biteRadius: 1.35,
+      eatEnergy: 0.07,
+      fearRadius: 12,
+      groups: 3,
+    },
+    look: {
+      shape: "tuna",
+      swim: "thunniform",
+      body: [0.48, 1.28, 1.05],
+      back: [0.22, 0.32, 0.48],
+      belly: [0.72, 0.78, 0.62],
+      fin: [0.18, 0.28, 0.4],
+      pec: 0.72,
+      tail: 1.22,
+      wave: 0.12,
     },
   },
   cod: {
     id: "cod",
     label: "cod",
     guild: "demersal",
-    agent: "vehicle",
+    agent: "school",
+    social: "scatter",
+    share: 1,
     prey: ["herring", "capelin", "sandlance"],
-    vehicle: {
-      count: 8,
-      max: 14,
-      spacing: 16,
+    fish: {
+      diet: "bite",
+      habitat: "benthic",
+      restSpacing: 6.4,
+      sepRadius: 7.2,
+      schoolHeight: 4.2,
+      schoolRadius: 28,
       length: 1.12,
-      cruiseSpeed: 2.6,
-      boostSpeed: 5.4,
-      lungeSpeed: 7.2,
-      maxForce: 6.2,
-      lungeForce: 11,
-      turnSmooth: 3.2,
-      mouseTurn: 0.55,
-      maxMouseStep: 0.04,
-      minDepth: -6,
+      nightDepth: -40,
+      dawnDepth: -50,
+      dayDepth: -70,
+      duskDepth: -48,
       maxDepth: -600,
       floorClearance: 2.4,
       minWater: 8,
       beachTurnWater: 18,
-      fearRadius: 9,
-      lungeFearRadius: 12,
-      biteRadius: 1.15,
-      lungeBiteRadius: 1.8,
-      mouthOffset: 0.48,
-      lungeTime: 1.1,
-      biteCooldown: 0.22,
-      lungeBiteCooldown: 0.14,
-      energyDrain: 0.0014,
-      eatEnergy: 0.1,
-      hungry: 0.46,
-      satiated: 0.86,
-      starveDays: 5,
-      mateEnergy: 0.72,
-      mateDist: 14,
-      pupCost: 0.18,
-      pupEnergy: 0.46,
-      carcass: 0.4,
-      gait: "benthic",
       minSpeed: 1.15,
-      mesh: "cod",
-      swim: "body",
-      diet: "bite",
-      huntTaxa: ["herring", "capelin", "sandlance", "sprat", "polarcod"],
+      maxSpeed: 5.4,
+      fleeSpeed: 8.5,
+      minSchoolSize: 8,
+      metabolism: 0.008,
+      biteRadius: 1.15,
+      eatEnergy: 0.1,
+      fearRadius: 9,
       benthosGraze: 0.00045,
-      tints: [
-        { scale: 1.05, aggression: 0.82, tint: { r: 0.72, g: 0.62, b: 0.42 } },
-        { scale: 0.9, aggression: 0.9, tint: { r: 0.55, g: 0.5, b: 0.38 } },
-        { scale: 1.18, aggression: 0.78, tint: { r: 0.8, g: 0.7, b: 0.48 } },
-      ],
+      huntTaxa: ["herring", "capelin", "sandlance", "sprat", "polarcod"],
+      groups: 4,
+    },
+    look: {
+      shape: "cod",
+      swim: "body",
+      body: [0.78, 0.92, 1.08],
+      back: [0.42, 0.36, 0.24],
+      belly: [0.62, 0.56, 0.4],
+      fin: [0.38, 0.32, 0.22],
+      pec: 1.15,
+      tail: 0.92,
+      wave: 0.22,
     },
   },
   toothfish: {
     id: "toothfish",
     label: "Antarctic toothfish",
     guild: "slope-predator",
-    agent: "vehicle",
+    agent: "school",
+    social: "scatter",
+    share: 0.4,
     prey: ["silverfish"],
-    vehicle: {
-      count: 4,
-      max: 8,
-      spacing: 22,
+    fish: {
+      diet: "bite",
+      habitat: "benthic",
+      restSpacing: 8.2,
+      sepRadius: 9.4,
+      schoolHeight: 5.5,
+      schoolRadius: 36,
       length: 1.45,
-      cruiseSpeed: 2.2,
-      boostSpeed: 4.8,
-      lungeSpeed: 6.4,
-      maxForce: 5.4,
-      lungeForce: 10,
-      turnSmooth: 2.8,
-      minDepth: -12,
+      nightDepth: -80,
+      dawnDepth: -120,
+      dayDepth: -180,
+      duskDepth: -110,
       maxDepth: -2000,
       floorClearance: 3.2,
       minWater: 14,
-      beachTurnWater: 22,
-      fearRadius: 11,
-      lungeFearRadius: 15,
-      biteRadius: 1.35,
-      lungeBiteRadius: 2.1,
-      mouthOffset: 0.62,
-      lungeTime: 1.2,
-      biteCooldown: 0.24,
-      lungeBiteCooldown: 0.16,
-      energyDrain: 0.0012,
-      eatEnergy: 0.11,
-      hungry: 0.48,
-      satiated: 0.86,
-      starveDays: 6,
-      gait: "benthic",
       minSpeed: 0.9,
-      mesh: "cod",
-      swim: "body",
-      diet: "bite",
+      maxSpeed: 4.8,
+      fleeSpeed: 7.2,
+      minSchoolSize: 4,
+      metabolism: 0.007,
+      biteRadius: 1.35,
+      eatEnergy: 0.11,
+      fearRadius: 11,
       huntTaxa: ["silverfish"],
-      tints: [
-        { scale: 1.12, aggression: 0.78, tint: { r: 0.42, g: 0.48, b: 0.55 } },
-        { scale: 0.92, aggression: 0.88, tint: { r: 0.32, g: 0.38, b: 0.44 } },
-      ],
+      groups: 3,
+    },
+    look: {
+      shape: "cod",
+      swim: "body",
+      body: [0.72, 0.95, 1.12],
+      back: [0.32, 0.38, 0.44],
+      belly: [0.48, 0.52, 0.5],
+      fin: [0.28, 0.34, 0.4],
+      pec: 1.05,
+      tail: 0.88,
+      wave: 0.18,
     },
   },
   greatwhite: {
@@ -1120,8 +1110,8 @@ export const SPECIES = {
     agent: "vehicle",
     prey: ["school"],
     vehicle: {
-      count: 3,
-      max: 6,
+      count: 8,
+      max: 14,
       spacing: 28,
       length: 2.6,
       cruiseSpeed: 9.2,
@@ -1305,8 +1295,8 @@ export const SPECIES = {
       surfaceTime: breathHold(8, 15),
       diveTime: breathHold(45, 15),
       diveSpeed: 55,
-      huntTaxa: ["marketsquid", "illex", "lanternfish"],
-      huntKinds: ["humboldtsquid", "giantsquid"],
+      huntTaxa: ["marketsquid", "illex", "lanternfish", "humboldtsquid"],
+      huntKinds: ["giantsquid"],
       eatVehicleEnergy: 0.38,
       tints: [{ scale: 1.05, aggression: 0.8, tint: { r: 0.52, g: 0.51, b: 0.5 } }],
     },
@@ -1359,45 +1349,47 @@ export const SPECIES = {
     id: "humboldtsquid",
     label: "Humboldt squid",
     guild: "cephalopod-predator",
-    agent: "vehicle",
+    agent: "school",
+    social: "scatter",
+    share: 0.72,
     prey: ["anchovy", "sardine", "mackerel", "lanternfish", "jackmackerel"],
     o2: { needOmz: true },
-    vehicle: {
-      count: 4,
-      max: 8,
-      spacing: 14,
+    fish: {
+      diet: "bite",
       length: 1.6,
-      cruiseSpeed: 8.8,
-      boostSpeed: 16,
-      lungeSpeed: 22,
-      maxForce: 10,
-      minDepth: -4,
-      maxDepth: -1200,
       nightDepth: -80,
       dawnDepth: -280,
       dayDepth: -700,
       duskDepth: -220,
+      maxDepth: -1200,
       omzRefuge: true,
       o2Min: 0.04,
-      fearRadius: 18,
-      lungeFearRadius: 24,
-      biteRadius: 1.4,
-      lungeBiteRadius: 2.4,
-      mouthOffset: 0.85,
-      energyDrain: 0.0028,
-      eatEnergy: 0.07,
-      starveDays: 2.2,
-      gait: "jet",
       minSpeed: 1.6,
-      turnSmooth: 6.2,
-      mesh: "squid",
-      swim: "jet",
-      diet: "bite",
+      maxSpeed: 12,
+      fleeSpeed: 22,
+      pitchLimit: 0.95,
+      pitchDamp: 0.85,
+      maxTurn: 2.2,
+      metabolism: 0.02,
+      biteRadius: 1.4,
+      eatEnergy: 0.07,
+      fearRadius: 16,
       huntTaxa: ["anchovy", "sardine", "mackerel", "lanternfish", "jackmackerel"],
-      tints: [
-        { scale: 1.05, aggression: 1.2, tint: { r: 0.72, g: 0.28, b: 0.22 } },
-        { scale: 0.88, aggression: 1.1, tint: { r: 0.85, g: 0.42, b: 0.2 } },
-      ],
+      minSchoolSize: 8,
+      groups: 6,
+      restSpacing: 5.2,
+      sepRadius: 6.4,
+    },
+    look: {
+      shape: "squid",
+      swim: "jet",
+      body: [0.48, 0.9, 1.55],
+      back: [0.72, 0.28, 0.22],
+      belly: [0.85, 0.42, 0.28],
+      fin: [0.62, 0.24, 0.2],
+      pec: 1.7,
+      tail: 1.5,
+      wave: 0.34,
     },
   },
   giantsquid: {
@@ -1447,8 +1439,8 @@ export const SPECIES = {
     agent: "vehicle",
     prey: ["flyingfish", "sardinella", "anchovy", "sardine"],
     vehicle: {
-      count: 6,
-      max: 12,
+      count: 18,
+      max: 28,
       spacing: 12,
       length: 2.15,
       cruiseSpeed: 11.2,
@@ -1488,111 +1480,122 @@ export const SPECIES = {
     id: "mahi",
     label: "mahi-mahi",
     guild: "pelagic-predator",
-    agent: "vehicle",
+    agent: "school",
+    social: "loose",
+    share: 0.38,
     prey: ["school"],
-    vehicle: {
-      count: 4,
-      max: 8,
-      spacing: 16,
+    fish: {
+      diet: "bite",
       length: 1.15,
-      cruiseSpeed: 11.5,
-      boostSpeed: 18,
-      lungeSpeed: 23,
-      maxForce: 11,
-      minDepth: -1.4,
+      nightDepth: -3,
+      dawnDepth: -8,
+      dayDepth: -18,
+      duskDepth: -8,
       maxDepth: -85,
       o2Min: 2.6,
-      fearRadius: 22,
-      lungeFearRadius: 26,
-      biteRadius: 1.2,
-      lungeBiteRadius: 2.2,
-      mouthOffset: 0.55,
-      energyDrain: 0.0026,
-      eatEnergy: 0.07,
-      starveDays: 2,
-      gait: "ram",
       minSpeed: 5.4,
-      mesh: "mahi",
+      maxSpeed: 16,
+      fleeSpeed: 22,
+      minSchoolSize: 8,
+      metabolism: 0.019,
+      biteRadius: 1.2,
+      eatEnergy: 0.07,
+      fearRadius: 11,
+      groups: 2,
+    },
+    look: {
+      shape: "mahi",
       swim: "thunniform",
-      diet: "bite",
-      tints: [
-        { scale: 1.0, aggression: 1.12, tint: { r: 0.35, g: 0.85, b: 0.72 } },
-        { scale: 0.9, aggression: 1.18, tint: { r: 0.95, g: 0.82, b: 0.2 } },
-      ],
+      body: [0.55, 1.05, 1.22],
+      back: [0.22, 0.55, 0.48],
+      belly: [0.85, 0.82, 0.28],
+      fin: [0.28, 0.72, 0.55],
+      pec: 0.9,
+      tail: 1.15,
+      wave: 0.16,
     },
   },
   barracuda: {
     id: "barracuda",
     label: "barracuda",
     guild: "pelagic-predator",
-    agent: "vehicle",
+    agent: "school",
+    social: "scatter",
+    share: 0.28,
     prey: ["school"],
-    vehicle: {
-      count: 4,
-      max: 8,
-      spacing: 18,
+    fish: {
+      diet: "bite",
       length: 1.35,
-      cruiseSpeed: 7.8,
-      boostSpeed: 16,
-      lungeSpeed: 26,
-      maxForce: 9,
-      lungeForce: 22,
-      minDepth: -1.6,
+      nightDepth: -6,
+      dawnDepth: -12,
+      dayDepth: -28,
+      duskDepth: -14,
       maxDepth: -110,
       o2Min: 2.2,
-      fearRadius: 20,
-      lungeFearRadius: 28,
-      biteRadius: 1.15,
-      lungeBiteRadius: 2.4,
-      mouthOffset: 0.7,
-      energyDrain: 0.002,
-      eatEnergy: 0.08,
-      gait: "burst",
       minSpeed: 1.6,
-      mesh: "barracuda",
+      maxSpeed: 14,
+      fleeSpeed: 26,
+      minSchoolSize: 4,
+      metabolism: 0.014,
+      biteRadius: 1.15,
+      eatEnergy: 0.08,
+      fearRadius: 10,
+      groups: 3,
+      restSpacing: 7.5,
+    },
+    look: {
+      shape: "barracuda",
       swim: "body",
-      diet: "bite",
-      tints: [
-        { scale: 1.02, aggression: 1.22, tint: { r: 0.55, g: 0.7, b: 0.62 } },
-        { scale: 0.88, aggression: 1.15, tint: { r: 0.42, g: 0.58, b: 0.52 } },
-      ],
+      body: [0.28, 1.45, 1.08],
+      back: [0.32, 0.48, 0.4],
+      belly: [0.62, 0.72, 0.58],
+      fin: [0.28, 0.42, 0.36],
+      pec: 0.7,
+      tail: 0.85,
+      wave: 0.2,
     },
   },
   yellowfin: {
     id: "yellowfin",
     label: "yellowfin",
     guild: "pelagic-predator",
-    agent: "vehicle",
+    agent: "school",
+    social: "polarized",
+    share: 0.48,
     prey: ["school"],
-    vehicle: {
-      count: 3,
-      max: 7,
-      spacing: 24,
-      length: 1.55,
-      cruiseSpeed: 13.2,
-      boostSpeed: 20,
-      lungeSpeed: 24,
-      maxForce: 12,
-      minDepth: -2,
-      maxDepth: -500,
-      o2Min: 2,
-      fearRadius: 30,
-      lungeFearRadius: 36,
-      biteRadius: 1.5,
-      lungeBiteRadius: 2.8,
-      mouthOffset: 0.7,
-      energyDrain: 0.0025,
-      eatEnergy: 0.08,
-      starveDays: 2.6,
-      gait: "ram",
-      minSpeed: 6.4,
-      mesh: "tuna",
-      swim: "thunniform",
+    fish: {
       diet: "bite",
-      tints: [
-        { scale: 1.06, aggression: 1.08, tint: { r: 0.35, g: 0.45, b: 0.55 } },
-        { scale: 0.92, aggression: 1.12, tint: { r: 0.85, g: 0.72, b: 0.18 } },
-      ],
+      restSpacing: 2.8,
+      sepRadius: 3.8,
+      schoolHeight: 8.2,
+      schoolRadius: 46,
+      length: 1.55,
+      nightDepth: -12,
+      dawnDepth: -40,
+      dayDepth: -90,
+      duskDepth: -32,
+      maxDepth: -500,
+      minSpeed: 6.4,
+      maxSpeed: 18,
+      fleeSpeed: 24,
+      minSchoolSize: 12,
+      metabolism: 0.018,
+      o2Min: 2,
+      biteRadius: 1.5,
+      eatEnergy: 0.08,
+      fearRadius: 14,
+      groups: 2,
+    },
+    look: {
+      shape: "tuna",
+      swim: "thunniform",
+      body: [0.5, 1.32, 1.08],
+      back: [0.22, 0.3, 0.38],
+      belly: [0.78, 0.72, 0.28],
+      fin: [0.82, 0.68, 0.18],
+      pec: 0.78,
+      tail: 1.28,
+      wave: 0.11,
     },
   },
   bluefin: {
@@ -1602,8 +1605,8 @@ export const SPECIES = {
     agent: "vehicle",
     prey: ["herring", "mackerel", "sardine", "saury", "anchovy", "pilchard", "jackmackerel"],
     vehicle: {
-      count: 2,
-      max: 5,
+      count: 3,
+      max: 6,
       spacing: 32,
       length: 2.4,
       cruiseSpeed: 11.8,
@@ -1636,38 +1639,40 @@ export const SPECIES = {
     id: "sailfish",
     label: "sailfish",
     guild: "pelagic-predator",
-    agent: "vehicle",
+    agent: "school",
+    social: "loose",
+    share: 0.16,
     prey: ["school"],
-    vehicle: {
-      count: 2,
-      max: 5,
-      spacing: 26,
+    fish: {
+      diet: "bite",
       length: 2.7,
-      cruiseSpeed: 14,
-      boostSpeed: 22,
-      lungeSpeed: 28,
-      maxForce: 13,
-      lungeForce: 24,
-      minDepth: -1.5,
+      nightDepth: -6,
+      dawnDepth: -18,
+      dayDepth: -42,
+      duskDepth: -16,
       maxDepth: -200,
       o2Min: 2.2,
-      fearRadius: 34,
-      lungeFearRadius: 40,
-      biteRadius: 1.4,
-      lungeBiteRadius: 2.8,
-      mouthOffset: 1.5,
-      energyDrain: 0.0027,
-      eatEnergy: 0.08,
-      starveDays: 2.2,
-      gait: "ram",
       minSpeed: 7.0,
-      mesh: "billfish",
+      maxSpeed: 22,
+      fleeSpeed: 28,
+      minSchoolSize: 4,
+      metabolism: 0.02,
+      biteRadius: 1.4,
+      eatEnergy: 0.08,
+      fearRadius: 16,
+      groups: 2,
+      restSpacing: 8.4,
+    },
+    look: {
+      shape: "billfish",
       swim: "thunniform",
-      diet: "bite",
-      tints: [
-        { scale: 1.02, aggression: 1.2, tint: { r: 0.25, g: 0.48, b: 0.78 } },
-        { scale: 0.9, aggression: 1.15, tint: { r: 0.32, g: 0.55, b: 0.82 } },
-      ],
+      body: [0.32, 1.55, 1.12],
+      back: [0.18, 0.38, 0.62],
+      belly: [0.55, 0.72, 0.82],
+      fin: [0.22, 0.48, 0.72],
+      pec: 0.85,
+      tail: 1.18,
+      wave: 0.1,
     },
   },
   benthos: {
@@ -1750,11 +1755,14 @@ export function schoolTaxaFromPresence(presence) {
   return taxa;
 }
 
+
 export function dominantSchoolId(presence) {
   const taxa = schoolTaxaFromPresence(presence);
+  const forage = taxa.filter((t) => schoolDiet(t.cfg) !== "bite");
+  const pool = forage.length ? forage : taxa;
   let best = null;
   let s = 0;
-  for (const t of taxa) {
+  for (const t of pool) {
     if (t.share > s) {
       s = t.share;
       best = t.id;
@@ -1765,6 +1773,60 @@ export function dominantSchoolId(presence) {
 
 export function forageIdFromPresence(presence) {
   return dominantSchoolId(presence);
+}
+
+/** Forage guilds school piscivores may bite when huntTaxa is empty. */
+export function isForagePrey(id) {
+  const g = SPECIES[id]?.guild;
+  return g === "forage" || g === "surface" || g === "cephalopod";
+}
+
+export function schoolDiet(cfg = {}) {
+  if (cfg.diet) return cfg.diet;
+  if (cfg.grazeOn === "p") return "p";
+  if (cfg.huntTaxa?.length || cfg.benthosGraze > 0) return "bite";
+  return "z";
+}
+
+export function isSchoolBiter(cfg = {}) {
+  const d = schoolDiet(cfg);
+  return d === "bite" || d === "both";
+}
+
+export function isSchoolGrazer(cfg = {}) {
+  const d = schoolDiet(cfg);
+  return d === "z" || d === "p" || d === "both";
+}
+
+export function schoolHunts(eaterCfg, eaterId, preyId) {
+  if (!preyId || eaterId === preyId) return false;
+  if (!isSchoolBiter(eaterCfg)) return false;
+  const want = eaterCfg.huntTaxa;
+  if (want?.length) return want.includes(preyId);
+  const prey = SPECIES[eaterId]?.prey;
+  if (prey?.length && !prey.includes("school")) return prey.includes(preyId);
+  return isForagePrey(preyId);
+}
+
+/** Live forage individuals per hashed-grid piscivore. */
+export const PISCIVORE_PREY_RATIO = 22;
+
+export function piscivoreCapacity(preyN, biterTaxa = [], ratio = PISCIVORE_PREY_RATIO) {
+  if (!biterTaxa.length) return 0;
+  const n = Math.max(0, preyN | 0);
+  const r = Math.max(8, ratio | 0);
+  return Math.max(0, Math.min(Math.floor(n / r), 2400));
+}
+
+export function grazerTaxaOf(taxa) {
+  return taxa.filter((t) => isSchoolGrazer(t.cfg || knobsFor(t.id)));
+}
+
+export function biterOnlyTaxaOf(taxa) {
+  return taxa.filter((t) => {
+    const cfg = t.cfg || knobsFor(t.id);
+    return isSchoolBiter(cfg) && !isSchoolGrazer(cfg);
+  });
 }
 
 /** Split a shared agent cap across every school species in the cell. */
@@ -1811,5 +1873,41 @@ export function allocateSchoolCounts(cap, taxa, minPer = 0) {
   if (used < n) {
     out[biggest()].n += n - used;
   }
+  return out;
+}
+
+/**
+ * Grazers take the bloom cap. Bite-only taxa take a prey-limited slice of
+ * the same hashed grid so skipjack never eat herring's NPZD budget.
+ */
+export function allocateMixedSchoolCounts(totalCap, taxa, bloomCap, minPer = 0, ratio = PISCIVORE_PREY_RATIO) {
+  const n = Math.max(0, totalCap | 0);
+  const bloom = Math.max(0, bloomCap | 0);
+  const out = taxa.map((t) => ({ id: t.id, n: 0 }));
+  if (!taxa.length || n <= 0) return out;
+  const grazers = grazerTaxaOf(taxa);
+  const biters = biterOnlyTaxaOf(taxa);
+  const index = new Map(out.map((row, i) => [row.id, i]));
+  const write = (alloc) => {
+    for (const row of alloc) {
+      const i = index.get(row.id);
+      if (i != null) out[i].n = row.n;
+    }
+  };
+  if (!biters.length) {
+    write(allocateSchoolCounts(Math.min(n, bloom || n), grazers.length ? grazers : taxa, minPer));
+    return out;
+  }
+  const preyGuess = Math.min(n, bloom || n);
+  const bWant = piscivoreCapacity(preyGuess, biters, ratio);
+  const gCap = Math.min(bloom || n, Math.max(0, n - bWant));
+  write(allocateSchoolCounts(gCap, grazers, minPer));
+  let preyN = 0;
+  for (let i = 0; i < taxa.length; i++) {
+    const cfg = taxa[i].cfg || knobsFor(taxa[i].id);
+    if (isSchoolGrazer(cfg)) preyN += out[i].n;
+  }
+  const bCap = Math.min(n - gCap, piscivoreCapacity(preyN, biters, ratio));
+  write(allocateSchoolCounts(bCap, biters, 0));
   return out;
 }
