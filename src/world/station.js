@@ -279,15 +279,18 @@ function vehicleNow(census, sharks, phase, omzCoreY, floorY) {
   return lines;
 }
 
-function fieldNow(census, meanB) {
+function fieldNow(census, meanB, meanI, meanBedP) {
   const benthos = (census || []).find((row) => row.id === "benthos");
   if (!benthos) return [];
-  const stock = Math.round((meanB ?? 0) * 100);
+  const carbon = Math.round((meanB ?? 0) * 100);
+  const living = Math.round((meanI ?? 0) * 100);
+  const algae = Math.round((meanBedP ?? 0) * 100);
   const cod = (census || []).find((row) => row.id === "cod" && row.count > 0);
+  const stock = `infauna ${living}, microphyto ${algae}, carbon ${carbon}`;
   if (cod) {
-    return [`Benthos ${stock}: seafloor carbon. ${cod.common} graze that field on the bed.`];
+    return [`Benthos: ${stock}. ${cod.common} graze the living bed.`];
   }
-  return [`Benthos ${stock}: detritus on the floor. A field, not a crab.`];
+  return [`Benthos: ${stock}. A field, not a crab.`];
 }
 
 export function stationBrief(input = {}) {
@@ -312,6 +315,8 @@ export function stationBrief(input = {}) {
     meanP = 0,
     meanZ = 0,
     meanB = 0,
+    meanI = 0,
+    meanBedP = 0,
     forageCount = 0,
     forageCap = 0,
     ice = 0,
@@ -350,7 +355,7 @@ export function stationBrief(input = {}) {
     }),
     ...schoolNow(census, phase, omzCoreY, floorY, ice),
     ...vehicleNow(census, sharks, phase, omzCoreY, floorY),
-    ...fieldNow(census, meanB),
+    ...fieldNow(census, meanB, meanI, meanBedP),
   ];
 
   const column = [

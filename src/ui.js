@@ -1227,7 +1227,7 @@ function bindDemos(root, emit) {
   let status = "";
 
   const lead = el("p", {
-    text: "Named kilometres. Map is still free roam. Coupled tiles load a real place. Polar ice is a field. Gap tiles still open the pelagic water at that site — they do not invent coral or a vent.",
+    text: "Named kilometres. Map is still free roam. Coupled tiles load a real place. Polar ice and the demersal bed are fields. Gap tiles still open the pelagic water at that site — they do not invent coral or a vent.",
   });
   const grid = el("div", { class: "demo-grid" });
   const detail = el("div", { class: "demo-detail" });

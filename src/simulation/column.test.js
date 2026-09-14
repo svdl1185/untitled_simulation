@@ -109,7 +109,10 @@ function assert(cond, msg) {
   assert(taken >= 0, "benthos graze should be non-negative");
   bloom.update(0.2, { night: 0, caustic: 0.8, sunDir: { y: 0.7 }, storm: 0 }, 0);
   assert(bloom.meanB >= 0, "benthos mean should stay defined after a step");
+  assert(bloom.meanI >= 0 && bloom.meanBedP >= 0, "infauna and microphyto means should stay defined");
   assert(bloom.prodIndex >= 0, "production index should be tracked");
+  assert(bloom.infauna.length === bloom.n.length, "infauna is a 2D seafloor field");
+  assert(bloom.bedP.length === bloom.n.length, "microphytobenthos is a 2D seafloor field");
 }
 
 {
@@ -616,6 +619,31 @@ function assert(cond, msg) {
   CONFIG.water.iceAnomaly = saved.anomaly;
   assert(algae > 0.05, "ice algae produces in the film");
   assert(deep === 0, "ice algae is not a 40 m source");
+}
+
+{
+  applyPatch(makeSyntheticPatch());
+  const day = { night: 0, caustic: 0.85, sunDir: { y: 0.8 }, storm: 0 };
+  const shelf = new Plankton();
+  const ground = seafloorHeight(0, 0);
+  const parBed = samplePAR(ground, day);
+  assert(parBed > 0.05, `sunlit shelf floor should hold PAR, got ${parBed.toFixed(3)} at ${ground.toFixed(0)} m`);
+  for (let i = 0; i < 36; i++) shelf.update(0.4, day, i * 0.4);
+  assert(shelf.meanBedP > 0.02, `microphytobenthos should grow on a sunlit shelf, got ${shelf.meanBedP.toFixed(3)}`);
+  assert(shelf.meanI > 0.02, `infauna should hold on a sunlit bed, got ${shelf.meanI.toFixed(3)}`);
+  const i0 = shelf.sampleInfauna(0, 0);
+  const taken = shelf.grazeBenthos(0, 0, 0.08);
+  assert(taken > 0, "cod graze should take infauna, not empty carbon");
+  assert(shelf.sampleInfauna(0, 0) < i0 - 0.001, "grazeBenthos should deplete infauna");
+
+  applyPatch(makeDemoPatch(demoById("pelagic")));
+  const abyss = new Plankton();
+  for (let i = 0; i < 36; i++) abyss.update(0.4, day, i * 0.4);
+  assert(
+    abyss.meanBedP < shelf.meanBedP * 0.45,
+    `abyss should not grow a microphyto film (${abyss.meanBedP.toFixed(3)} vs shelf ${shelf.meanBedP.toFixed(3)})`
+  );
+  applyPatch(makeSyntheticPatch());
 }
 
 {

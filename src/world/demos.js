@@ -3,7 +3,8 @@
  * Coupled rows load a real place (atlas, or a synthetic floor if the
  * atlas is down). Gap rows still open a pelagic cell at that site —
  * the missing biome is named, not faked with a mesh. Polar ice is
- * coupled: concentration, PAR, ice algae, polar-cod underside.
+ * coupled: concentration, PAR, ice algae, polar-cod underside. The
+ * demersal bed is coupled: microphyto, infauna density, cod graze.
  */
 import {
   ELEV_NX,
@@ -93,12 +94,12 @@ export const DEMO_CELLS = [
     lon: 3.2,
     observe: [
       "Herring, sprat, mackerel, and sand lance on a shallow floor — DVM clipped by the sand, not the abyss.",
-      "Cod graze benthos on the bed. Blue sharks hunt the column.",
+      "Sunlit sand grows microphytobenthos. Infauna is a density field on that carbon; cod graze the living bed.",
       "No OMZ. Climate upwell is near zero. Empty of sardinella is a thermal gate.",
     ],
-    missing: ["Infauna, flatfish, and kelp are still gaps — carbon on the bed is a field, not a crab."],
+    missing: ["Flatfish, kelp, and named crabs are still gaps — infauna is a field, not a plaice."],
     about:
-      "A North Sea kilometre: tide, a sandy floor tens of metres down, and the shelf forage the model actually runs. Cod eat that seafloor carbon. The rest of the demersal guild is not meshed.",
+      "A North Sea kilometre: tide, a sandy floor tens of metres down, and the shelf forage the model actually runs. Light on the bed grows microphytobenthos; infauna is a 2D density; cod graze that living film. Flatfish and kelp are not meshed.",
     extras: ["herring", "sprat", "mackerel", "sandlance", "cod", "shark"],
     fallback: { floorY: -72, beach: true },
   },
@@ -128,21 +129,21 @@ export const DEMO_CELLS = [
     id: "demersal",
     location: "world-cell",
     kind: "atlas",
-    status: "gap",
+    status: "coupled",
     title: "Demersal fauna",
-    kicker: "Infauna · flatfish · kelp",
+    kicker: "Infauna field · still no flatfish",
     region: "North Sea bed",
     lat: 54.9,
     lon: 1.6,
     observe: [
-      "What is coupled: benthos as seafloor carbon, and Atlantic cod grazing it.",
-      "Herring and sand lance still occupy the column above that bed.",
+      "Microphytobenthos grows where PAR hits the sand. Infauna is a 2D living store on that carbon plus rain.",
+      "Atlantic cod graze the infauna field on the bed. Herring and sand lance still occupy the column above.",
     ],
     missing: [
-      "Named infauna and epifauna, crabs, flatfish, skates, kelp forests, and grain-size burying are not in the model. A mesh of a plaice would still be a gap.",
+      "Named worms, crabs, flatfish, skates, kelp forests, and grain-size burying are not agents. A mesh of a plaice would still be a gap.",
     ],
     about:
-      "A shelf bed so the gap is visible. Cod and a detritus film are the whole demersal loop. The picker does not invent flatfish to fill the tile.",
+      "A shelf bed. Detritus rains, sunlit sand grows microphytobenthos, infauna is a density field, and cod graze that film. The picker does not invent flatfish to fill the tile.",
     extras: ["cod", "herring", "sandlance", "benthos"],
     fallback: { floorY: -38, beach: true },
   },

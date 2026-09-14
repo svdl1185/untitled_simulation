@@ -93,7 +93,7 @@
           </p>
           <h3>The system at once</h3>
           <figure class="about-cycle">
-            <img src="/cycles.svg" width="640" height="740" alt="Water-column schematic: light, temperature, flow, oxygen, ice, and the seafloor drive an NPZD loop that feeds forage schools and predators. Detritus sinks to benthos and remineralises. Solid boxes are coupled. Dashed boxes — vents, coral reefs, coasts — are not in the model yet." />
+            <img src="/cycles.svg" width="640" height="740" alt="Water-column schematic: light, temperature, flow, oxygen, ice, and the seafloor drive an NPZD loop that feeds forage schools and predators. Detritus sinks to benthos; sunlit sand grows microphytobenthos; infauna is a density field. Solid boxes are coupled. Dashed boxes — vents, coral reefs, coasts — are not in the model yet." />
             <figcaption>
               Solid is live. Dashed is still open. Near the camera: agents. Kilometres out: density.
               Basin: Eulerian fields.
@@ -190,8 +190,23 @@
             <div>
               <dt>Benthos</dt>
               <dd>
-                Carbon on the seafloor from sinking detritus. Cod graze that field. The animals of
-                the bed are not agents yet.
+                Detrital carbon on the seafloor from sinking rain, microphytobenthos where PAR hits
+                the sand, and infauna as a living density. Cod graze that film. Named crabs are not
+                agents.
+              </dd>
+            </div>
+            <div>
+              <dt>Infauna</dt>
+              <dd>
+                Living seafloor density. Grows from detrital carbon and microphytobenthos. Cod graze
+                it. Not named worms or crabs.
+              </dd>
+            </div>
+            <div>
+              <dt>Microphytobenthos</dt>
+              <dd>
+                Light-driven algae on sunlit sand. Extra bed production where PAR hits the floor.
+                The shelf analog of ice algae.
               </dd>
             </div>
             <div>
@@ -231,7 +246,7 @@
               tint, GMRT floor, HYCOM mean current when it answers). Land is not a cell. <strong>Cells</strong>
               is a picker of named kilometres: the 10 km catalog tank (every species, stepped shelves, 2000 m)
               plus biomes from the coupling figure. Gap tiles still open the pelagic water at that site — they
-              do not invent coral or a vent. Polar ice is coupled. Neighbour chunks cache; animals do not swim between cells.
+              do not invent coral or a vent. Polar ice and the demersal bed field are coupled. Neighbour chunks cache; animals do not swim between cells.
               Clock: 8 min ≈ 1 day, twelve sim days per year. Polar night follows the sun. Named Cells stamp a productive-season day-of-year (Antarctic ~15 Jan, high Arctic ~21 Jun). Storms mix deeper, shoal the nutricline,
               and raise current.
             </li>
@@ -243,7 +258,8 @@
               photic envelope stays sunlit. Temperature and Q10
               (<code>sampleTemp</code>; high-latitude amplitude is small). Dissolved oxygen and OMZ (<code>sampleO2</code>). Sea ice
               (<code>climateIce</code>: concentration, thickness, ice algae on the P patch). Separable
-              NPZD (128×128 patch × column: N, P, Z, D; Z keeps an under-ice film lobe). Benthos: detritus flux onto the bed.
+              NPZD (128×128 patch × column: N, P, Z, D; Z keeps an under-ice film lobe). Benthos: detritus
+              flux, microphytobenthos on sunlit floors, infauna density; cod graze infauna.
             </li>
             <li>
               <strong>Agents.</strong> One hashed-grid school (cap 20k): grazers on a bloom cap,
@@ -265,7 +281,7 @@
               squid is the vehicle-on-vehicle bite; Humboldt is school <code>huntTaxa</code>. A striking
               vehicle uses its lunge mouth, at least one hashed-grid cell. Q10 and
               hypoxia scale rates. Closed mass: graze, excretion, carcass, sink, remineralisation,
-              benthos graze.
+              infauna graze.
             </li>
             <li>
               <strong>Range.</strong> Hulls OR; trophic, thermal, OMZ, and shelf gates. Overlap is
@@ -320,12 +336,12 @@
               compressibility; authored meshes; sediment grain size and transport.
             </p>
             <p>
-              <strong>Seafloor besides tropical reefs.</strong> Named infauna and epifauna; crabs,
-              lobsters, shrimp; echinoderms; sponges, sea pens, gorgonians, glass-sponge reefs;
-              cold-water coral; flatfish, skates, rays, chimaeras; haddock, pollock, hake, whiting,
-              wolffish; grenadiers, cusk eels, snailfish, tripod fish, hagfish; sleeper sharks,
-              sixgill, Greenland shark, dogfish; kelp forests and urchin–otter coupling; maerl;
-              microphytobenthos; bioturbation and sediment redox; phytodetritus pulses; hydrothermal
+              <strong>Seafloor besides tropical reefs.</strong> Named infauna as agents (the living bed is a
+              density field); crabs, lobsters, shrimp; echinoderms; sponges, sea pens, gorgonians,
+              glass-sponge reefs; cold-water coral; flatfish, skates, rays, chimaeras; haddock, pollock,
+              hake, whiting, wolffish; grenadiers, cusk eels, snailfish, tripod fish, hagfish; sleeper
+              sharks, sixgill, Greenland shark, dogfish; kelp forests and urchin–otter coupling; maerl;
+              bioturbation and sediment redox; phytodetritus pulses; hydrothermal
               vents; cold seeps, brine pools, hydrates; whale falls, wood falls; seamount sessile
               fauna; canyon turbidity currents; hadal trenches; sand-lance burying; demersal eggs on
               gravel; bottom water, contour currents, iceberg scour; trawl disturbance; octopus,

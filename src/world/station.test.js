@@ -72,13 +72,16 @@ function assert(cond, msg) {
       { id: "cod", common: "Atlantic cod", agent: "school", count: 2 },
       { id: "benthos", common: "Benthos", agent: "field", count: 12 },
     ],
+    meanB: 0.12,
+    meanI: 0.18,
+    meanBedP: 0.09,
     sharks: [],
   });
   const text = brief.now.join(" ");
   assert(text.includes("clips") || text.includes("sand"), "shelf DVM hits the floor");
   assert(text.includes("Atlantic herring"), "herring named");
   assert(text.includes("Atlantic cod") && text.includes("bed"), "cod on the bed");
-  assert(text.includes("seafloor carbon"), "benthos coupled to cod");
+  assert(text.includes("infauna") || text.includes("living bed"), "benthos coupled to cod");
   assert(brief.column.some((row) => row.id === "omz" && row.value === "None"), "no OMZ on the shelf");
   assert((brief.missing || []).length >= 1, "shelf demo keeps its gap note");
 }

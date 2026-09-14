@@ -747,6 +747,8 @@ function hudView() {
     meanP: plankton.meanP,
     meanZ: plankton.meanZ,
     meanB: plankton.meanB,
+    meanI: plankton.meanI,
+    meanBedP: plankton.meanBedP,
     forageCount: school.count,
     forageCap: foodCap,
     ice: CONFIG.water?.ice ?? 0,
@@ -764,7 +766,7 @@ function hudView() {
   const dietCtx = {
     following,
     counts,
-    bloom: { p: plankton.meanP, z: plankton.meanZ, b: plankton.meanB },
+    bloom: { p: plankton.meanP, z: plankton.meanZ, b: plankton.meanB, i: plankton.meanI, bedP: plankton.meanBedP },
   };
   if (sub?.kind === "shark") {
     const s = sharks[sub.id];

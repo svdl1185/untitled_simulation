@@ -145,7 +145,9 @@ export function censusList(school, sharks = [], plankton) {
     counts[id] = (counts[id] || 0) + 1;
   }
   if (plankton && faunaPresent("benthos")) {
-    counts.benthos = Math.max(1, Math.round((plankton.meanB ?? 0) * 100));
+    const living = plankton.meanI ?? 0;
+    const carbon = plankton.meanB ?? 0;
+    counts.benthos = Math.max(1, Math.round((living * 0.72 + carbon * 0.28) * 100));
   }
   present.sort((a, b) => {
     const ga = CENSUS_GUILD_ORDER.indexOf(a.guild);
@@ -219,7 +221,8 @@ const BLOOM_MIN = 0.02;
 function fieldLive(kind, bloom) {
   if (kind === "p") return (bloom?.p ?? 0) > BLOOM_MIN;
   if (kind === "z") return (bloom?.z ?? 0) > BLOOM_MIN;
-  if (kind === "b") return (bloom?.b ?? 0) > BLOOM_MIN;
+  if (kind === "b") return (bloom?.b ?? 0) > BLOOM_MIN || (bloom?.i ?? 0) > BLOOM_MIN;
+  if (kind === "bedP") return (bloom?.bedP ?? 0) > BLOOM_MIN;
   return false;
 }
 
@@ -264,7 +267,7 @@ function dietLinks(id, ctx) {
     const diet = schoolDiet(cfg);
     if ((diet === "p" || diet === "both") && fieldLive("p", bloom)) add({ label: "Phytoplankton" });
     if ((diet === "z" || diet === "both") && fieldLive("z", bloom)) add({ label: "Zooplankton" });
-    if (cfg.benthosGraze > 0 && (counts.benthos || 0) > 0) {
+    if (cfg.benthosGraze > 0 && ((counts.benthos || 0) > 0 || fieldLive("b", bloom))) {
       add({ id: "benthos", label: faunaOf("benthos").common });
     }
     if (isSchoolBiter(cfg)) {
@@ -275,6 +278,7 @@ function dietLinks(id, ctx) {
     }
   } else if (spec?.agent === "field") {
     add({ label: "Detritus" });
+    if (fieldLive("bedP", bloom)) add({ label: "Microphytobenthos" });
   } else if (spec?.agent === "vehicle") {
     const v = vehicleCfg(id);
     const diet = v.diet || "bite";

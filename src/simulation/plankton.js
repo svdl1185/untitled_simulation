@@ -28,6 +28,9 @@ const _flowD = { x: 0, y: 0, z: 0 };
  *   sampleAt / grazeAt / sampleLayer / grazeLayer / depositLayer /
  *   recycle / overlap / forageDepth / grazeBenthos
  * School fish graze `z` unless a taxon sets `grazeOn: "p"` (krill, menhaden).
+ * The bed is three 2D stores: detrital carbon (`benthos`), microphytobenthos
+ * (`bedP`, PAR at the local floor), infauna (`infauna`, Type II on both).
+ * `grazeBenthos` takes infauna — the living film, not raw carbon.
  * Carcasses and excretion return mass to `n` and `d`.
  * Keep new species on that API so the NPZD budget stays closed as the
  * ecosystem grows.
@@ -62,6 +65,8 @@ export class Plankton {
     this.meanZ = 0;
     this.meanD = 0;
     this.meanB = 0;
+    this.meanI = 0;
+    this.meanBedP = 0;
     this.prodIndex = 0;
     this.bloomY = CONFIG.thermoY;
     this.zooY = CONFIG.thermoY;
@@ -72,6 +77,8 @@ export class Plankton {
     this.sinkFrac = 0;
     this._bytes = new Uint8Array(cells * 4);
     this.benthos = new Float32Array(cells);
+    this.bedP = new Float32Array(cells);
+    this.infauna = new Float32Array(cells);
     this._initColumn();
     this.seed();
   }
@@ -143,6 +150,8 @@ export class Plankton {
     wet.fill(0);
     vent.fill(0);
     this.benthos.fill(0);
+    this.bedP.fill(0);
+    this.infauna.fill(0);
     const sx = this.spanX / 480;
     const sz = this.spanZ / 468;
     const phyto = [
@@ -211,6 +220,14 @@ export class Plankton {
         d[i] = _clamp01(det);
         vent[i] = v * (0.35 + depth);
         this.benthos[i] = 0.04 + depth * 0.12;
+        const parBed = samplePAR(ground, {
+          night: 0,
+          caustic: 0.75,
+          sunDir: { y: 0.72 },
+          storm: 0,
+        });
+        this.bedP[i] = _clamp01(parBed * 0.38);
+        this.infauna[i] = _clamp01(0.035 + (1 - depth) * 0.1 + parBed * 0.08);
       }
     }
     this._initColumn();
@@ -413,17 +430,25 @@ export class Plankton {
 
   grazeBenthos(x, z, amount) {
     if (amount <= 0) return 0;
-    const { nx, nz, wet, benthos } = this;
+    const { nx, nz, wet, infauna } = this;
     const { fx, fz } = this._indexWorld(x, z);
     const ix = Math.round(fx);
     const iz = Math.round(fz);
-    const taken = this._take(benthos, wet, nx, nz, ix, iz, amount);
+    const taken = this._take(infauna, wet, nx, nz, ix, iz, amount);
     if (taken > 0) this._give(this.n, wet, nx, nz, ix, iz, taken * CONFIG.plankton.excrete);
     return taken;
   }
 
   sampleBenthos(x, z) {
     return this._sampleField(this.benthos, x, z);
+  }
+
+  sampleInfauna(x, z) {
+    return this._sampleField(this.infauna, x, z);
+  }
+
+  sampleBedP(x, z) {
+    return this._sampleField(this.bedP, x, z);
   }
 
   _splatter(dens, x, z, signed) {
@@ -555,6 +580,8 @@ export class Plankton {
     let sumZ = 0;
     let sumD = 0;
     let sumB = 0;
+    let sumI = 0;
+    let sumBedP = 0;
     let prod = 0;
     let wetN = 0;
 
@@ -604,6 +631,7 @@ export class Plankton {
         benthic -= bedRemin;
         nut += bedRemin;
         bed[i] = _clamp01(benthic);
+        nut = this._stepBed(i, ground, nut, look, dt, qProd, qLoop);
 
         nut = _clamp01(nut);
         phy = _clamp01(phy);
@@ -618,6 +646,8 @@ export class Plankton {
         sumZ += zoa;
         sumD += det;
         sumB += bed[i];
+        sumI += this.infauna[i];
+        sumBedP += this.bedP[i];
         prod += uptake;
         wetN++;
       }
@@ -629,10 +659,12 @@ export class Plankton {
     this.meanZ = sumZ * inv;
     this.meanD = sumD * inv;
     this.meanB = sumB * inv;
+    this.meanI = sumI * inv;
+    this.meanBedP = sumBedP * inv;
     this.mean = this.meanZ;
     this.prodIndex = prod * inv;
     this._toBytes();
-    setOxygenDemand(this.meanD, this.meanB);
+    setOxygenDemand(this.meanD, this.meanB + this.meanI * 0.55);
   }
 
   _updateColumn(dt, look) {
@@ -694,6 +726,35 @@ export class Plankton {
     this._maxNormalize(dCol);
     this.sinkFrac = (cfg.sink ?? 0.012) * dt * (0.28 + 0.72 * dCol[ny - 1]);
     this._syncColumnStats(look);
+  }
+
+  /**
+   * Light-driven bed algae, then Type II infauna on carbon + microphyto.
+   * Returns the leftover dissolved N. Stays on the seafloor — no current.
+   */
+  _stepBed(i, ground, nut, look, dt, qProd, qLoop) {
+    const cfg = CONFIG.plankton;
+    const par = samplePAR(ground, look);
+    const nTerm = nut / (nut + cfg.kN);
+    const colonize = 0.08 + 0.92 * this.bedP[i];
+    const uptake = cfg.growBedP * par * nTerm * qProd * colonize * dt;
+    this.bedP[i] = _clamp01(this.bedP[i] + uptake);
+    nut = Math.max(0, nut - uptake);
+
+    const food = this.benthos[i] + this.bedP[i];
+    const stock = Math.max(this.infauna[i], 0.008);
+    const g = cfg.growI * (food / (food + cfg.kI)) * stock * qLoop * dt;
+    const denom = food > 1e-8 ? food : 1;
+    const takeP = g * (this.bedP[i] / denom);
+    const takeC = g * (this.benthos[i] / denom);
+    this.bedP[i] = Math.max(0, this.bedP[i] - takeP);
+    this.benthos[i] = Math.max(0, this.benthos[i] - takeC);
+    this.infauna[i] = _clamp01(this.infauna[i] + cfg.effI * g);
+
+    const mort = cfg.mortI * this.infauna[i] * qLoop * (1 + this.infauna[i] / 0.18) * dt;
+    this.infauna[i] = Math.max(0, this.infauna[i] - mort);
+    this.benthos[i] = _clamp01(this.benthos[i] + mort * 0.55);
+    return nut + mort * 0.45;
   }
 
   _maxNormalize(col) {
@@ -764,8 +825,10 @@ export class Plankton {
     let sumZ = 0;
     let sumD = 0;
     let sumB = 0;
+    let sumI = 0;
+    let sumBedP = 0;
     let wetN = 0;
-    const { n, p, z, d, wet, benthos } = this;
+    const { n, p, z, d, wet, benthos, bedP, infauna } = this;
     for (let i = 0; i < n.length; i++) {
       if (!wet[i]) continue;
       sumN += n[i];
@@ -773,6 +836,8 @@ export class Plankton {
       sumZ += z[i];
       sumD += d[i];
       sumB += benthos[i];
+      sumI += infauna[i];
+      sumBedP += bedP[i];
       wetN++;
     }
     const inv = 1 / Math.max(1, wetN);
@@ -781,6 +846,8 @@ export class Plankton {
     this.meanZ = sumZ * inv;
     this.meanD = sumD * inv;
     this.meanB = sumB * inv;
+    this.meanI = sumI * inv;
+    this.meanBedP = sumBedP * inv;
     this.mean = this.meanZ;
     this._toBytes();
   }

@@ -52,6 +52,7 @@ function assert(cond, msg) {
   const coupled = coupledDemoIds();
   assert(coupled.includes("catalog"), "catalog tank is a coupled cell");
   assert(coupled.includes("shelf"), "North Sea is a coupled cell");
+  assert(coupled.includes("demersal"), "demersal infauna field is a coupled cell");
   assert(coupled.includes("omz"), "Humboldt OMZ is a coupled cell");
   assert(coupled.includes("pelagic"), "open pelagic is a coupled cell");
   const seen = new Set();

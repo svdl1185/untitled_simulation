@@ -12,7 +12,7 @@
  * `agent: "vehicle"` — rare Reynolds loops (sharks, whales, giant squid,
  *   air-breathers). A handful by design; raise `count` for a pod, do not
  *   put a shelf gadid here.
- * `agent: "field"`   — Eulerian guild (benthos). Later: `"density"` for super-individuals.
+ * `agent: "field"`   — Eulerian guild (benthos: carbon, microphyto, infauna). Later: `"density"` for super-individuals.
  */
 
 export const FISH_DEFAULTS = {
