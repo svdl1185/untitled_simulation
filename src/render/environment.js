@@ -65,8 +65,9 @@ export function createEnvironment(scene, uniforms) {
       fill.intensity = look.fillI * (above ? 1 : 0.16 + 0.84 * inLight);
       fill.position.copy(look.sunDir).multiplyScalar(-40);
       sky.visible = above;
-      particles.material.opacity = above ? 0.05 : 0.12 + look.caustic * 0.16;
+      particles.material.opacity = above ? 0.05 : (0.12 + look.caustic * 0.16) * (0.12 + 0.88 * inLight);
       particles.material.color.copy(look.sun).lerp(this._moteTint, 0.55);
+      if (!above) particles.material.color.lerp(this._abyss, optical * 0.88);
 
       camera.getWorldDirection(_lampFwd);
       lamp.position.copy(camera.position).addScaledVector(_lampFwd, 4.5);
@@ -122,7 +123,7 @@ function _motes() {
   const geo = new THREE.BufferGeometry();
   const pos = new Float32Array(n * 3);
   const top = -4;
-  const bot = Math.max(CONFIG.floorY + 4, photicLimitY());
+  const bot = CONFIG.floorY + 4;
   const span = Math.max(8, top - bot);
   for (let i = 0; i < n; i++) {
     pos[i * 3] = (Math.random() - 0.5) * CONFIG.halfX * 2;

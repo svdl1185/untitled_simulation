@@ -31,6 +31,7 @@ uniform float uTime;
 uniform float uCaustic;
 uniform float uStorm;
 uniform float uPhoticY;
+uniform float uGlow;
 uniform vec4 uRocks[8];
 
 float worldCaustic(vec3 w) {
@@ -77,10 +78,17 @@ float rockLee(vec3 w) {
 vec3 applyWorldLight(vec3 col, vec3 w) {
   float lee = rockLee(w);
   float c = worldCaustic(w) * lee;
-  float depthInk = smoothstep(-5.0, uPhoticY, w.y);
+  float depth = max(0.0, -w.y);
+  float photic = max(24.0, -uPhoticY);
+  float par = exp(-(log(100.0) / photic) * depth);
+  float clear = clamp(sqrt(par / 0.18), 0.0, 1.0);
+  vec3 abyss = vec3(0.008, 0.016, 0.035);
   col *= 0.74 + 0.26 * lee;
   col += col * c * 0.62;
-  col = mix(col, col * vec3(0.32, 0.52, 0.6), depthInk * 0.48);
+  col = mix(col, col * vec3(0.32, 0.52, 0.6), (1.0 - clear) * 0.5 * smoothstep(0.0, 0.12, par));
+  col = mix(col, abyss, (1.0 - clear) * (1.0 - clear) * 0.92);
+  col *= 0.08 + 0.92 * clear;
+  col += uGlow * vec3(0.55, 0.85, 0.45) * (1.0 - clear);
   return col;
 }
 `;
@@ -95,6 +103,7 @@ export function attachWorldShading(material, uniforms) {
     shader.uniforms.uStorm = uniforms.uStorm;
     shader.uniforms.uRocks = uniforms.uRocks;
     shader.uniforms.uPhoticY = uniforms.uPhoticY;
+    shader.uniforms.uGlow = material.userData.uGlow || { value: 0 };
     if (!shader.vertexShader.includes("varying vec3 vCausticWorld")) {
       shader.vertexShader = shader.vertexShader.replace(
         "varying vec3 vViewPosition;",
@@ -127,7 +136,7 @@ export function attachWorldShading(material, uniforms) {
   };
   const prevKey = material.customProgramCacheKey?.bind(material);
   material.customProgramCacheKey = () =>
-    `${prevKey ? prevKey() : material.uuid}|world-caustic-v6`;
+    `${prevKey ? prevKey() : material.uuid}|world-caustic-v8`;
   material.needsUpdate = true;
   return material;
 }

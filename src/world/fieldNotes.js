@@ -291,14 +291,13 @@ export const FAUNA = {
     diet: "Zooplankton",
     sex: "Female / male. Females are drawn slightly larger.",
     about:
-      "The deep-scattering layer. Typically 3–15 cm. Night in the upper 100 m; day a few hundred metres down. Recorded to about 450 m for the taxa we mesh. Photophores are real; the shader is still epipelagic. Food for Humboldt squid, sperm whales, and tunas.",
+      "The deep-scattering layer. Typically 3–15 cm. Night in the upper 100 m; day a few hundred metres down. Recorded to about 450 m for the taxa we mesh. Photophores glow against the dark and restore a fraction of visual detect for sighted hunters in the DSL. Food for Humboldt squid, sperm whales, and tunas.",
     program:
-      "Scatter shoal on the shared hashed grid. Type II graze on z. Own DVM (night ~−40 m, day ~−280 m, max −450 m). o2Min 0.08 ml/L so they can occupy the OMZ; tunas cannot follow. Fear steers down toward the day band, not up. Modest catalog share so it does not fill the 20k budget. Presence is oceanic (|lat| < 52°), not a hull. Enlarges gridMinY only when this taxon is in the cell. Photophore dots are on the mesh; they are not a light field.",
+      "Scatter shoal on the shared hashed grid. Type II graze on z. Own DVM (night ~−40 m, day ~−280 m, max −450 m). o2Min 0.08 ml/L so they can occupy the OMZ; tunas cannot follow. Fear steers down toward the day band, not up. Modest catalog share so it does not fill the 20k budget. Presence is oceanic (|lat| < 52°), not a hull. Enlarges gridMinY only when this taxon is in the cell. Photophores are a look flag: in low PAR they restore detect range for sighted hunters and raise mesh emissive. Sperm whales still hunt this taxon by echolocation (darkness is not a starve).",
     missing: [
-      "A true mesopelagic optical story (photophore lighting) is not in the shader. PAR now decays with depth and grows phytoplankton only in the photic envelope; the water still looks too green at 1500 m.",
       "Family is one catalog id, not thirty myctophid species.",
       "Species-specific photophore patterns are not a mate cue.",
-      "Ventral counterillumination is not rendered.",
+      "Ventral counterillumination is not rendered as a match to downwelling.",
       "Lunar inhibition of DVM is not a clock.",
       "Swimbladder resonance (the acoustic deep-scattering layer) is not a sense.",
     ],
@@ -571,11 +570,10 @@ export const FAUNA = {
     about:
       "The deep-diving toothed whale. Females ~11 m, males ~16 m. Cosmopolitan in ice-free oceans. Typical foraging dives 400–1200 m for 40–50 minutes; recorded beyond 2000 m. Hunts squid by echolocation. Must return to the surface to breathe.",
     program:
-      "Burst vehicle, fluke swim, block head (spermaceti organ, underslung jaw, left blowhole, knuckles to the fluke). The head stays stiff; only the tailstock waves. Slow turn, little bank. Air-breather: hangs level at the surface and blows a single forward-left spout, then a foraging dive toward live squid/lanternfish or typical forage ~700 m — not a commute to 2000 m. maxDepth 2000 m is the clamp; in a 1500 m cell the floor wins first. Prefers market squid, Illex, and lanternfish (huntTaxa). Bites Humboldt squid and giant squid when those vehicles are in mouth range (huntKinds). Time is compressed so a deep chase can finish in one breath-hold. Does not bite herring. Missing named prey still produces the dive; it does not get free calories.",
+      "Burst vehicle, fluke swim, block head (spermaceti organ, underslung jaw, left blowhole, knuckles to the fluke). The head stays stiff; only the tailstock waves. Slow turn, little bank. Air-breather: hangs level at the surface and blows a single forward-left spout, then a foraging dive toward live squid/lanternfish or typical forage ~700 m — not a commute to 2000 m. maxDepth 2000 m is the clamp; in a 1500 m cell the floor wins first. Prefers market squid, Illex, and lanternfish (huntTaxa). Bites Humboldt squid and giant squid when those vehicles are in mouth range (huntKinds). Time is compressed so a deep chase can finish in one breath-hold. Does not bite herring. Missing named prey still produces the dive; it does not get free calories. sense is echo: PAR does not shrink this whale's detect or fear.",
     missing: [
       "Glass squid (Histioteuthis) are not agents. The whale still dives; it does not get free calories from empty water.",
-      "Echolocation clicks are not a sense or a sound field.",
-      "Lighting below the photic zone is still the epipelagic shader. That is an optical gap, not a reason to keep the whale shallow.",
+      "Echolocation clicks are not a sound field. Detect range does not fall with PAR — darkness is not a starve.",
       "Coda dialects and clan culture are not a state.",
       "Creche behaviour — females and calves staying at the surface while adults dive — is not a social split. Every vehicle dives.",
       "Spermaceti buoyancy control is not a physics.",
@@ -595,7 +593,7 @@ export const FAUNA = {
     about:
       "Cosmopolitan dolphin, typically 5–8 m. Fish-eating (resident-type) ecotypes hunt herring, salmon, and other fish, usually in the upper 100–200 m; recorded to about 800 m. Must surface to breathe. Mammal-eating (transient) ecotypes hunt seals and whales.",
     program:
-      "Ram vehicle, orca mesh, tall dorsal (taller on males) and white patches. Tight pack, large fear radius. Bites school fish. Air-breather: hangs level at the surface and blows a short puff, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). This is the fish-eating programme. Banks in the turn like a dolphin, not a rorqual.",
+      "Ram vehicle, orca mesh, tall dorsal (taller on males) and white patches. Tight pack, large fear radius. Bites school fish. Air-breather: hangs level at the surface and blows a short puff, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). This is the fish-eating programme. Banks in the turn like a dolphin, not a rorqual. sense is echo: PAR does not shrink detect or fear.",
     missing: [
       "Mammal-eating ecotypes are not wired — seals and other whales are not prey.",
       "Salmon are not a school taxon.",
@@ -641,7 +639,7 @@ export const FAUNA = {
     about:
       "East Pacific jumbo flying squid, typically 0.8–2 m. Famous DVM: night in the upper 100 m, day 200–700 m, recorded to about 1200 m in the oxygen minimum. Hunts anchoveta, sardine, and lanternfish. Cannibalistic.",
     program:
-      "Jet vehicle (pulse–coast), not a school scatter and not a ram tuna. Day DVM follows the OMZ core (`omzCoreY`), not a hardcoded −700 m; night still the upper 100 m. Hangs on the current between mantle pulses. Bites anchovy, sardine, mackerel, lanternfish, and jack mackerel (huntTaxa). Flees sperm whales downward as well as away. Fast energy drain. East Pacific hull plus an OMZ presence gate. Sperm whales bite this vehicle.",
+      "Jet vehicle (pulse–coast), not a school scatter and not a ram tuna. Day DVM follows the OMZ core (`omzCoreY`), not a hardcoded −700 m; night still the upper 100 m. Hangs on the current between mantle pulses. Bites anchovy, sardine, mackerel, lanternfish, and jack mackerel (huntTaxa). In low PAR, lanternfish photophores restore a fraction of detect range so the day OMZ hunt is not a starve. Flees sperm whales downward as well as away. Fast energy drain. East Pacific hull plus an OMZ presence gate. Sperm whales bite this vehicle.",
     missing: [
       "Cannibalism is not a huntKinds loop on this pack.",
       "Rapid chromatophore flashing as pack communication is not a state.",
@@ -649,7 +647,6 @@ export const FAUNA = {
       "Feeding frenzies packing on a bait are generic strikes.",
       "Floating gelatinous egg masses are not objects.",
       "One-to-two-year boom–bust with El Niño is not a season.",
-      "Bioluminescence is not a cue.",
     ],
   },
   mahi: {
@@ -757,7 +754,7 @@ export const FAUNA = {
     about:
       "The deep oceanic squid sperm whales actually hunt. Mantle to about 2 m; total length often 8–13 m. Worldwide in ice-free deep water, typically 300–1000 m, recorded near 1200 m. Not a Humboldt jumbo: slower, deeper, and not tied to the East Pacific OMZ.",
     program:
-      "Jet vehicle on its own DVM (night ~−420 m, day ~−850 m, max −1200 m). Longer hang between pulses than Humboldt. Bites lanternfish, market squid, and Illex (huntTaxa). Absent on shelves shallower than about 350 m. Sperm whales bite this vehicle (huntKinds). Starves if named prey is missing — no free calories.",
+      "Jet vehicle on its own DVM (night ~−420 m, day ~−850 m, max −1200 m). Longer hang between pulses than Humboldt. Bites lanternfish, market squid, and Illex (huntTaxa). In low PAR, lanternfish photophores restore a fraction of detect range. Absent on shelves shallower than about 350 m. Sperm whales bite this vehicle (huntKinds). Starves if named prey is missing — no free calories.",
     missing: [
       "Colossal squid (Mesonychoteuthis) is not a second hull.",
       "Ammonium chloride buoyancy is not a physics.",

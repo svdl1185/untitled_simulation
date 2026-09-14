@@ -112,6 +112,7 @@ export const VEHICLE_DEFAULTS = {
   mesh: "shark",
   filterGraze: 0,
   filterGain: 0.4,
+  sense: "sight",
 };
 
 /**
@@ -717,6 +718,8 @@ export const SPECIES = {
     },
     look: {
       shape: "lantern",
+      photophores: true,
+      glow: [0.55, 0.85, 0.45],
       body: [0.32, 1.05, 1.12],
       back: [0.06, 0.1, 0.14],
       belly: [0.42, 0.48, 0.4],
@@ -1264,6 +1267,7 @@ export const SPECIES = {
       mesh: "spermwhale",
       swim: "fluke",
       diet: "bite",
+      sense: "echo",
       breathes: true,
       surfaceTime: 8,
       diveTime: 42,
@@ -1307,6 +1311,7 @@ export const SPECIES = {
       mesh: "orca",
       swim: "fluke",
       diet: "bite",
+      sense: "echo",
       breathes: true,
       surfaceTime: 6,
       diveTime: 28,

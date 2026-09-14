@@ -40,14 +40,14 @@ Current: named sharks, tunas, orca, humpback, Humboldt squid, common dolphin eat
 
 The seafloor can be kilometres down. **Guild depth is biology, then the floor — never a photic convenience cap.**
 
-- **`maxDepth` is the biological maximum** (more negative = deeper). Herring ~400 m, blue shark ~1000 m, sperm whale ~2000 m, whale shark ~1920 m. Do not clamp an animal to −220 m because the shader is still epipelagic.
+- **`maxDepth` is the biological maximum** (more negative = deeper). Herring ~400 m, blue shark ~1000 m, sperm whale ~2000 m, whale shark ~1920 m. Do not clamp an animal to −220 m because the photic shader used to stop there.
 - **The seafloor always wins.** `clampHabitatY` / vehicle `_keepInWater` use `max(floor + clearance, maxDepth)`. In a 71 m North Sea cell a sperm whale hits the sand. In a 1500 m cell the clamp is 1500 m; typical forage is still ~700 m unless prey is deeper.
 - **Spawn is the same clamp at t=0.** Desired Y is DVM / forage / breath / bed for the current hour. Then the local seafloor at that (x, z) — `CONFIG.floorY` is the cell minimum, not the slope under the animal. `placeInColumn` walks downslope if the typical band does not fit (or sits at the deepest water in the cell). A canyon in the cell does not put a herring in the rock; a shelf under a Humboldt squid lifts it or walks it into the basin.
 - **DVM** (`nightDepth`, `dayDepth`, …) is the *typical* schedule, not the cap. Hungry animals may leave it toward food; air-breathers leave it to surface.
 - **Air-breathers** (`vehicle.breathes`): surface for `surfaceTime`, hang and blow (sperm: one forward-left spout; mysticetes: two columns; dolphin/orca: a short puff), then a foraging dive toward live prey or typical `forageDepth`, clamped by `min(maxDepth, floor)`. Leaving the surface is a flukes-up pitch, not a commute to the record. `maxDepth` is the record, not a hangout. Time is compressed (8 min ≈ 1 day), so `diveSpeed` is raised enough that a kilometre-scale chase can finish in one on-screen breath-hold. That speed-up is a clock, not a reason to sit at the record. Document it on the card. The blow is particles at the surface, not a sound field.
 - **Forage coupling.** Hungry animals may rise/sink toward food (`forageDepth`, school centroids, bloom). Satiated animals sit in refuge or roam the typical band — not the biological max unless prey is actually there.
 - **Neighbour grid.** `gridMinY(taxa)` covers the deepest *present school* species, not the abyss and not an absent lanternfish. Vehicles (sperm whale, Humboldt squid) can go to 1–2 km without enlarging the herring hashed grid.
-- **Lighting is optics, not habitat.** Sun, fog, and caustics follow `photicLimitY()` / `CONFIG.water`. A bathypelagic dive still uses the epipelagic shader until a dark optical story exists. Put that in `missing`. Do not use it to forbid the dive.
+- **Lighting follows the same Beer–Lambert as PAR.** Sun, fog, caustics, and fish shading share `photicLimitY()` / `Kd`. Below the 1% depth the window goes near-black, not herring-green. Camera lamp (`K`) is fill after dark — optics, not habitat; it does not feed `visualRange`. A bathypelagic dive is allowed; do not clamp an animal shallow because it used to look too green.
 
 Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 400 m. Lanternfish night ≈ −40 m, day ≈ −280 m, max 450 m (enlarges `gridMinY` only when present; can occupy the OMZ). Flying fish stay in the top ~20 m; fear steers them toward the surface (still in water). Humboldt squid DVM night ~−80 m, day the OMZ core, max 1200 m; jet vehicles hang on the current between mantle pulses. School squid pulse–coast on the hashed-grid velocity, not a second integrator. Sperm whale typical forage ~−700 m, max 2000 m; breath-hold dives follow squid/lanternfish when present, otherwise that typical band — never a commute to the record. Hang and blow at the surface, then a flukes-up dive. Cod hug the shelf floor, max 600 m, dropped if floor > ~650 m. Toothfish hug the Antarctic slope, max 2000 m. Zooplankton: thermocline by day, photic at night. Krill graze `p` near the surface at night.
 
@@ -55,7 +55,7 @@ Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 
 
 - **Sample `sampleFlow`.** Advection, shear, beach-normal tide. Do not give a species its own current.
 - **NPZD / bloom.** Does it graze `z`, shade `p`, recycle to `d`, or graze seafloor carbon (`grazeBenthos`)? School fish graze `z` unless `grazeOn: "p"` (krill). Sample with `plankton.sampleAt`; take with `plankton.grazeAt` (separable column × 2D patch). Carcasses recycle; whale shark / minke `plankton.grazeAt` as filter; cod graze benthos on the bed.
-- **Light.** `samplePAR(y, look)` — Beer–Lambert, shared with fog. Phytoplankton grow in the photic envelope.
+- **Light.** `samplePAR(y, look)` — Beer–Lambert, shared with fog, shading, and visual hunt. Phytoplankton grow in the photic envelope. Sighted hunters scale detect / fear / bite with `visualRange`; `look.photophores` (lanternfish) restores a fraction in the dark. `sense: "echo"` (sperm whale, orca) and filter-only diets skip PAR. Camera lamp does not feed hunt.
 - **Temperature.** `sampleTemp` / `columnQ10`. Optional `temp: { min, max }` on the catalog row gates `presenceAt`.
 - **Oxygen.** `sampleO2` / `oxygenLimitY`. Optional `o2: { needOmz }` gates presence. `o2Min` is the hypoxia floor; `omzRefuge` (Humboldt) follows `omzCoreY` by day instead. Tunas and sharks stay above their oxycline; lanternfish occupy the OMZ. Detritus remineralisation is `setOxygenDemand`.
 - **Later fields** (add here when they exist): salinity, ice, pycnocline crossing cost.
@@ -100,7 +100,7 @@ One cell may eventually list hundreds of sharks, squid, kelp, coral, whales. Tha
 | Depth | DVM night −20 / day −110; **max 400 m** | Usually photic; **max 260 m** | Surface to breathe, then forage ~700 m; **max 2000 m** or the cell floor |
 | Flow | `sampleFlow` + bloom gradient | `sampleFlow` while hunting | `sampleFlow` on the commute |
 | Temperature | Q10 on graze / metabolism; niche 0–20 °C | Q10 on drain; tropic SST gate on skipjack | Q10 on drain; oceanic, not SST-gated |
-| Light | Overlap with the photic / DVM column | Optics only | Optics only; still dives in the dark |
+| Light | Overlap with the photic / DVM column; day depth is a visual refuge | `visualRange` scales detect / fear / bite | `sense: echo` — PAR does not shrink detect; still dives in the dark |
 | Oxygen | `o2Min` 1.4 ml/L | `o2Min` 2.4 ml/L — will not follow the OMZ | Air-breather; no dissolved-O₂ clamp |
 | Range | North Atlantic hull | \|lat\| < 40° and prey present | \|lat\| < 55° |
 | Budget | Type II graze, shared bloom cap | Bite restores energy, starve recycles | Bite on squid if present; starve if not (no fake fullness) |
@@ -108,4 +108,4 @@ One cell may eventually list hundreds of sharks, squid, kelp, coral, whales. Tha
 
 ## When you add a feature, add a bullet
 
-Examples of future rows: sea ice, salinity, photophores as a light field, school-as-density beyond the camera frustum, krill as a basin Eulerian field (agents are the near-camera swarm), coral as a `field` agent, a bathypelagic optical story (photophores, not herring-green at 1500 m). Vehicle-on-vehicle bites exist for sperm whale × Humboldt squid and sperm whale × giant squid; other pairs still need `huntKinds`.
+Examples of future rows: sea ice, salinity, school-as-density beyond the camera frustum, krill as a basin Eulerian field (agents are the near-camera swarm), coral as a `field` agent. Vehicle-on-vehicle bites exist for sperm whale × Humboldt squid and sperm whale × giant squid; other pairs still need `huntKinds`. Photophores as a hunt cue and a bathypelagic optical story (Kd below the photic) are coupled.

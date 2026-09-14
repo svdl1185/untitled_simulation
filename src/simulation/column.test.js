@@ -1,4 +1,4 @@
-import { attenuationKd, samplePAR, surfacePAR } from "./light.js";
+import { attenuationKd, samplePAR, surfacePAR, visualClarity, visualHunter, visualRange } from "./light.js";
 import { bindCellTemperature, climatologySST, columnQ10, meanSST, q10Factor, sampleTemp } from "./temperature.js";
 import {
   bindCellOxygen,
@@ -177,6 +177,26 @@ function assert(cond, msg) {
 }
 
 {
+  const day = { night: 0, caustic: 1, sunDir: { y: 0.8 }, storm: 0 };
+  const night = { night: 1, caustic: 0, sunDir: { y: -0.2 }, storm: 0 };
+  const shallow = visualRange(-10, day, 10);
+  const deep = visualRange(-700, day, 10);
+  const glow = visualRange(-700, day, 10, 1);
+  assert(shallow > deep * 3, `visualRange at 700 m should collapse (shallow ${shallow.toFixed(2)} deep ${deep.toFixed(2)})`);
+  assert(glow > deep, "photophores should restore detect range in the dark");
+  assert(visualRange(-10, night, 10) < shallow, "night should cut visual range at the same depth");
+  assert(visualClarity(-700, day) < 0.05, "clarity at 700 m should be near zero by day");
+  assert(visualHunter({ sense: "echo" }) === false, "sperm whale / orca echolocation skips PAR");
+  assert(visualHunter({ diet: "filter" }) === false, "filter diets skip visual detect");
+  assert(visualHunter({ diet: "bite" }) === true, "sighted biters read PAR");
+  assert(visualHunter(vehicleCfg("spermwhale")) === false, "sperm whale sense is echo");
+  assert(visualHunter(vehicleCfg("orca")) === false, "orca sense is echo");
+  assert(visualHunter(vehicleCfg("tuna")) === true, "skipjack is a visual hunter");
+  assert(visualHunter(vehicleCfg("whaleshark")) === false, "whale shark filter skips visual detect");
+  assert(visualHunter(vehicleCfg("humboldtsquid")) === true, "Humboldt is visual; lanternfish glow restores range");
+}
+
+{
   const floor = -2000;
   const dive = breathTargetY({
     surfacing: false,
@@ -292,4 +312,4 @@ function assert(cond, msg) {
   assert(!(north.humboldtsquid > 0), "North Sea should not hold Humboldt squid");
 }
 
-console.log("column physics: 14 checks ok");
+console.log("column physics: 15 checks ok");

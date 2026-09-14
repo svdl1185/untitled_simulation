@@ -351,13 +351,15 @@ export function createFishMaterial(uniforms, speciesId = "herring") {
   const look = lookFor(speciesId);
   const swim = fishSwim(look);
   const lantern = look.shape === "lantern";
+  const glow = look.glow || [0.55, 0.85, 0.45];
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: look.shape === "squid" || look.shape === "krill" ? 0.5 : 0.38,
     metalness: look.shape === "squid" ? 0.08 : 0.28,
-    emissive: lantern ? 0x1a4030 : 0x143028,
-    emissiveIntensity: lantern ? 0.32 : 0.18,
+    emissive: lantern ? new THREE.Color(glow[0], glow[1], glow[2]) : 0x143028,
+    emissiveIntensity: lantern ? 0 : 0.18,
   });
+  if (lantern) mat.userData.uGlow = { value: 0.12 };
   if (!uniforms) return mat;
   const wave = look.wave ?? 0.16;
   mat.onBeforeCompile = (shader) => {

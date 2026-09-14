@@ -8,8 +8,10 @@ Photosynthetically active radiation. Beer–Lambert: \(I(z) = I_0 e^{-K_d z}\).
 
 - \(I_0\) comes from the day look (sun elevation, night, storm).
 - \(K_d\) is set so the 1% light depth matches `photicLimitY()` (turbidity).
-- Fog, caustics, and phytoplankton growth share that envelope.
-- `samplePAR(y, look)` is the function to call.
+- Fog, caustics, phytoplankton growth, fish/seafloor shading, and visual hunt share that envelope.
+- `samplePAR(y, look)` is PAR 0–1 at depth.
+- `visualRange(y, look, base, glow)` scales detect / fear for sighted hunters. `glow` is photophore prey (lanternfish): restores a fraction of `base` in the dark. Sperm whale / orca `sense: "echo"` skip this. Filter-only diets skip it.
+- Camera lamp (`K`) is fill after dark. It does not feed `visualRange`.
 
 ## Temperature — `src/simulation/temperature.js`
 

@@ -12,7 +12,7 @@ import { createOutcrops } from "./render/outcrops.js";
 import { createWorldUniforms, syncWorldUniforms } from "./render/caustics.js";
 import { createEnvironment, createEatParticles, createBlowParticles } from "./render/environment.js";
 import { createPlanktonMesh } from "./render/plankton.js";
-import { samplePAR } from "./simulation/light.js";
+import { samplePAR, visualClarity } from "./simulation/light.js";
 import { bindCellTemperature, sampleTemp } from "./simulation/temperature.js";
 import { bindCellOxygen, sampleO2 } from "./simulation/oxygen.js";
 import { createInput } from "./input.js";
@@ -333,6 +333,15 @@ function syncFish() {
     layer.mesh.count = used[t];
     layer.mesh.instanceMatrix.needsUpdate = true;
     layer.phaseAttr.needsUpdate = true;
+  }
+}
+
+function syncPhotophores(look) {
+  const dark = 1 - visualClarity(camera.position.y, look);
+  for (const layer of fishLayers) {
+    const glow = layer.mesh.material.userData.uGlow;
+    if (!glow) continue;
+    glow.value = 0.12 + 1.65 * dark;
   }
 }
 
@@ -1081,6 +1090,7 @@ function frame(now) {
       plankton.update(dt, tod, t);
       bloom.update(tod);
       syncFish();
+      syncPhotophores(tod);
       for (let i = 0; i < sharks.length; i++) syncSharkMesh(sharkMeshes[i], sharks[i]);
       eatFX.update(dt);
       blowFX.update(dt);

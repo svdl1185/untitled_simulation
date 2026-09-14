@@ -5,6 +5,7 @@ import { sampleFlow } from "./flow.js";
 import { columnQ10 } from "./temperature.js";
 import { o2MetabolicFactor, oxygenLimitY } from "./oxygen.js";
 import { TROPHIC } from "./plankton.js";
+import { visualHunter, visualScales } from "./light.js";
 
 const KINDS = [
   { scale: 1.02, aggression: 1.06, tint: { r: 1, g: 1, b: 1 } },
@@ -86,6 +87,8 @@ export class Shark {
     this.fearRadius = this.cfg.fearRadius;
     this.fearStrength = CONFIG.fish.fearWeight;
     this.biteRadius = this.cfg.biteRadius;
+    this.biteScale = 1;
+    this.biteGlowScale = 1;
     this.bursting = true;
     this.burstT =
       this.cfg.gait === "jet" || this.cfg.swim === "jet"
@@ -162,7 +165,17 @@ export class Shark {
 
     const fearMul = look?.fearScale ?? 1;
     const striking = this.lunging || this.aiMode === "strike";
-    this.fearRadius = (striking ? cfg.lungeFearRadius : cfg.fearRadius) * fearMul * this.scale;
+    let fear = (striking ? cfg.lungeFearRadius : cfg.fearRadius) * fearMul * this.scale;
+    if (visualHunter(cfg)) {
+      const vis = visualScales(this.y, look);
+      fear *= 0.1 + 0.9 * vis.clear;
+      this.biteScale = vis.bite;
+      this.biteGlowScale = vis.biteGlow;
+    } else {
+      this.biteScale = 1;
+      this.biteGlowScale = 1;
+    }
+    this.fearRadius = fear;
     this.fearStrength = striking ? CONFIG.fish.fearWeight * 1.55 : CONFIG.fish.fearWeight;
     this.biteRadius = (striking ? cfg.lungeBiteRadius : cfg.biteRadius) * this.scale;
 
@@ -626,10 +639,22 @@ export class Shark {
     let force;
     let arriveR = 14;
     if (this.aiMode === "strike") {
+      const detect = 7.2;
+      let visR = detect;
+      let glowR = detect;
+      if (visualHunter(cfg)) {
+        const vis = visualScales(this.y, look);
+        visR = detect * (0.1 + 0.9 * vis.clear);
+        const huntsGlow = !cfg.huntTaxa?.length || cfg.huntTaxa.some((id) => SPECIES[id]?.look?.photophores);
+        if (huntsGlow && vis.clear < 0.98) {
+          const dsl = detect * 0.5;
+          glowR = Math.max(visR, visR * vis.clear + dsl * (1 - vis.clear));
+        } else glowR = visR;
+      }
       const prey =
         huntVehicle ||
-        school.nearestFish(this.mouthX, this.mouthY, this.mouthZ, 7.2, cfg.huntTaxa) ||
-        school.nearestFish(this.x, this.y, this.z, 7.2, cfg.huntTaxa);
+        school.nearestFish(this.mouthX, this.mouthY, this.mouthZ, visR, cfg.huntTaxa, glowR) ||
+        school.nearestFish(this.x, this.y, this.z, visR, cfg.huntTaxa, glowR);
       if (prey) {
         const lead = 0.16;
         tx = prey.x + prey.vx * lead;

@@ -522,13 +522,15 @@ export class School {
     }
   }
 
-  nearestFish(x, y, z, radius, taxa = null) {
+  nearestFish(x, y, z, radius, taxa = null, glowRadius = 0) {
     const grid = this.grid;
     if (!grid || this.count <= 0) return null;
     const { heads, next, keyOf, nx, ny, nz, mask, inv, minX, minY, minZ } = grid;
     const pos = this.pos;
     const vel = this.vel;
-    const r2 = radius * radius;
+    const rGlow = glowRadius > radius ? glowRadius : radius;
+    const r2 = rGlow * rGlow;
+    const vis2 = radius * radius;
     let ix0 = (x - minX) * inv | 0;
     let iy0 = (y - minY) * inv | 0;
     let iz0 = (z - minZ) * inv | 0;
@@ -561,6 +563,7 @@ export class School {
         const dz = pos[j3 + 2] - z;
         const d2 = dx * dx + dy * dy + dz * dz;
         if (d2 < bestD) {
+          if (d2 > vis2 && !this.taxa[this.taxon[j]]?.look?.photophores) continue;
           bestD = d2;
           best = j;
         }
@@ -614,6 +617,7 @@ export class School {
   update(dt, sharks, look, plankton) {
     this.eatenThisFrame = 0;
     this._plankton = plankton || null;
+    this._look = look || null;
     const pack = packOf(sharks);
     this._wanderAnchors(dt, pack, look);
     this.grid.rebuild(this.pos, this.count);
@@ -1728,17 +1732,24 @@ export class School {
   _eat(pack, plankton) {
     const { pos, count } = this;
     const carcass = CONFIG.plankton.carcass;
+    const nT = this.taxa.length;
+    const glowTaxon = new Uint8Array(nT);
+    for (let t = 0; t < nT; t++) glowTaxon[t] = this.taxa[t]?.look?.photophores ? 1 : 0;
     for (let i = count - 1; i >= 0; i--) {
       const i3 = i * 3;
       const x = pos[i3];
       const y = pos[i3 + 1];
       const z = pos[i3 + 2];
+      const taxon = this.taxon[i];
+      const id = this.taxa[taxon]?.id;
+      const glow = glowTaxon[taxon];
       for (let p = 0; p < pack.length; p++) {
         const shark = pack[p];
         if ((shark.biteT ?? 0) > 0) continue;
         if ((shark.cfg?.diet || "bite") === "filter") continue;
-        if (shark.cfg?.huntTaxa?.length && !shark.cfg.huntTaxa.includes(this.taxonId(i))) continue;
-        const r = shark.biteRadius;
+        if (shark.cfg?.huntTaxa?.length && !shark.cfg.huntTaxa.includes(id)) continue;
+        const scale = glow ? shark.biteGlowScale ?? 1 : shark.biteScale ?? 1;
+        const r = shark.biteRadius * scale;
         const dx = x - shark.mouthX;
         const dy = y - shark.mouthY;
         const dz = z - shark.mouthZ;

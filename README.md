@@ -47,7 +47,7 @@ Agents never get a private sun, current, temperature, or oxygen. They sample the
 | --- | --- |
 | **Seafloor** | Local height at (x, z) from the elevation grid. `CONFIG.floorY` is the cell minimum, not the slope under the animal. A dropoff or seamount is a wall. Beach, dunes, and wet mask from the same grid. |
 | **Flow** `sampleFlow` | Tide, longshore, thermocline shear, synthetic eddies, optional atlas mean (east → X, north → Z). Storm multiplies speed. The only current — school advection, plankton, and vehicles all read it. |
-| **Light** `samplePAR` | Beer–Lambert. \(I_0\) from sun elevation, night, storm. \(K_d\) so the 1% depth matches `photicLimitY()` (turbidity). Fog, caustics, and phytoplankton growth share that envelope. Shelf floors clip the photic. Open cells clear the water (`bindColumnHabitat`). |
+| **Light** `samplePAR` | Beer–Lambert. \(I_0\) from sun elevation, night, storm. \(K_d\) so the 1% depth matches `photicLimitY()` (turbidity). Fog, caustics, phytoplankton growth, and **visual hunt** share that envelope. `visualRange` scales detect and fear for sighted hunters; photophore prey restore a fraction in the dark. Sperm whale / orca `sense: "echo"` skip PAR. Shelf floors clip the photic. Open cells clear the water (`bindColumnHabitat`). |
 | **Temperature** `sampleTemp` | SST = latitude climatology + seasonal cycle + `sstAnomaly`. Mixed layer well-mixed; below it a fall toward deep water. Winter mixes deeper. Q10 (`columnQ10`, `productionQ10`) scales NPZD, school metabolism/graze, and vehicle drain. Catalog `temp.min` / `temp.max` gates presence. |
 | **Oxygen** `sampleO2` | ml L⁻¹. Mixed layer near saturation (SST). Eastern-boundary and tropical cells get an OMZ; deep water recovers. Catalog tank forces a refuge. Detritus remineralisation is `setOxygenDemand`. `oxygenLimitY` is the hypoxia floor unless `omzRefuge`. Humboldt `o2: { needOmz }` gates presence; day DVM follows `omzCoreY`. `o2Anomaly` is a control. Tunas and sharks stay above their `o2Min`; lanternfish `o2Min` 0.08 can occupy the hole. Hypoxia raises drain (`o2MetabolicFactor`). |
 | **NPZD** `plankton.js` | Separable 3D: \(C(x,y,z)=\mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). 128×128 typed arrays `n`, `p`, `z`, `d` — not a 128³ grid. Column shape: P in the photic / DCM, Z on a DVM, N a nutricline, D sinks. `sampleAt` / `grazeAt` return 0 below the local seafloor. Production uses PAR × P profile; Z grazing uses P–Z column coincidence. Type II half-saturation. Carcasses and excretion return mass to `n` and `d`. |
@@ -61,7 +61,7 @@ Near the camera only. One hashed-grid school (cap 20k, `UniformGrid3D`, 32768 bu
 
 **School** (`src/simulation/school.js`) — one bloom-capped budget, split by catalog `share`. Social modes: `polarized` (herring pancake), `loose` (flying fish, saury), `scatter` (lanternfish, krill, school squid). Type II graze on `z` unless `grazeOn: "p"` (krill). Hungry shoals may rise toward food; satiated shoals sit in the day refuge. Fear: surface taxa steer up (still in water); lanternfish and sand lance steer down. School squid pulse–coast on the grid velocity, then hang on `sampleFlow`. Sex is a size tint (females slightly larger). Recruits when bloom × energy can carry the mixed budget; starve-cull recycles.
 
-**Vehicles** (`src/simulation/shark.js`) — gaits `burst` (glide between tail kicks), `ram` (must keep swimming), `benthic` (hug the bed), `jet` (pulse–coast, hang on the current). Swim: lateral tail, body wave, thunniform, vertical fluke, jet. Diets: `bite` school / `huntTaxa` / `huntKinds`, `filter` (`plankton.grazeAt` on `z`), `both` (minke). Energy drain, meals restore, starve after `starveDays`, carcass recycles. Females pup on a year-timer when energy and a mate are in range. Pilot mode drives the lead blue shark (`P`).
+**Vehicles** (`src/simulation/shark.js`) — gaits `burst` (glide between tail kicks), `ram` (must keep swimming), `benthic` (hug the bed), `jet` (pulse–coast, hang on the current). Swim: lateral tail, body wave, thunniform, vertical fluke, jet. Diets: `bite` school / `huntTaxa` / `huntKinds`, `filter` (`plankton.grazeAt` on `z`), `both` (minke). Sighted hunters (`sense: "sight"`, the default) scale detect, fear, and bite with `visualRange` / `samplePAR`; lanternfish photophores restore a fraction in the DSL. Sperm whale and orca `sense: "echo"` — darkness is not a starve. Energy drain, meals restore, starve after `starveDays`, carcass recycles. Females pup on a year-timer when energy and a mate are in range. Pilot mode drives the lead blue shark (`P`).
 
 **Air-breathers** (`vehicle.breathes`) — hang level at the surface for `surfaceTime`, blow (sperm: one forward-left spout; mysticetes: two columns; dolphin/orca: a short puff), then a flukes-up dive toward live prey or typical `forageDepth`, clamped by `min(maxDepth, local floor)`. Time is compressed, so `diveSpeed` is raised enough that a kilometre-scale chase can finish in one on-screen breath-hold. Empty water does not send them to the record. HUD shows remaining breath-hold.
 
@@ -88,7 +88,7 @@ Hulls in `src/world/ranges.js`. `presenceAt` ORs every covering hull, then troph
 
 ### Catalog
 
-One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`src/render/fish.js`, `src/render/sharkMesh.js`) with countershade. Lanternfish carry photophore dots on the mesh — not a light field. Replace later with authored glTF.
+One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`src/render/fish.js`, `src/render/sharkMesh.js`) with countershade. Lanternfish photophores are mesh dots plus emissive against the dark, and a `look.photophores` flag that restores visual detect in low PAR. Replace later with authored glTF.
 
 **School (hashed grid)**
 
@@ -109,7 +109,7 @@ One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`
 | silverfish | forage · polarized | `z` | −18 / −82 · 700 m | Temp −1.8–6 °C. Toothfish prey. |
 | saury | surface · loose | `z` | top ~50 m · 50 m | Fear steers up. |
 | marketsquid | cephalopod · scatter | `z` | −16 / −200 · 400 m | Jet pulse–coast. Sperm `huntTaxa`. |
-| lanternfish | forage · scatter | `z` | −40 / −280 · 450 m | `o2Min` 0.08. Enlarges `gridMinY` when present. |
+| lanternfish | forage · scatter | `z` | −40 / −280 · 450 m | `o2Min` 0.08. Photophores restore visual detect. Enlarges `gridMinY` when present. |
 | krill | forage · scatter | `p` | −6 / −90 · 220 m | Paddle; mysticetes bite this taxon. |
 | jackmackerel | forage · polarized | `z` | −14 / −95 · 300 m | Humboldt `huntTaxa`. |
 | illex | cephalopod · scatter | `z` | −20 / −240 · 600 m | Atlantic squid. Sperm `huntTaxa`. |
@@ -131,11 +131,11 @@ One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`
 | whaleshark | ram · tail | filter `z` | 1920 m | Temp 18–31 °C, `|lat| < 30`. Bloom prey — no school required. |
 | minke | ram · fluke | filter `z` **and** bite (incl. krill) | 400 m · ~50 m | Air-breather. `|lat| > 32`. Bloom prey. |
 | humpback | burst · fluke | school + krill | 500 m · ~60 m | Air-breather. School prey. Two-column blow. |
-| spermwhale | burst · fluke | `huntTaxa` market squid, Illex, lanternfish; `huntKinds` Humboldt, giant squid | 2000 m · ~700 m | Air-breather. `|lat| < 55`. Left spout. No free calories. |
-| orca | ram · fluke | school | 800 m · ~90 m | Air-breather. Fish-eating programme. |
+| spermwhale | burst · fluke | `huntTaxa` market squid, Illex, lanternfish; `huntKinds` Humboldt, giant squid | 2000 m · ~700 m | Air-breather. `sense: echo`. `|lat| < 55`. Left spout. No free calories. |
+| orca | ram · fluke | school | 800 m · ~90 m | Air-breather. `sense: echo`. Fish-eating programme. |
 | commondolphin | ram · fluke | flying fish, sardinella, anchovy, sardine | 300 m · ~18 m | Air-breather. `|lat| < 40`. |
-| humboldtsquid | jet | anchovy, sardine, mackerel, lanternfish, jack mackerel | 1200 m · night −80 / day OMZ core | `needOmz`. East Pacific. Flees sperm downward. |
-| giantsquid | jet | lanternfish, market squid, Illex | 1200 m · night −420 / day −850 | Floor deeper than ~350 m. `|lat| < 55`. |
+| humboldtsquid | jet | anchovy, sardine, mackerel, lanternfish, jack mackerel | 1200 m · night −80 / day OMZ core | `needOmz`. East Pacific. Lanternfish glow restores day detect. Flees sperm downward. |
+| giantsquid | jet | lanternfish, market squid, Illex | 1200 m · night −420 / day −850 | Floor deeper than ~350 m. `|lat| < 55`. Lanternfish glow restores detect. |
 | cod | benthic · body | herring, capelin, sand lance, sprat, polar cod **and** seafloor carbon | 600 m | Shelf only (dropped if floor ≲ −650 m). |
 | toothfish | benthic · body | silverfish | 2000 m | Antarctic slope. Not the 650 m gate. |
 
@@ -143,7 +143,7 @@ One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`
 
 ### Rendering, HUD, and controls
 
-Water, caustics, fog, and sky follow the photic envelope and the day look (`src/render/water.js`, `caustics.js`, `environment.js`). Depth zones that exist in this column: surface, epipelagic, mesopelagic, bathypelagic, abyssal, seafloor (`G` / click the column). Lamp (`K`) is camera fill after dark — optics, not habitat. Fear-radius debug (`F`). Follow / orbit / cinematic / surface camera (`C`); next target (`N`). Census (`I`) lists live counts; click a name to look.
+Water, caustics, fog, and sky follow the photic envelope and the day look (`src/render/water.js`, `caustics.js`, `environment.js`). Fish and seafloor shading keep attenuating with the same \(K_d\) below the 1% depth — mesopelagic is near-black, not herring-green. Depth zones that exist in this column: surface, epipelagic, mesopelagic, bathypelagic, abyssal, seafloor (`G` / click the column). Lamp (`K`) is camera fill after dark — optics, not habitat; it does not feed `visualRange`. Fear-radius debug (`F`). Follow / orbit / cinematic / surface camera (`C`); next target (`N`). Census (`I`) lists live counts; click a name to look.
 
 HUD (real state only): zone and camera depth, clock, weather, school count vs bloom cap, vehicle count, P/Z, SST, O₂ at the camera, 1% light depth, PAR at the camera, benthos, follow rig. Field-notes card from `FAUNA`: **In nature**, **Not in the model** (only if `missing` is non-empty), live diet in this cell (click a name) or **None in cell** with the natural diet under it, breath-hold meter for air-breathers.
 
@@ -183,7 +183,6 @@ Physics, chemistry, scale, and senses that every biome would read.
 | Age, stage, larval drift | Recruits are bloom × year-timer |
 | Spawn as a swim | Seasonal occupancy is not a commute between cells |
 | Senses as fields | Echolocation, olfaction, electroreception, lateral line, magnetoreception, soundscape |
-| Photophores as a light field | Lanternfish still render in epipelagic light; 1500 m is too green |
 | Moon, lunar DVM, polar night / midnight sun | Day/night is a clock |
 | Marine snow / migratory carbon pump | Detritus is a column shape, not sinking aggregates or DVM flux |
 | Size-structured plankton | No nauplii → copepodite → adult, no gelatinous vs crustacean Z |
@@ -339,7 +338,7 @@ Species cards list **In nature** and per-taxon gaps under **Not in the model**. 
 
 ## Tests
 
-Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, SST, Q10, oxygen / OMZ, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`.
+Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, visual range, SST, Q10, oxygen / OMZ, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`.
 
 ```bash
 npm test
