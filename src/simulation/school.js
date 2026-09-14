@@ -7,7 +7,7 @@ import {
   schoolHunts,
 } from "../world/fauna.js";
 import { UniformGrid3D } from "./grid.js";
-import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore, clampLocalY, placeInColumn } from "./obstacles.js";
+import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore, clampLocalY, columnFloorY, placeInColumn } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { TROPHIC } from "./plankton.js";
 import { columnQ10 } from "./temperature.js";
@@ -33,27 +33,30 @@ export function shoalTargetY(hour, cfg, x, z) {
 export function shoalHuntY(hour, cfg, x, z, hunger, preyY) {
   const refuge = shoalTargetY(hour, cfg, x, z);
   const foodY = Number.isFinite(preyY) ? preyY : null;
+  let y = refuge;
   if (isSchoolBiter(cfg)) {
     const benthic = cfg.habitat === "benthic";
     if (foodY == null) {
-      if (benthic && hunger > 0.3) return dvmY(hour, cfg);
-      return refuge;
+      if (benthic && hunger > 0.3) y = dvmY(hour, cfg);
+    } else if (benthic) {
+      y = hunger > 0.3 ? foodY : refuge;
+    } else {
+      const gate = 0.18;
+      if (hunger > gate) {
+        const t = Math.min(1, (hunger - gate) / 0.4);
+        const pull = 0.5 + t * 0.5;
+        y = refuge + (foodY - refuge) * pull;
+      }
     }
-    if (benthic) return hunger > 0.3 ? foodY : refuge;
+  } else if (isSchoolGrazer(cfg) && foodY != null) {
     const gate = 0.18;
-    if (!(hunger > gate)) return refuge;
-    const t = Math.min(1, (hunger - gate) / 0.4);
-    const pull = 0.5 + t * 0.5;
-    return refuge + (foodY - refuge) * pull;
+    if (hunger > gate) {
+      const t = Math.min(1, (hunger - gate) / 0.4);
+      const pull = 0.45 + t * 0.5;
+      y = refuge + (foodY - refuge) * pull;
+    }
   }
-  if (isSchoolGrazer(cfg) && foodY != null) {
-    const gate = 0.18;
-    if (!(hunger > gate)) return refuge;
-    const t = Math.min(1, (hunger - gate) / 0.4);
-    const pull = 0.45 + t * 0.5;
-    return refuge + (foodY - refuge) * pull;
-  }
-  return refuge;
+  return clampLocalY(y, x, z, oxygenLimitY(cfg), cfg.floorClearance);
 }
 
 /** Neighbour-walk bite must reach at least one hashed-grid cell. */
@@ -134,9 +137,13 @@ const N27Z = new Int8Array(27);
  * Spacing is nearest-neighbor packing (project + spring on the K closest
  * fish), not a crowd of cancelling forces. Alignment is same-school only
  * so each shoal stays polarized. A thin pancake envelope, pinned just
- * ahead of the live centroid, keeps the volume flat. Alarm spreads
- * through neighbors as a turn wave; flee blends with hold so a strike
- * opens a hole without detonating the shoal.
+ * ahead of the live centroid, keeps the volume flat. Loose and scatter
+ * packs use a 3D blob instead — a file along heading is a local minimum
+ * of matched cruise plus nearest-neighbor springs, so neighbors that
+ * line up get a sideways step. Alarm spreads through neighbors as a
+ * turn wave; flee blends with hold so a strike opens a hole without
+ * detonating the shoal. Guild `maxDepth` is a hard clamp, not a soft
+ * depthWeight suggestion.
  *
  * Trophic: grazers Type II-pull `p` or `z`; piscivores bite named forage on
  * the neighbour walk; demersal taxa graze seafloor carbon. Starvation and
@@ -1197,6 +1204,29 @@ export class School {
       let ay = springY * cfg.sepWeight;
       let az = springZ * cfg.sepWeight;
 
+      if (nearN > 0) {
+        let lineAlong = 0;
+        let lineSide = 0;
+        const hx = anchor.hx;
+        const hz = anchor.hz;
+        for (let t = 0; t < NEAR_K; t++) {
+          const j = nj[t];
+          if (j < 0) continue;
+          const j3 = j * 3;
+          const dx = px - pos[j3];
+          const dz = pz - pos[j3 + 2];
+          lineAlong += Math.abs(dx * hx + dz * hz);
+          lineSide += Math.abs(dx * -hz + dz * hx);
+        }
+        if (lineAlong > rest * 1.15 && lineAlong > lineSide * 2.05) {
+          const bias = this.phase[i] > Math.PI ? 1 : -1;
+          const push =
+            cfg.sepWeight * rest * Math.min(1.8, lineAlong / (lineSide + rest * 0.35));
+          ax += -hz * bias * push;
+          az += hx * bias * push;
+        }
+      }
+
       if (aliN > 0) {
         const invN = 1 / aliN;
         ax += (aliX * invN - vx) * cfg.aliWeight;
@@ -1323,26 +1353,23 @@ export class School {
           cruiseZ -= extra * (nxh * anchor.hz) / alongR + extra * (nzh * anchor.hx) / sideR;
         } else if (along < 0) {
           const catchUp = (-along / alongR) * 2.6;
-          cruiseX += dhx * catchUp;
-          cruiseZ += dhz * catchUp;
-        }
-        const sideAbs = Math.abs(side);
-        if (mill < 0.25 && sideAbs > alongR * 0.4) {
-          const cut = (sideAbs / sideR - 0.5) * 3.1;
-          if (cut > 0) {
-            const sgn = side > 0 ? 1 : -1;
-            cruiseX += anchor.hz * sgn * cut;
-            cruiseZ -= anchor.hx * sgn * cut;
-          }
+          const bias = this.phase[i] > Math.PI ? 1 : -1;
+          cruiseX += dhx * catchUp - anchor.hz * bias * catchUp * 0.35;
+          cruiseZ += dhz * catchUp + anchor.hx * bias * catchUp * 0.35;
         }
       } else {
-        const d2 = hdx * hdx + hdz * hdz;
-        const r = Math.max(8, cfg.schoolRadius);
-        if (d2 > r * r) {
-          const d = Math.sqrt(d2);
-          const w = cfg.holdWeight * Math.min(2.2, d / r - 1);
-          cruiseX -= (hdx / d) * w;
-          cruiseZ -= (hdz / d) * w;
+        const aggR = Math.max(8, cfg.schoolRadius);
+        const aggH = Math.max(2.4, cfg.schoolHeight || 5);
+        const nxh = hdx / aggR;
+        const nyh = hdy / aggH;
+        const nzh = hdz / aggR;
+        const e2 = nxh * nxh + nyh * nyh + nzh * nzh;
+        if (e2 > 1) {
+          const e = Math.sqrt(e2);
+          const extra = cfg.holdWeight * Math.min(2.4, e - 1);
+          cruiseX -= extra * nxh;
+          cruiseY -= extra * nyh;
+          cruiseZ -= extra * nzh;
         }
       }
       cruiseY += (anchor.y - py) * cfg.depthWeight;
@@ -1556,8 +1583,8 @@ export class School {
           ? cfg.pitchLimit * 2.1
           : shoreU > 0.2
             ? cfg.pitchLimit * 1.55
-            : depthErr > 16
-              ? cfg.pitchLimit * 1.65
+            : depthErr > 8
+              ? Math.min(1.2, cfg.pitchLimit * (1.35 + Math.min(1.8, depthErr / 22)))
               : cfg.pitchLimit;
       const horiz = Math.hypot(nvx, nvz);
       const pitchCap = horiz * Math.tan(maxPitch) + 0.04;
@@ -1570,9 +1597,8 @@ export class School {
       let nxPos = px + (nvx + flow.x * flowMul) * dt + corrX;
       let nyPos = py + (nvy + flow.y * (swim === "jet" || swim === "paddle" ? 0.85 : 1)) * dt + corrY;
       let nzPos = pz + (nvz + flow.z * flowMul) * dt + corrZ;
-      const ground2 = seafloorHeight(nxPos, nzPos);
       const hardCeil = -0.7;
-      const hardFloor = ground2 + 1.35;
+      const hardFloor = columnFloorY(nxPos, nzPos, oxygenLimitY(cfg), cfg.floorClearance);
       if (nyPos > hardCeil) {
         nyPos = hardCeil;
         nvy = Math.min(nvy, 0);

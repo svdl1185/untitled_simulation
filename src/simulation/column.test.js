@@ -20,7 +20,7 @@ import { faunaPresent } from "../config.js";
 import { School, shoalHuntY, schoolBiteRadius } from "./school.js";
 import { spawnPredators } from "./shark.js";
 import { seafloorHeight, findWaterAtDepth } from "./obstacles.js";
-import { vehicleCfg, knobsFor, SPECIES, allocateMixedSchoolCounts, schoolDiet } from "../world/fauna.js";
+import { vehicleCfg, knobsFor, lookFor, SPECIES, allocateMixedSchoolCounts, schoolDiet } from "../world/fauna.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -652,4 +652,112 @@ function assert(cond, msg) {
   assert(observeDayIndex(56) === 180, "North Sea observe day stays 180");
 }
 
-console.log("column physics: 31 checks ok");
+{
+  applyPatch(makeTestPatch());
+  const ff = knobsFor("flyingfish");
+  const hunt = shoalHuntY(12, ff, 0, 0, 0.95, -80);
+  assert(hunt >= ff.maxDepth - 0.05, `hungry flying fish must not chase Z past maxDepth, got ${hunt.toFixed(1)}`);
+  const taxa = [{ id: "flyingfish", cfg: ff, look: lookFor("flyingfish"), share: 1 }];
+  const school = new School(40, { hour: 12, taxa });
+  const sid0 = school.schoolId[0];
+  const c = school.centroids[sid0];
+  for (let i = 0; i < school.count; i++) {
+    const i3 = i * 3;
+    school.pos[i3] = c.x + i * 1.7;
+    school.pos[i3 + 1] = -8;
+    school.pos[i3 + 2] = c.z;
+    school.vel[i3] = 7.2;
+    school.vel[i3 + 1] = 0;
+    school.vel[i3 + 2] = 0.15;
+    school.energy[i] = 0.55;
+    school.schoolId[i] = sid0;
+  }
+  school._refreshCentroids();
+  let t = 0;
+  const dt = 1 / 30;
+  for (let k = 0; k < 180; k++) {
+    t += dt;
+    school.update(dt, [], { hour: 12, simTime: t, night: 0, tight: 0 }, null);
+  }
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  let deep = 0;
+  for (let i = 0; i < school.count; i++) {
+    const i3 = i * 3;
+    const x = school.pos[i3];
+    const y = school.pos[i3 + 1];
+    const z = school.pos[i3 + 2];
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
+    if (y < ff.maxDepth - 0.6) deep++;
+  }
+  const spans = [maxX - minX, maxY - minY, maxZ - minZ].sort((a, b) => b - a);
+  assert(!deep, `${deep} flying fish sat below maxDepth ${ff.maxDepth} (deepest ${minY.toFixed(1)})`);
+  assert(
+    spans[0] < spans[1] * 6.5 || spans[0] < 28,
+    `loose school should not collapse to a file (${spans.map((s) => s.toFixed(1)).join(" × ")})`
+  );
+}
+
+{
+  applyPatch(makeTestPatch());
+  const herring = knobsFor("herring");
+  const taxa = [{ id: "herring", cfg: herring, look: lookFor("herring"), share: 1 }];
+  const school = new School(220, { hour: 6.2, taxa });
+  let t = 0;
+  const dt = 1 / 30;
+  for (let k = 0; k < 240; k++) {
+    t += dt;
+    const hour = 6.2 + (k / 240) * 2.4;
+    school.update(dt, [], { hour, simTime: t, night: Math.max(0, 1 - (hour - 6.2) / 2), tight: 0 }, null);
+  }
+  let best = 0;
+  let bestSid = 0;
+  for (let s = 0; s < school.maxSchools; s++) {
+    if (school.schoolN[s] > best) {
+      best = school.schoolN[s];
+      bestSid = s;
+    }
+  }
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (let i = 0; i < school.count; i++) {
+    if (school.schoolId[i] !== bestSid) continue;
+    const i3 = i * 3;
+    const x = school.pos[i3];
+    const y = school.pos[i3 + 1];
+    const z = school.pos[i3 + 2];
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
+  }
+  const sx = maxX - minX;
+  const sy = maxY - minY;
+  const sz = maxZ - minZ;
+  const horiz = Math.max(sx, sz);
+  assert(
+    best > 20,
+    `dawn herring commute should keep a live pancake, got ${best}`
+  );
+  assert(
+    sy < horiz * 2.4 || sy < 28,
+    `polarized school should not stretch into a depth filament (${sx.toFixed(1)} × ${sy.toFixed(1)} × ${sz.toFixed(1)})`
+  );
+}
+
+console.log("column physics: 33 checks ok");
