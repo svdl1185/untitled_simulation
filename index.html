@@ -19,8 +19,8 @@
           Map
           <kbd>O</kbd>
         </button>
-        <button type="button" id="btn-lab" title="10 km catalog tank with every species">
-          Lab
+        <button type="button" id="btn-cells" aria-expanded="false" aria-controls="hud-demos" title="Named kilometres: catalog tank and biomes">
+          Cells
         </button>
         <button type="button" id="btn-cell" hidden aria-expanded="false" aria-controls="hud-cell">
           Cell
@@ -69,6 +69,10 @@
       <section class="hud-panel" id="hud-cell" hidden>
         <h3>Cell</h3>
         <div class="hud-stats" id="hud-general-body"></div>
+      </section>
+      <section class="hud-panel" id="hud-demos" hidden>
+        <h3>Cells</h3>
+        <div class="about-body" id="hud-demos-body"></div>
       </section>
       <section class="hud-panel" id="about" hidden>
         <h3>About</h3>
@@ -215,9 +219,10 @@
           <ul class="about-inv">
             <li>
               <strong>Cell and atlas.</strong> World map is home. Click water for a 1 km cell (GEBCO
-              tint, GMRT floor, HYCOM mean current when it answers). Land is not a cell. Catalog tank
-              is a 10 km lab: beach, stepped shelves, canyon, seamount, 2000 m — every catalogued
-              animal, not a real place. Neighbour chunks cache; animals do not swim between cells.
+              tint, GMRT floor, HYCOM mean current when it answers). Land is not a cell. <strong>Cells</strong>
+              is a picker of named kilometres: the 10 km catalog tank (every species, stepped shelves, 2000 m)
+              plus biomes from the coupling figure. Gap tiles still open the pelagic water at that site — they
+              do not invent coral or ice. Neighbour chunks cache; animals do not swim between cells.
               Clock: 8 min ≈ 1 day, twelve sim days per year. Storms mix deeper, shoal the nutricline,
               and raise current.
             </li>
@@ -362,7 +367,7 @@
         </div>
       </section>
     </aside>
-    <p id="pilot-hint">Click water on the map to enter a 1 km cell · Lab opens the catalog tank</p>
+    <p id="pilot-hint">Click water on the map to enter a 1 km cell · Cells picks a named kilometre</p>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

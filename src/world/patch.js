@@ -183,6 +183,9 @@ export function makeElevationPatch(id, originLat, originLon, elevation, nx, nz, 
     synthetic: extra.synthetic ?? false,
     lab: !!extra.lab,
     boot: !!extra.boot,
+    demoId: extra.demoId || null,
+    location: extra.location || null,
+    about: extra.about || "",
     statics: extra.statics ?? false,
     current: extra.current || { u: 0, v: 0 },
     presence: extra.presence || emptyPresence(),
@@ -360,6 +363,33 @@ const STOCK = {
   },
 };
 
+function copyPresence(src, patch, { honorFloor = true, forceBenthos = false } = {}) {
+  const next = emptyPresence();
+  for (const id of Object.keys(next)) next[id] = src?.[id] ?? 0;
+  if (honorFloor && patch && !patch.lab) {
+    for (const id of Object.keys(next)) {
+      const spec = SPECIES[id];
+      if (next[id] && spec?.guild === "demersal" && patch.floorY < -650) next[id] = 0;
+      if (next[id] && spec?.minFloorY != null && patch.floorY > spec.minFloorY) next[id] = 0;
+    }
+  }
+  if (forceBenthos) next.benthos = 1;
+  return next;
+}
+
+/** Overlay sandbox fauna without rebinding bathymetry or climate. */
+export function applyPresence(presence, opts = {}) {
+  const patch = getActivePatch();
+  const next = copyPresence(presence, patch, {
+    honorFloor: opts.honorFloor !== false,
+    forceBenthos: false,
+  });
+  CONFIG.presence = next;
+  if (patch) patch.presence = next;
+  bindCellFauna();
+  return next;
+}
+
 export function applyPatch(patch) {
   setActivePatch(patch);
   CONFIG.world.lat = patch.originLat;
@@ -367,18 +397,13 @@ export function applyPatch(patch) {
   CONFIG.world.synthetic = !!patch.synthetic;
   CONFIG.world.statics = !!patch.statics;
   CONFIG.world.lab = !!patch.lab;
-  const next = emptyPresence();
-  const src = patch.presence || {};
-  for (const id of Object.keys(next)) next[id] = src[id] ?? 0;
-  if (!patch.lab) {
-    for (const id of Object.keys(next)) {
-      const spec = SPECIES[id];
-      if (next[id] && spec?.guild === "demersal" && patch.floorY < -650) next[id] = 0;
-      if (next[id] && spec?.minFloorY != null && patch.floorY > spec.minFloorY) next[id] = 0;
-    }
-  }
+  CONFIG.world.demoId = patch.demoId || null;
+  const next = copyPresence(patch.presence, patch, {
+    honorFloor: !patch.lab,
+    forceBenthos: !patch.boot,
+  });
   CONFIG.presence = next;
-  if (!patch.boot) CONFIG.presence.benthos = 1;
+  patch.presence = next;
   CONFIG.flow.meanU = patch.current?.u ?? 0;
   CONFIG.flow.meanV = patch.current?.v ?? 0;
   CONFIG.maxSchools = patch.lab ? 48 : 32;
@@ -387,7 +412,7 @@ export function applyPatch(patch) {
 
   if (patch.lab) {
     const half = (patch.sizeM || LAB_SIZE_M) / 2;
-    CONFIG.location = "lab-cell";
+    CONFIG.location = patch.location || "lab-cell";
     CONFIG.halfX = half;
     CONFIG.halfZ = half;
     CONFIG.floorY = patch.floorY;
@@ -408,8 +433,39 @@ export function applyPatch(patch) {
     return patch;
   }
 
+  if (patch.elevation) {
+    const half = (patch.sizeM || PATCH_SIZE_M) / 2;
+    CONFIG.location = patch.location || (patch.demoId ? patch.demoId : "world-cell");
+    CONFIG.halfX = half;
+    CONFIG.halfZ = half;
+    CONFIG.floorY = patch.floorY;
+    CONFIG.shelfY = patch.shelfY;
+    CONFIG.initialFish = 12000;
+    bindColumnHabitat(patch.floorY, patch.hasLand);
+    bindCellTemperature();
+    bindCellUpwell();
+    bindCellOxygen();
+    if (patch.hasLand) {
+      CONFIG.beach.enabled = true;
+      CONFIG.beach.startZ = CONFIG.halfZ * 0.12;
+      CONFIG.beach.shoreZ = CONFIG.halfZ * 0.72;
+      CONFIG.beach.endZ = CONFIG.halfZ;
+      CONFIG.beach.shoreY = 0.18;
+      CONFIG.beach.duneY = Math.max(2, patch.centerY > 0 ? patch.centerY : 4);
+    } else {
+      CONFIG.beach.enabled = false;
+      CONFIG.beach.startZ = CONFIG.halfZ + 400;
+      CONFIG.beach.shoreZ = CONFIG.halfZ + 800;
+      CONFIG.beach.endZ = CONFIG.halfZ;
+      CONFIG.beach.shoreY = 0.18;
+      CONFIG.beach.duneY = 6.4;
+    }
+    bindCellFauna();
+    return patch;
+  }
+
   if (patch.synthetic) {
-    CONFIG.location = patch.boot ? "world-map" : "north-sea-shelf";
+    CONFIG.location = patch.boot ? "world-map" : patch.location || "north-sea-shelf";
     CONFIG.halfX = STOCK.halfX;
     CONFIG.halfZ = STOCK.halfZ;
     CONFIG.floorY = STOCK.floorY;
@@ -427,7 +483,7 @@ export function applyPatch(patch) {
     return patch;
   }
 
-  CONFIG.location = "world-cell";
+  CONFIG.location = patch.location || "world-cell";
   CONFIG.halfX = PATCH_SIZE_M / 2;
   CONFIG.halfZ = PATCH_SIZE_M / 2;
   CONFIG.floorY = patch.floorY;

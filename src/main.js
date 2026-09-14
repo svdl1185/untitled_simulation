@@ -20,10 +20,11 @@ import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followC
 import { createHUD } from "./ui.js";
 import { getLocation, sharkCard, herringCard, schoolCard, censusList } from "./species.js";
 import { seafloorHeight, findWaterAtDepth } from "./simulation/obstacles.js";
-import { applyPatch, makeBootPatch, makeTestPatch, formatLatLon, getActivePatch } from "./world/patch.js";
+import { applyPatch, applyPresence, makeBootPatch, formatLatLon, getActivePatch } from "./world/patch.js";
 import { WorldStream } from "./world/stream.js";
 import { loadPatchById } from "./world/atlas.js";
 import { createOceanMap } from "./world/map.js";
+import { demoById, makeDemoPatch, stampLoadedPatch } from "./world/demos.js";
 
 if (window.__schoolTeardown) window.__schoolTeardown();
 
@@ -379,23 +380,96 @@ async function enterCell(lat, lon) {
   hud.set("oceanMap", false);
   hud.setEntered(true);
   cellEntered = true;
+  hud.setDemoState({ activeId: null, loading: false, status: "" });
   hud.setHint(cameraHint(CAM.FREE, false, false));
   return patch;
 }
 
 function enterLab() {
-  const patch = makeTestPatch();
-  applyPatch(patch);
-  hud.set("fish", CONFIG.initialFish);
-  bindWorld();
-  hud.set("oceanMap", false);
-  hud.setEntered(true);
-  cellEntered = true;
-  hud.setHint(cameraHint(CAM.FREE, false, false));
-  return patch;
+  return enterDemo("catalog");
 }
+
+const DEMO_OFFSETS = [
+  [0, 0],
+  [0.12, 0],
+  [-0.12, 0],
+  [0, 0.12],
+  [0, -0.12],
+  [0.18, 0.1],
+  [-0.18, -0.1],
+];
+
+async function loadDemoAtlas(demo) {
+  let last = null;
+  for (const [dlat, dlon] of DEMO_OFFSETS) {
+    try {
+      return await world.enter(demo.lat + dlat, demo.lon + dlon, loadPatchById);
+    } catch (err) {
+      last = err;
+    }
+  }
+  throw last || new Error("No water cell at that site.");
+}
+
+async function enterDemo(id, presence) {
+  const demo = demoById(id);
+  if (!demo) return null;
+  hud.setDemoState({ loading: true, status: `Loading ${demo.title}…` });
+  hud.setHint(`Loading ${demo.title}…`);
+  let patch;
+  let note = "";
+  try {
+    if (demo.kind === "lab") {
+      patch = makeDemoPatch(demo, presence);
+    } else {
+      try {
+        patch = await loadDemoAtlas(demo);
+        stampLoadedPatch(patch, demo);
+        if (presence) patch.presence = presence;
+      } catch (err) {
+        patch = makeDemoPatch(demo, presence);
+        note = err?.message || "Atlas did not bind this cell; using a synthetic floor.";
+      }
+    }
+    applyPatch(patch);
+    if (presence) applyPresence(presence, { honorFloor: !patch.lab });
+    if (hud.get("fish") > CONFIG.maxFish) hud.set("fish", CONFIG.initialFish);
+    else hud.set("fish", CONFIG.initialFish);
+    bindWorld();
+    if (Number.isFinite(patch.originLat)) oceanMap.focus(patch.originLat, patch.originLon);
+    hud.set("oceanMap", false);
+    hud.setEntered(true);
+    cellEntered = true;
+    hud.setHint(cameraHint(CAM.FREE, false, false));
+    if (!note && patch.synthetic && demo.kind !== "lab") {
+      note = "Synthetic floor — atlas did not bind this cell.";
+    }
+    hud.setDemoState({ activeId: demo.id, loading: false, status: note });
+    return patch;
+  } catch (err) {
+    hud.setDemoState({ loading: false, status: err?.message || "Could not open that cell." });
+    hud.setHint("Cells: that kilometre did not load");
+    throw err;
+  }
+}
+
+function applySandbox(presence) {
+  applyPresence(presence, { honorFloor: !CONFIG.world.lab });
+  if (anySchoolPresent()) {
+    const n = Number(hud.get("fish") ?? CONFIG.initialFish);
+    hud.set("fish", n > 0 ? n : CONFIG.initialFish);
+  } else {
+    hud.set("fish", 0);
+  }
+  rebuildLife();
+  inspect = null;
+  tracking = null;
+  if (typeof applyCamera === "function") applyCamera(CAM.FREE);
+}
+
 window.__sim.enter = enterCell;
 window.__sim.lab = enterLab;
+window.__sim.demo = enterDemo;
 window.__sim.map = oceanMap;
 
 hud.on("fish", (n) => school.setCount(n));
@@ -440,9 +514,13 @@ hud.on("oceanMap", (on) => {
   }
   oceanMap.setOpen(on);
 });
-hud.on("lab", () => {
-  enterLab();
+hud.on("demo", ({ id, presence } = {}) => {
+  enterDemo(id, presence);
   oceanMap.setOpen(false);
+});
+hud.on("demoFauna", ({ presence } = {}) => {
+  if (!cellEntered) return;
+  applySandbox(presence);
 });
 hud.on("focusSpecies", (id) => focusSpecies(id));
 hud.on("dismissSubject", () => {
@@ -670,7 +748,7 @@ function hudView() {
       id: "span",
       label: "Span",
       value: span,
-      hint: "Horizontal extent of the simulated cell. World cells are 1 km; Lab is 10 km.",
+      hint: "Horizontal extent of the simulated cell. World cells are 1 km; the catalog tank is 10 km.",
     },
     {
       id: "zone",
@@ -1156,5 +1234,5 @@ window.__booted = true;
 function bootHome() {
   hud.set("oceanMap", true);
   oceanMap.setOpen(true);
-  hud.setHint("Click water to enter a 1 km cell · Lab opens the 10 km catalog tank");
+  hud.setHint("Click water to enter a 1 km cell · Cells picks a named kilometre");
 }

@@ -1,5 +1,8 @@
 import { CONFIG } from "./config.js";
 import { CAMERA_MODES } from "./camera.js";
+import { DEMO_CELLS, defaultToggles, demoById, presenceFromToggles, sandboxIds } from "./world/demos.js";
+import { SPECIES } from "./world/fauna.js";
+import { FAUNA } from "./world/fieldNotes.js";
 
 /**
  * Add a control: push an item into MENU, then hud.on(id, handler) in main.js.
@@ -198,6 +201,7 @@ export const MENU = [
 const KEY_HELP = [
   ["M / Tab", "Open or close controls"],
   ["O", "World map (home)"],
+  ["Cells", "Named kilometres: catalog tank and biomes"],
   ["I", "Census, when a cell is open"],
   ["Click census", "Jump to that animal"],
   ["Click column", "Jump to that depth; walks offshore if the floor here is too shallow"],
@@ -247,12 +251,14 @@ export function createHUD() {
   const btnMenu = document.getElementById("btn-menu");
   const btnAbout = document.getElementById("btn-about");
   const btnMap = document.getElementById("btn-map");
-  const btnLab = document.getElementById("btn-lab");
+  const btnCells = document.getElementById("btn-cells");
   const btnCell = document.getElementById("btn-cell");
   const hint = document.getElementById("pilot-hint");
   const notes = document.getElementById("hud-notes");
   const btnNotes = document.getElementById("btn-notes");
   const generalPanel = document.getElementById("hud-cell");
+  const demosPanel = document.getElementById("hud-demos");
+  const demosBody = document.getElementById("hud-demos-body");
   const censusPanel = document.getElementById("hud-census");
   const columnRoot = document.getElementById("hud-column");
   const generalBody = document.getElementById("hud-general-body");
@@ -397,9 +403,9 @@ export function createHUD() {
       btnMap.classList.toggle("on", mapOn);
       btnMap.setAttribute("aria-pressed", mapOn ? "true" : "false");
     }
-    if (btnLab) {
-      btnLab.classList.toggle("on", false);
-      btnLab.disabled = false;
+    if (btnCells) {
+      btnCells.classList.toggle("on", dock === "demos");
+      btnCells.setAttribute("aria-expanded", dock === "demos" ? "true" : "false");
     }
     if (btnCell) {
       btnCell.hidden = !cell;
@@ -420,12 +426,13 @@ export function createHUD() {
       btnMenu.setAttribute("aria-expanded", dock === "menu" ? "true" : "false");
     }
     if (generalPanel) generalPanel.hidden = dock !== "cell";
+    if (demosPanel) demosPanel.hidden = dock !== "demos";
     if (censusPanel) censusPanel.hidden = dock !== "census";
     if (subjectPanel) subjectPanel.hidden = dock !== "subject";
     if (about) about.hidden = dock !== "about";
     if (menu) menu.hidden = dock !== "menu";
     notes.classList.toggle("is-collapsed", !dock);
-    notes.classList.toggle("is-wide", dock === "about" || dock === "menu");
+    notes.classList.toggle("is-wide", dock === "about" || dock === "menu" || dock === "demos");
     if (columnRoot) columnRoot.hidden = !cell;
     document.body.classList.toggle("has-column", cell);
     syncFields();
@@ -511,6 +518,8 @@ export function createHUD() {
     syncFields();
   }
 
+  const demosView = bindDemos(demosBody, (id, payload) => emit(id, payload));
+
   btnMenu.addEventListener("click", () => toggleDock("menu"));
   btnAbout?.addEventListener("click", () => toggleDock("about"));
   btnNotes.addEventListener("click", () => toggleDock("census"));
@@ -520,7 +529,7 @@ export function createHUD() {
     set("oceanMap", next);
     emit("oceanMap", next);
   });
-  btnLab?.addEventListener("click", () => emit("lab", true));
+  btnCells?.addEventListener("click", () => toggleDock("demos"));
   btnFollow.addEventListener("click", () => emit("followSubject", true));
   document.addEventListener(
     "pointerdown",
@@ -615,10 +624,13 @@ export function createHUD() {
     setHint(text) {
       hint.textContent = text;
     },
+    setDemoState(state) {
+      demosView.setState(state);
+    },
     setCameraLive,
     setEntered(on) {
       entered = !!on;
-      if (entered && !values.oceanMap && !CELL_DOCKS.has(dock)) setDock("census");
+      if (entered && !values.oceanMap && !CELL_DOCKS.has(dock) && dock !== "demos") setDock("census");
       else syncNav();
     },
     setSelectOptions(id, options, value) {
@@ -1100,4 +1112,172 @@ function buildItem(item, values) {
     item.key ? el("kbd", { text: item.key }) : null,
   ]);
   return { row };
+}
+
+function taxonName(id) {
+  return FAUNA[id]?.common || SPECIES[id]?.label || id;
+}
+
+function taxonGroup(id) {
+  const agent = SPECIES[id]?.agent;
+  if (agent === "school") return "School";
+  if (agent === "vehicle") return "Vehicles";
+  return "Field";
+}
+
+function bindDemos(root, emit) {
+  if (!root) {
+    return { setState() {} };
+  }
+  let selected = "catalog";
+  let toggles = defaultToggles(demoById(selected));
+  let activeId = null;
+  let loading = false;
+  let status = "";
+
+  const lead = el("p", {
+    text: "Named kilometres. Map is still free roam. Coupled tiles load a real place. Gap tiles still open the pelagic water at that site — they do not invent coral, ice, or a vent.",
+  });
+  const grid = el("div", { class: "demo-grid" });
+  const detail = el("div", { class: "demo-detail" });
+  root.replaceChildren(lead, grid, detail);
+
+  const cards = new Map();
+  for (const demo of DEMO_CELLS) {
+    const card = el("button", {
+      type: "button",
+      class: `demo-card is-${demo.status}`,
+      "data-demo": demo.id,
+    }, [
+      el("span", { class: "demo-kicker", text: demo.kicker }),
+      el("span", { class: "demo-title", text: demo.title }),
+      el("span", { class: "demo-region", text: demo.region }),
+    ]);
+    card.addEventListener("click", () => select(demo.id));
+    cards.set(demo.id, card);
+    grid.append(card);
+  }
+
+  function select(id, keepToggles = false) {
+    const demo = demoById(id);
+    if (!demo) return;
+    selected = id;
+    if (!keepToggles) toggles = defaultToggles(demo);
+    render();
+  }
+
+  function presence() {
+    return presenceFromToggles(demoById(selected), toggles);
+  }
+
+  function setTaxon(id, on) {
+    toggles = { ...toggles, [id]: !!on };
+    render();
+    if (activeId === selected && !loading) emit("demoFauna", { id: selected, presence: presence() });
+  }
+
+  function enter() {
+    if (loading) return;
+    emit("demo", { id: selected, presence: presence() });
+  }
+
+  function render() {
+    const demo = demoById(selected);
+    for (const [id, card] of cards) {
+      card.classList.toggle("on", id === selected);
+      card.classList.toggle("is-active", id === activeId);
+    }
+    if (!demo) {
+      detail.replaceChildren();
+      return;
+    }
+    const live = activeId === demo.id;
+    const observe = el("ul", { class: "demo-observe" });
+    for (const line of demo.observe || []) observe.append(el("li", { text: line }));
+    const missing = (demo.missing || []).length
+      ? el("div", { class: "demo-missing" }, [
+          el("p", { class: "about-label", text: "Not in the model" }),
+          ...demo.missing.map((line) => el("p", { text: line })),
+        ])
+      : null;
+    const groups = new Map();
+    for (const id of sandboxIds(demo)) {
+      const g = taxonGroup(id);
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(id);
+    }
+    const fauna = el("div", { class: "demo-fauna" });
+    fauna.append(
+      el("p", { class: "about-label", text: live ? "Fauna in this cell" : "Fauna (sandbox)" })
+    );
+    for (const [group, ids] of groups) {
+      fauna.append(el("p", { class: "demo-fauna-group", text: group }));
+      const row = el("div", { class: "demo-taxa" });
+      for (const id of ids) {
+        const on = !!toggles[id];
+        const chip = el("button", {
+          type: "button",
+          class: `demo-taxon${on ? " on" : ""}`,
+          "aria-pressed": on ? "true" : "false",
+          title: on ? `Remove ${taxonName(id)}` : `Add ${taxonName(id)}`,
+        }, [el("span", { text: taxonName(id) })]);
+        chip.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setTaxon(id, !on);
+        });
+        row.append(chip);
+      }
+      fauna.append(row);
+    }
+    const actions = el("div", { class: "demo-actions" }, [
+      el("button", {
+        type: "button",
+        class: "demo-enter",
+        disabled: loading ? "" : false,
+        text: loading ? "Loading…" : live ? "Reload this cell" : "Enter this cell",
+      }),
+      el("button", {
+        type: "button",
+        class: "demo-reset",
+        text: "Reset fauna",
+      }),
+    ]);
+    actions.firstChild.addEventListener("click", enter);
+    actions.lastChild.addEventListener("click", () => {
+      toggles = defaultToggles(demo);
+      render();
+      if (activeId === selected && !loading) emit("demoFauna", { id: selected, presence: presence() });
+    });
+    const note = status
+      ? el("p", { class: "demo-status", text: status })
+      : live
+        ? el("p", { class: "demo-status", text: "This cell is open. Toggle a name to add or remove it." })
+        : null;
+    detail.replaceChildren(
+      ...[
+        el("p", { class: "demo-detail-title", text: demo.title }),
+        el("p", { text: demo.about }),
+        el("p", { class: "about-label", text: "Observe" }),
+        observe,
+        missing,
+        fauna,
+        actions,
+        note,
+      ].filter(Boolean)
+    );
+  }
+
+  render();
+  return {
+    setState(next = {}) {
+      if (next.activeId !== undefined) {
+        activeId = next.activeId;
+        if (activeId && activeId !== selected) select(activeId, false);
+      }
+      if (next.loading !== undefined) loading = !!next.loading;
+      if (next.status !== undefined) status = next.status || "";
+      render();
+    },
+  };
 }

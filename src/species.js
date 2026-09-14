@@ -11,7 +11,7 @@ export const LOCATIONS = {
     name: "World ocean",
     region: "Pick a 1 km cell",
     about:
-      "The map is the window onto the basin. Click water to load that kilometre: GEBCO bathymetry, a mean current, and every catalogued animal whose range covers the cell. The lab is a 10 km tank with the whole catalog, for testing coexistence and depth — not a real place.",
+      "The map is the window onto the basin. Click water to load that kilometre: GEBCO bathymetry, a mean current, and every catalogued animal whose range covers the cell. Cells is a picker of named kilometres — the catalog tank plus biomes from the coupling figure — not a second ocean.",
     fauna: Object.values(FAUNA),
   },
   "lab-cell": {
@@ -45,17 +45,16 @@ export function getLocation(id = CONFIG.location) {
   const patch = getActivePatch();
   const fauna = (loc.fauna || []).filter((sp) => faunaPresent(sp.id)).map(localizeFauna);
   if (!patch) return { ...loc, fauna };
+  const named = patch.about || (patch.lab || patch.synthetic ? loc.about : null);
   return {
     ...loc,
     name: patch.name || loc.name,
     region: patch.region || loc.region,
-    about: patch.lab
-      ? loc.about
-      : patch.synthetic
-        ? loc.about
-        : `1 km cell at ${patch.region}. Mean floor ${Math.abs(patch.floorY).toFixed(0)} m. ${
-            fauna.length ? fauna.map((s) => s.common).join(", ") : "No implemented fauna in range."
-          }${patch.note ? ` ${patch.note}` : ""}`,
+    about: named
+      ? named
+      : `1 km cell at ${patch.region}. Mean floor ${Math.abs(patch.floorY).toFixed(0)} m. ${
+          fauna.length ? fauna.map((s) => s.common).join(", ") : "No implemented fauna in range."
+        }${patch.note ? ` ${patch.note}` : ""}`,
     fauna,
   };
 }
