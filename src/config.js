@@ -15,6 +15,7 @@ export const CONFIG = {
   schoolCount: 2,
   maxSchools: 32,
   schoolMinPer: 0,
+  piscivorePreyRatio: 22,
   forageId: "herring",
 
   surfaceY: 0,
@@ -30,6 +31,7 @@ export const CONFIG = {
     synthetic: true,
     statics: true,
     lab: false,
+    demoId: null,
   },
 
   presence: { ...emptyPresence(), herring: 1, shark: 1, cod: 1 },
@@ -77,8 +79,6 @@ export const CONFIG = {
   fish: { ...FISH_DEFAULTS },
 
   shark: vehicleCfg("shark"),
-  tuna: vehicleCfg("tuna"),
-  cod: vehicleCfg("cod"),
 
   flow: {
     tide: 1.85,
