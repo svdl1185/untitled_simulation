@@ -1,4 +1,4 @@
-import { diagnoseSpecies } from "./viability.js";
+import { diagnoseSpecies, verdictOf, formatDiet, catalogRow } from "./viability.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -178,4 +178,128 @@ const sperm = {
   assert(r.flags.some((f) => f.code === "extinct"), "firstN>0 and n=0 is extinct, not absent");
 }
 
-console.log("viability diagnose: 9 checks ok");
+{
+  const r = diagnoseSpecies(
+    sperm,
+    series({
+      n: [2, 2, 2],
+      energy: [0.4, 0.3, 0.22],
+      meals: [0, 0, 0],
+      graze: [0, 0, 0],
+      born: [0, 0, 0],
+      starved: [0, 0, 0],
+    }),
+    {
+      days: 0.8,
+      liveIds: new Set(["spermwhale", "marketsquid"]),
+      everAlive: new Set(["spermwhale"]),
+    }
+  );
+  assert(r.flags.some((f) => f.code === "prey-never-spawned"), "habitat prey that never lived is a spawn miss");
+  assert(!r.flags.some((f) => f.code === "not-eating"), "unspawned prey is not a missed meal");
+}
+
+{
+  const whale = catalogRow("spermwhale");
+  const r = diagnoseSpecies(
+    whale,
+    series({
+      n: [1, 1, 1],
+      energy: [0.55, 0.5, 0.48],
+      meals: [0, 4, 12],
+      graze: [0, 0, 0],
+      born: [0, 0, 0],
+      starved: [0, 0, 0],
+    }),
+    {
+      days: 2.0,
+      liveIds: new Set(["spermwhale", "lanternfish", "giantsquid"]),
+      everAlive: new Set(["spermwhale", "lanternfish", "giantsquid"]),
+      diet: { lanternfish: 12, giantsquid: 0 },
+    }
+  );
+  assert(r.flags.some((f) => f.code === "hunt-kinds-idle"), "sperm whale on lanternfish with live giant squid should flag idle kinds");
+  const judged = verdictOf({ ...whale, ...r, mealsNow: 12, preyAlive: ["lanternfish", "giantsquid"] });
+  assert(judged.verdict === "watch", `healthy idle-kinds is watch, not fail, got ${judged.verdict}`);
+}
+
+{
+  const whale = catalogRow("spermwhale");
+  const r = diagnoseSpecies(
+    whale,
+    series({
+      n: [1, 1, 1],
+      energy: [0.4, 0.22, 0.12],
+      meals: [0, 2, 4],
+      graze: [0, 0, 0],
+      born: [0, 0, 0],
+      starved: [0, 0, 0],
+    }),
+    {
+      days: 2.0,
+      liveIds: new Set(["spermwhale", "lanternfish", "giantsquid"]),
+      everAlive: new Set(["spermwhale", "lanternfish", "giantsquid"]),
+      diet: { lanternfish: 4, giantsquid: 0 },
+    }
+  );
+  const judged = verdictOf({ ...whale, ...r, mealsNow: 4, preyAlive: ["lanternfish", "giantsquid"] });
+  assert(judged.verdict === "tweak", `starving idle-kinds should be a tweak, got ${judged.verdict}`);
+}
+
+{
+  const whale = catalogRow("spermwhale");
+  const r = diagnoseSpecies(
+    whale,
+    series({
+      n: [1, 1, 1],
+      energy: [0.6, 0.58, 0.55],
+      meals: [0, 1, 2],
+      graze: [0, 0, 0],
+      born: [0, 0, 0],
+      starved: [0, 0, 0],
+    }),
+    {
+      days: 2.0,
+      liveIds: new Set(["spermwhale", "giantsquid", "lanternfish"]),
+      everAlive: new Set(["spermwhale", "giantsquid", "lanternfish"]),
+      diet: { giantsquid: 1, lanternfish: 1 },
+    }
+  );
+  assert(!r.flags.some((f) => f.code === "hunt-kinds-idle"), "a giant-squid bite should clear idle-kinds");
+  assert(r.status === "ok" || r.status === "watch", `got ${r.status}`);
+}
+
+{
+  const r = diagnoseSpecies(
+    herring,
+    series({
+      n: [400, 200, 0],
+      energy: [0.4, 0.2, 0],
+      graze: [0.2, 0.1, 0],
+      born: [0, 0, 0],
+      starved: [10, 20, 30],
+      eaten: [80, 200, 370],
+    }),
+    { days: 1.4, liveIds: new Set(["herring", "cod"]) }
+  );
+  assert(r.flags.some((f) => /Eaten/.test(f.text)), "extinct text should say eaten when kills dominate");
+}
+
+{
+  const judged = verdictOf({
+    id: "spermwhale",
+    status: "watch",
+    flags: [{ code: "no-prey", severity: "watch", text: "Named prey is not in this cell." }],
+    missing: ["Glass squid (Histioteuthis) are not agents."],
+    mealsNow: 0,
+    preyAlive: [],
+  });
+  assert(judged.verdict === "expected", "no-prey is expected habitat, not a wiring fail");
+}
+
+{
+  assert(formatDiet({ lanternfish: 12, giantsquid: 1 }).includes("Giant squid"), "diet names catalog prey");
+  assert(formatDiet({}) === "no meals", "empty diet");
+}
+
+console.log("viability diagnose: 16 checks ok");

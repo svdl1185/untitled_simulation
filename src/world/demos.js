@@ -238,7 +238,16 @@ export const DEMO_CELLS = [
 const BY_ID = new Map(DEMO_CELLS.map((d) => [d.id, d]));
 
 export function demoById(id) {
+  if (id === "lab") return BY_ID.get("catalog") || null;
   return BY_ID.get(id) || null;
+}
+
+export function coupledDemoIds() {
+  return DEMO_CELLS.filter((d) => d.status === "coupled").map((d) => d.id);
+}
+
+export function allDemoIds() {
+  return DEMO_CELLS.map((d) => d.id);
 }
 
 export function naturalPresence(demo) {

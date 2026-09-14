@@ -1811,6 +1811,30 @@ export function schoolHunts(eaterCfg, eaterId, preyId) {
   return isForagePrey(preyId);
 }
 
+/**
+ * Catalog prey ids this animal is wired to bite (huntTaxa, huntKinds, named prey).
+ * Generic `school` / bloom diets are not listed — those resolve against the live cell.
+ */
+export function namedPreyIds(id) {
+  const spec = SPECIES[id];
+  if (!spec || spec.agent === "field") return [];
+  const cfg = spec.agent === "school" ? knobsFor(id) : vehicleCfg(id);
+  const out = [];
+  const seen = new Set();
+  const add = (pid) => {
+    if (!pid || seen.has(pid) || !SPECIES[pid]) return;
+    seen.add(pid);
+    out.push(pid);
+  };
+  for (const pid of cfg.huntTaxa || []) add(pid);
+  for (const pid of cfg.huntKinds || []) add(pid);
+  for (const pid of spec.prey || []) {
+    if (pid === "school" || pid === "bloom") continue;
+    add(pid);
+  }
+  return out;
+}
+
 /** Live forage individuals per hashed-grid piscivore. */
 export const PISCIVORE_PREY_RATIO = 22;
 

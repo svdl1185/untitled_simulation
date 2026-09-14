@@ -365,11 +365,13 @@ Species cards list **In nature** and per-taxon gaps under **Not in the model**. 
 
 ## Tests
 
-Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, visual range, SST, Q10, oxygen / OMZ, upwelling / mixed layer, sea ice / polar night, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`. Air-breather breath-hold vs nature minutes: `src/simulation/breath.test.js`.
+Diagnose whether animals actually eat, starve, recruit, or go extinct over a few sim days, including **what they bit** (sperm whale × giant squid versus lanternfish), depth overlap, and whether a death is a **tweak**, a named **gap**, or an **expected** empty habitat: [`docs/viability.md`](docs/viability.md). The catalog contract (`src/world/catalog.test.js`) fails if a new species is missing field-notes, `missing[]`, or a hunt id that is not in the catalog. Column physics (PAR, visual range, SST, Q10, oxygen / OMZ, upwelling / mixed layer, sea ice / polar night, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`. Air-breather breath-hold vs nature minutes: `src/simulation/breath.test.js`.
 
 ```bash
 npm test
 npm run viability
+npm run viability -- --cell omz --days 3 --species spermwhale,giantsquid
+npm run viability:cells
 ```
 
 ## Extending it

@@ -72,6 +72,7 @@ export class Shark {
     this.speedCap = this.cfg.cruiseSpeed;
     this.eatEvents = [];
     this.eaten = 0;
+    this.dietOf = Object.create(null);
     this.pups = 0;
     this.filterTaken = 0;
     this.filterMeals = 0;
@@ -108,8 +109,9 @@ export class Shark {
     this.roamY = CONFIG.fish.preferredDepth;
     this.roamZ = 0;
     this._pickRoam();
-    this.onEat = (x, y, z) => {
+    this.onEat = (x, y, z, preyId) => {
       this.eaten++;
+      this.recordMeal(preyId);
       this.eatEvents.push({ x, y, z, t: 0 });
     };
     this.onBlow = null;
@@ -130,6 +132,12 @@ export class Shark {
       this.lunging = false;
       this.bursting = true;
     }
+  }
+
+  recordMeal(preyId) {
+    if (!preyId) return;
+    if (!this.dietOf) this.dietOf = Object.create(null);
+    this.dietOf[preyId] = (this.dietOf[preyId] || 0) + 1;
   }
 
   feed() {
@@ -334,7 +342,7 @@ export class Shark {
         this.lunging || this.aiMode === "strike"
           ? this.cfg?.lungeBiteCooldown ?? CONFIG.shark.lungeBiteCooldown
           : this.cfg?.biteCooldown ?? CONFIG.shark.biteCooldown;
-      this.onEat(o.x, o.y, o.z);
+      this.onEat(o.x, o.y, o.z, o.kind);
       return;
     }
   }
@@ -1269,6 +1277,7 @@ export function resetSharks(pack, school) {
     const k = idx[kind] || 0;
     idx[kind] = k + 1;
     s.eaten = 0;
+    s.dietOf = Object.create(null);
     s.pups = 0;
     s.filterTaken = 0;
     s.filterMeals = 0;

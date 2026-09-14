@@ -86,7 +86,8 @@ Match existing module style in `src/simulation/`. No new frameworks. Keep the ha
 - Mesh under `src/render/`. Guild silhouette + swim (`tail` | `body` | `thunniform` | `fluke` | `jet` on `vehicle.swim` / `look.swim`); countershade; do not invent glow that is not a biological photophore. School looks live on `SPECIES[id].look`. Procedural stand-ins until replaced with authored glTF.
 - Knobs in `src/config.js` / `SPECIES[id].fish` / `SPECIES[id].vehicle`. Toggles/sliders in `MENU` (`src/ui.js`), start **off**, wire with `hud.on` in `src/main.js`.
 - Prefer a physical control (depth, turbidity, nutrient) over a cosmetic one.
-- Field-notes card in `src/species.js` from `FAUNA`: **In nature**, **Not in the model** (`missing`, only if the array is non-empty). Diet lists live prey in this cell (click a name to look) or **None in cell**, with the natural diet under it. Air-breathers show a breath-hold meter. HUD readout only if it is a real state (counts, energy, zone, max depth, remaining breath).
+- **Field-notes card** in `src/species.js` from `FAUNA`: **In nature**, **Not in the model** (`missing`, only if the array is non-empty). Diet lists live prey in this cell (click a name to look) or **None in cell**, with the natural diet under it. Air-breathers show a breath-hold meter. HUD readout only if it is a real state (counts, energy, zone, max depth, remaining breath).
+- **Headless cell runs** (`npm run viability -- --cell <demoId> --days 3`). Walks every present catalog id, counts meals by prey, and labels tweak / gap / expected. New ids are included via `PRESENCE_IDS`. `src/world/catalog.test.js` fails if `FAUNA`, `missing[]`, or a hunt id is incomplete — keep that contract green when you add an animal.
 
 ## 9. Scale
 
@@ -112,4 +113,4 @@ One cell may eventually list hundreds of sharks, squid, kelp, coral, whales. Tha
 
 ## When you add a feature, add a bullet
 
-Examples of future rows: salinity, school-as-density beyond the camera frustum, krill as a basin Eulerian field (agents are the near-camera swarm), coral as a `field` agent. Vehicle-on-vehicle bites exist for sperm whale × giant squid; Humboldt is school `huntTaxa`. Other pairs still need `huntKinds`. Photophores as a hunt cue, bathypelagic optics, climate upwell / storm mixed-layer, sea ice, and polar night optics are coupled.
+Examples of future rows: salinity, school-as-density beyond the camera frustum, krill as a basin Eulerian field (agents are the near-camera swarm), coral as a `field` agent. Vehicle-on-vehicle bites exist for sperm whale × giant squid; Humboldt is school `huntTaxa`. Other pairs still need `huntKinds`. Photophores as a hunt cue, bathypelagic optics, climate upwell / storm mixed-layer, sea ice, and polar night optics are coupled. A new animal must have a `FAUNA.missing` row; the viability catalog contract will fail without it. After a budget or hunt change, `npm run viability -- --cell <the cell that holds it>` is the readout, not a screenshot.

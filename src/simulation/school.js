@@ -167,6 +167,7 @@ export class School {
     this.bornOf = new Uint32Array(this._tmax);
     this.starvedOf = new Uint32Array(this._tmax);
     this.eatenOf = new Uint32Array(this._tmax);
+    this.dietOf = Array.from({ length: this._tmax }, () => Object.create(null));
     this.yDeep = new Float32Array(this._tmax);
     this.yShallow = new Float32Array(this._tmax);
 
@@ -244,6 +245,7 @@ export class School {
         born: this.bornOf[t],
         starved: this.starvedOf[t],
         eaten: this.eatenOf[t],
+        diet: { ...(this.dietOf[t] || {}) },
         yDeep: this.yDeep[t] < 1e8 ? this.yDeep[t] : 0,
         yShallow: this.yShallow[t] > -1e8 ? this.yShallow[t] : 0,
       };
@@ -315,6 +317,7 @@ export class School {
     this.bornOf.fill(0);
     this.starvedOf.fill(0);
     this.eatenOf.fill(0);
+    for (let t = 0; t < this._tmax; t++) this.dietOf[t] = Object.create(null);
     this.yDeep.fill(1e9);
     this.yShallow.fill(-1e9);
     this._splitLock.fill(0);
@@ -1055,6 +1058,7 @@ export class School {
               this._eaten[j] = 1;
               this.energy[i] = Math.min(1, this.energy[i] + (cfg.eatEnergy || 0.08));
               this.mealsOf[this.taxon[i]]++;
+              this._noteDiet(this.taxon[i], preyId);
               this.biteT[i] = 0.16;
             }
           }
@@ -1915,11 +1919,17 @@ export class School {
             shark.lunging || shark.aiMode === "strike"
               ? shark.cfg?.lungeBiteCooldown ?? CONFIG.shark.lungeBiteCooldown
               : shark.cfg?.biteCooldown ?? CONFIG.shark.biteCooldown;
-          shark.onEat(x, y, z);
+          shark.onEat(x, y, z, id);
           break;
         }
       }
     }
+  }
+
+  _noteDiet(eaterT, preyId) {
+    if (preyId == null || eaterT == null) return;
+    const bag = this.dietOf[eaterT] || (this.dietOf[eaterT] = Object.create(null));
+    bag[preyId] = (bag[preyId] || 0) + 1;
   }
 
   _recruit(dt, plankton) {

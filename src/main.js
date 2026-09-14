@@ -109,8 +109,9 @@ const sharkMeshes = [];
 let fearVisible = false;
 
 function bindShark(s) {
-  s.onEat = (x, y, z) => {
+  s.onEat = (x, y, z, preyId) => {
     s.eaten++;
+    s.recordMeal(preyId);
     s.eatEvents.push({ x, y, z, t: 0 });
     eatFX.burst(x, y, z);
   };
