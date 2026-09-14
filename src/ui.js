@@ -202,6 +202,7 @@ const KEY_HELP = [
   ["M / Tab", "Open or close controls"],
   ["O", "World map (home)"],
   ["Cells", "Named kilometres: catalog tank and biomes"],
+  ["Station", "This kilometre: what the water is doing"],
   ["I", "Census, when a cell is open"],
   ["Click census", "Jump to that animal"],
   ["Click column", "Jump to that depth; walks offshore if the floor here is too shallow"],
@@ -252,16 +253,16 @@ export function createHUD() {
   const btnAbout = document.getElementById("btn-about");
   const btnMap = document.getElementById("btn-map");
   const btnCells = document.getElementById("btn-cells");
-  const btnCell = document.getElementById("btn-cell");
+  const btnStation = document.getElementById("btn-station");
   const hint = document.getElementById("pilot-hint");
   const notes = document.getElementById("hud-notes");
   const btnNotes = document.getElementById("btn-notes");
-  const generalPanel = document.getElementById("hud-cell");
+  const stationPanel = document.getElementById("hud-station");
   const demosPanel = document.getElementById("hud-demos");
   const demosBody = document.getElementById("hud-demos-body");
   const censusPanel = document.getElementById("hud-census");
   const columnRoot = document.getElementById("hud-column");
-  const generalBody = document.getElementById("hud-general-body");
+  const stationBody = document.getElementById("hud-station-body");
   const censusBody = document.getElementById("hud-census-body");
   const brandPlace = document.getElementById("brand-place");
   const subjectPanel = document.getElementById("hud-subject");
@@ -277,11 +278,11 @@ export function createHUD() {
   const sections = new Map();
   const handlers = new Map();
   const values = { oceanMap: false };
-  const generalRows = bindStats(generalBody, tip);
   const censusRows = bindCensus(censusBody, (id) => {
     const fn = handlers.get("focusSpecies");
     if (fn) fn(id);
   });
+  const stationView = bindStation(stationBody);
   const columnView = bindColumn(columnRoot, (y) => emit("jumpY", y));
   const subjectRows = bindStats(subjectBody, tip, (id) => {
     const fn = handlers.get("focusSpecies");
@@ -292,7 +293,7 @@ export function createHUD() {
   let dock = null;
   let cameraLive = false;
   let entered = false;
-  const CELL_DOCKS = new Set(["census", "cell", "subject"]);
+  const CELL_DOCKS = new Set(["census", "station", "subject"]);
   body.replaceChildren();
 
   for (const section of MENU) {
@@ -407,10 +408,10 @@ export function createHUD() {
       btnCells.classList.toggle("on", dock === "demos");
       btnCells.setAttribute("aria-expanded", dock === "demos" ? "true" : "false");
     }
-    if (btnCell) {
-      btnCell.hidden = !cell;
-      btnCell.classList.toggle("on", cell && dock === "cell");
-      btnCell.setAttribute("aria-expanded", cell && dock === "cell" ? "true" : "false");
+    if (btnStation) {
+      btnStation.hidden = !cell;
+      btnStation.classList.toggle("on", cell && dock === "station");
+      btnStation.setAttribute("aria-expanded", cell && dock === "station" ? "true" : "false");
     }
     if (btnNotes) {
       btnNotes.hidden = !cell;
@@ -425,14 +426,14 @@ export function createHUD() {
       btnMenu.classList.toggle("on", dock === "menu");
       btnMenu.setAttribute("aria-expanded", dock === "menu" ? "true" : "false");
     }
-    if (generalPanel) generalPanel.hidden = dock !== "cell";
+    if (stationPanel) stationPanel.hidden = dock !== "station";
     if (demosPanel) demosPanel.hidden = dock !== "demos";
     if (censusPanel) censusPanel.hidden = dock !== "census";
     if (subjectPanel) subjectPanel.hidden = dock !== "subject";
     if (about) about.hidden = dock !== "about";
     if (menu) menu.hidden = dock !== "menu";
     notes.classList.toggle("is-collapsed", !dock);
-    notes.classList.toggle("is-wide", dock === "about" || dock === "menu" || dock === "demos");
+    notes.classList.toggle("is-wide", dock === "about" || dock === "menu" || dock === "demos" || dock === "station");
     if (columnRoot) columnRoot.hidden = !cell;
     document.body.classList.toggle("has-column", cell);
     syncFields();
@@ -523,7 +524,7 @@ export function createHUD() {
   btnMenu.addEventListener("click", () => toggleDock("menu"));
   btnAbout?.addEventListener("click", () => toggleDock("about"));
   btnNotes.addEventListener("click", () => toggleDock("census"));
-  btnCell?.addEventListener("click", () => toggleDock("cell"));
+  btnStation?.addEventListener("click", () => toggleDock("station"));
   btnMap?.addEventListener("click", () => {
     const next = !values.oceanMap;
     set("oceanMap", next);
@@ -630,7 +631,7 @@ export function createHUD() {
     setCameraLive,
     setEntered(on) {
       entered = !!on;
-      if (entered && !values.oceanMap && !CELL_DOCKS.has(dock) && dock !== "demos") setDock("census");
+      if (entered && !values.oceanMap && !CELL_DOCKS.has(dock) && dock !== "demos") setDock("station");
       else syncNav();
     },
     setSelectOptions(id, options, value) {
@@ -654,13 +655,12 @@ export function createHUD() {
         frames = 0;
         acc = 0;
       }
-      generalRows.set((view.general || []).concat({
-        id: "fps",
-        label: "FPS",
-        value: String(fpsVal),
-        hint: "Frames drawn per second. A drop here is the near-camera agent load, not the basin.",
-      }));
       censusRows.set(view.census || []);
+      stationView.set(
+        view.station
+          ? { ...view.station, fps: fpsVal }
+          : null
+      );
       columnView.set(inCell() ? view.column : null);
       if (brandPlace) {
         brandPlace.textContent = values.oceanMap ? "World ocean" : view.placeName || brandPlace.textContent;
@@ -783,6 +783,86 @@ function bindColumn(root, onJump) {
       const t = frac(col.camY ?? 0, surface, floor);
       if (you) you.style.top = `${t * 100}%`;
       if (depthRead) depthRead.textContent = `${Math.max(0, -(col.camY ?? 0)).toFixed(0)} m`;
+    },
+  };
+}
+
+function bindStation(root) {
+  if (!root) {
+    return { set() {} };
+  }
+  const kicker = el("p", { class: "about-kicker station-kicker" });
+  const title = el("p", { class: "about-title" });
+  const meta = el("p", { class: "station-meta" });
+  const lead = el("p");
+  const nowHead = el("h3", { text: "Now" });
+  const nowList = el("ul", { class: "station-now" });
+  const colHead = el("h3", { text: "Column" });
+  const col = el("dl", { class: "about-glossary station-column" });
+  const missWrap = el("div", { class: "station-missing" });
+  const attr = el("p", { class: "about-attr" });
+  root.replaceChildren(kicker, title, meta, lead, nowHead, nowList, colHead, col, missWrap, attr);
+
+  const colRows = new Map();
+  let nowKey = "";
+  let missKey = "";
+
+  function setColumn(rows) {
+    const seen = new Set();
+    for (const item of rows || []) {
+      if (!item?.id) continue;
+      seen.add(item.id);
+      let row = colRows.get(item.id);
+      if (!row) {
+        const dt = el("dt");
+        const dd = el("dd");
+        const node = el("div", {}, [dt, dd]);
+        row = { node, dt, dd };
+        colRows.set(item.id, row);
+        col.append(node);
+      }
+      if (row.dt.textContent !== item.label) row.dt.textContent = item.label;
+      const next = item.value == null ? "—" : String(item.value);
+      if (row.dd.textContent !== next) row.dd.textContent = next;
+    }
+    for (const [id, row] of colRows) {
+      if (seen.has(id)) continue;
+      row.node.remove();
+      colRows.delete(id);
+    }
+  }
+
+  return {
+    set(brief) {
+      if (!brief) return;
+      if (kicker.textContent !== brief.kicker) kicker.textContent = brief.kicker || "";
+      if (title.textContent !== brief.title) title.textContent = brief.title || "";
+      if (meta.textContent !== brief.meta) meta.textContent = brief.meta || "";
+      if (lead.textContent !== brief.lead) lead.textContent = brief.lead || "";
+      lead.hidden = !brief.lead;
+      const lines = brief.now || [];
+      const nextNow = lines.join("\n");
+      if (nextNow !== nowKey) {
+        nowKey = nextNow;
+        nowList.replaceChildren(...lines.map((line) => el("li", { text: line })));
+      }
+      setColumn(brief.column || []);
+      const missing = brief.missing || [];
+      const nextMiss = missing.join("\n");
+      if (nextMiss !== missKey) {
+        missKey = nextMiss;
+        if (!missing.length) missWrap.replaceChildren();
+        else {
+          missWrap.replaceChildren(
+            el("p", { class: "about-label", text: "Not in the model" }),
+            ...missing.map((line) => el("p", { text: line }))
+          );
+        }
+      }
+      const nextAttr = brief.fps != null
+        ? `${brief.attr} · ${brief.fps} fps`
+        : brief.attr || "";
+      if (attr.textContent !== nextAttr) attr.textContent = nextAttr;
     },
   };
 }

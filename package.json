@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "preview:pages": "npm run build && npx wrangler dev",
-    "test": "node src/simulation/viability.test.js && node src/simulation/column.test.js && node src/simulation/breath.test.js && node src/world/demos.test.js",
+    "test": "node src/simulation/viability.test.js && node src/simulation/column.test.js && node src/simulation/breath.test.js && node src/world/demos.test.js && node src/world/station.test.js",
     "viability": "node src/simulation/viabilityRun.js"
   },
   "engines": {
