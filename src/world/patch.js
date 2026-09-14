@@ -2,6 +2,7 @@ import { CONFIG, bindCellFauna, bindColumnHabitat } from "../config.js";
 import { emptyPresence, fullPresence, SPECIES } from "./fauna.js";
 import { bindCellTemperature } from "../simulation/temperature.js";
 import { bindCellOxygen } from "../simulation/oxygen.js";
+import { bindCellUpwell } from "../simulation/flow.js";
 
 export const PATCH_SIZE_M = 1000;
 export const LAB_SIZE_M = 10000;
@@ -400,6 +401,7 @@ export function applyPatch(patch) {
     CONFIG.beach.duneY = Math.max(4, patch.centerY > 0 ? patch.centerY : 6);
     bindColumnHabitat(patch.floorY, true);
     bindCellTemperature();
+    bindCellUpwell();
     bindCellOxygen();
     CONFIG.water.turbidity = 0.72;
     bindCellFauna();
@@ -419,6 +421,7 @@ export function applyPatch(patch) {
     CONFIG.thermoY = STOCK.thermoY;
     CONFIG.fish.preferredDepth = STOCK.preferredDepth;
     CONFIG.water.turbidity = 1;
+    bindCellUpwell();
     bindCellOxygen();
     bindCellFauna();
     return patch;
@@ -432,6 +435,7 @@ export function applyPatch(patch) {
   CONFIG.initialFish = 12000;
   bindColumnHabitat(patch.floorY, patch.hasLand);
   bindCellTemperature();
+  bindCellUpwell();
   bindCellOxygen();
   if (patch.hasLand) {
     CONFIG.beach.enabled = true;

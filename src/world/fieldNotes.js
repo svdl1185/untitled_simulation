@@ -55,12 +55,11 @@ export const FAUNA = {
     about:
       "Western Atlantic filter feeder, typically 20–35 cm. Estuarine and inner-shelf; rarely below about 50 m. Schools in murky coastal water. Eaten by striped bass, sharks, and birds.",
     program:
-      "Polarized shoal with a higher graze multiplier on z (p is not a separate bite). Shallow DVM. o2Min 2 ml/L: they will not sit in a hypoxic shelf. Does not commute into the abyss.",
+      "Polarized shoal. Type II graze on phytoplankton p (the same knob krill uses; z is not a separate bite). Shallow DVM. o2Min 2 ml/L: they will not sit in a hypoxic shelf. Does not commute into the abyss.",
     missing: [
-      "Direct phytoplankton bites are not wired; graze still pulls z.",
       "Striped bass and coastal birds are not agents.",
       "Estuarine nurseries and larval ingress through inlets are not a habitat.",
-      "Gill-raker particle-size filtering is a graze multiplier, not a filter on p versus z.",
+      "Gill-raker particle-size filtering is graze-on-p, not a filter that splits p versus z by size.",
       "The reduction fishery is not mortality.",
     ],
   },
@@ -74,11 +73,11 @@ export const FAUNA = {
     about:
       "Pacific and southern-hemisphere sardine, typically 15–25 cm. Tight, fast shoals in eastern-boundary currents. Usually in the upper 100 m; recorded near 200 m. Co-occurs with anchovy.",
     program:
-      "Polarized clupeid shoal. Type II graze on z. Empty in the North Sea is a range gate.",
+      "Polarized clupeid shoal. Type II graze on z. Occupies eastern-boundary cells where climate upwell shoals the nutricline. Empty in the North Sea is a range gate.",
     missing: [
       "Temperature-driven stock collapses are not a field.",
       "Sardine–anchovy regime alternation is not a two-stock oscillator.",
-      "Spawning in offshore upwelling filaments is not a season.",
+      "Spawning in offshore upwelling filaments is not a season — the cell has a climate lift, not a filament.",
       "Tight balling under bird attack is the same polarized school, not a distinct compression.",
     ],
   },
@@ -91,7 +90,7 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "Northeast Atlantic, Mediterranean, and northwest African upwelling. Typically 15–25 cm. Day depths tens of metres; recorded to about 150 m. Overlaps herring at the Celtic / Biscay edge.",
-    program: "Polarized shoal. Type II graze on z.",
+    program: "Polarized shoal. Type II graze on z. Canary / Iberian cells inherit climate upwell on the nutricline.",
     missing: [
       "Purse-seine fishing mortality is not in the budget.",
       "Coastwise migration along Iberia and the Canary Current is a range hull, not a swim.",
@@ -107,11 +106,11 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "Small engraulid, typically 8–16 cm. Coastal upwelling. Usually above 100 m; recorded to about 150 m. Latin follows the cell: ringens (Humboldt), mordax (California), japonicus (Kuroshio), encrasicolus (Europe).",
-    program: "Slender polarized shoal. Type II graze on z. Competes with sardine where both hulls cover the kilometre.",
+    program: "Slender polarized shoal. Type II graze on z. Competes with sardine where both hulls cover the kilometre. Humboldt / California cells shoal the nutricline under climate upwell.",
     missing: [
       "Egg and larval stages are not agents.",
       "Lunar batch spawning is not a clock.",
-      "Humboldt El Niño collapses are not an ENSO or temperature field.",
+      "Humboldt El Niño collapses are not an ENSO oscillator — SST anomaly and climate upwell are fields, not a two-stock crash.",
       "Cannibalism on eggs is not a bite.",
       "The inshore–offshore split versus sardine is hull overlap, not two depth programmes.",
     ],

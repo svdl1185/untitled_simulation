@@ -37,7 +37,7 @@ The **world map** is home. Click water to load a 1 km cell (`PATCH_SIZE_M`). Lan
 
 **WorldStream** caches neighbour chunk ids (cap 8). This pass binds one cell; animals do not swim between cells.
 
-**Clock** — one on-screen day is 480 s (~8 min). Twelve sim days per year. Live clock on by default (`L`). Hour slider pauses it. Storm (`T`) raises current speed and upwelling. Night / dawn / day / dusk are a look (`src/simulation/day.js`) that also drives surface PAR and DVM.
+**Clock** — one on-screen day is 480 s (~8 min). Twelve sim days per year. Live clock on by default (`L`). Hour slider pauses it. Storm (`T`) deepens the mixed layer, shoals the nutricline, and raises current speed. Night / dawn / day / dusk are a look (`src/simulation/day.js`) that also drives surface PAR and DVM.
 
 ### Fields
 
@@ -46,11 +46,12 @@ Agents never get a private sun, current, temperature, or oxygen. They sample the
 | Field | What it does |
 | --- | --- |
 | **Seafloor** | Local height at (x, z) from the elevation grid. `CONFIG.floorY` is the cell minimum, not the slope under the animal. A dropoff or seamount is a wall. Beach, dunes, and wet mask from the same grid. |
-| **Flow** `sampleFlow` | Tide, longshore, thermocline shear, synthetic eddies, optional atlas mean (east → X, north → Z). Storm multiplies speed. The only current — school advection, plankton, and vehicles all read it. |
+| **Flow** `sampleFlow` | Tide, longshore, thermocline shear, synthetic eddies, optional atlas mean (east → X, north → Z). Storm multiplies speed. Climate upwell and storms add a mean **upward** lift around the mixed layer (Ekman-ish, not a HYCOM `w`). The only current — school advection, plankton, and vehicles all read it. |
 | **Light** `samplePAR` | Beer–Lambert. \(I_0\) from sun elevation, night, storm. \(K_d\) so the 1% depth matches `photicLimitY()` (turbidity). Fog, caustics, phytoplankton growth, and **visual hunt** share that envelope. `visualRange` scales detect and fear for sighted hunters; photophore prey restore a fraction in the dark. Sperm whale / orca `sense: "echo"` skip PAR. Shelf floors clip the photic. Open cells clear the water (`bindColumnHabitat`). |
-| **Temperature** `sampleTemp` | SST = latitude climatology + seasonal cycle + `sstAnomaly`. Mixed layer well-mixed; below it a fall toward deep water. Winter mixes deeper. Q10 (`columnQ10`, `productionQ10`) scales NPZD, school metabolism/graze, and vehicle drain. Catalog `temp.min` / `temp.max` gates presence. |
+| **Temperature** `sampleTemp` | SST = latitude climatology + seasonal cycle + `sstAnomaly`. Mixed layer well-mixed; below it a fall toward deep water. Winter mixes deeper; **storms mix deeper still** (`thermoY`). Q10 (`columnQ10`, `productionQ10`) scales NPZD, school metabolism/graze, and vehicle drain. Catalog `temp.min` / `temp.max` gates presence. |
 | **Oxygen** `sampleO2` | ml L⁻¹. Mixed layer near saturation (SST). Eastern-boundary and tropical cells get an OMZ; deep water recovers. Catalog tank forces a refuge. Detritus remineralisation is `setOxygenDemand`. `oxygenLimitY` is the hypoxia floor unless `omzRefuge`. Humboldt `o2: { needOmz }` gates presence; day DVM follows `omzCoreY`. `o2Anomaly` is a control. Tunas and sharks stay above their `o2Min`; lanternfish `o2Min` 0.08 can occupy the hole. Hypoxia raises drain (`o2MetabolicFactor`). |
-| **NPZD** `plankton.js` | Separable 3D: \(C(x,y,z)=\mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). 128×128 typed arrays `n`, `p`, `z`, `d` — not a 128³ grid. Column shape: P in the photic / DCM, Z on a DVM, N a nutricline, D sinks. `sampleAt` / `grazeAt` return 0 below the local seafloor. Production uses PAR × P profile; Z grazing uses P–Z column coincidence. Type II half-saturation. Carcasses and excretion return mass to `n` and `d`. |
+| **Upwelling** `climateUpwell` | 0–1 climate lift from eastern-boundary currents (Humboldt, California, Canary, Benguela) and the equatorial cold tongue. Gyres and the North Sea are near zero. Shoals the NPZD nutricline so N sits in the light; storms add a further lift. Catalog tank forces a visible lift. HUD reads mixed-layer and nutricline depth. |
+| **NPZD** `plankton.js` | Separable 3D: \(C(x,y,z)=\mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). 128×128 typed arrays `n`, `p`, `z`, `d` — not a 128³ grid. Column shape: P in the photic / DCM, Z on a DVM, N a nutricline that **shoals under climate upwell and storms**, D sinks. `sampleAt` / `grazeAt` return 0 below the local seafloor. Production uses PAR × P profile; Z grazing uses P–Z column coincidence. Type II half-saturation. Carcasses and excretion return mass to `n` and `d`. |
 | **Benthos** | Column-bottom detritus flux onto a 2D seafloor store. Remineralises to N. Cod `grazeBenthos` on the bed. Present in every wet cell. HUD reads mean carbon. |
 
 Green P slices sit on the live photic bins; yellow-green Z sparkles on the DVM (`src/render/plankton.js`).
@@ -59,7 +60,7 @@ Green P slices sit on the live photic bins; yellow-green Z sparkles on the DVM (
 
 Near the camera only. One hashed-grid school (cap 20k, `UniformGrid3D`, 32768 buckets, neighbour walks on occupied cells). Vehicles are a handful of Reynolds integrators, not a second boid loop. `gridMinY` is the deepest *present school* taxon — a sperm whale at 2 km does not enlarge the herring grid.
 
-**School** (`src/simulation/school.js`) — one bloom-capped budget, split by catalog `share`. Social modes: `polarized` (herring pancake), `loose` (flying fish, saury), `scatter` (lanternfish, krill, school squid). Type II graze on `z` unless `grazeOn: "p"` (krill). Hungry shoals may rise toward food; satiated shoals sit in the day refuge. Fear: surface taxa steer up (still in water); lanternfish and sand lance steer down. School squid pulse–coast on the grid velocity, then hang on `sampleFlow`. Sex is a size tint (females slightly larger). Recruits when bloom × energy can carry the mixed budget; starve-cull recycles.
+**School** (`src/simulation/school.js`) — one bloom-capped budget, split by catalog `share`. Social modes: `polarized` (herring pancake), `loose` (flying fish, saury), `scatter` (lanternfish, krill, school squid). Type II graze on `z` unless `grazeOn: "p"` (krill, menhaden). Hungry shoals may rise toward food; satiated shoals sit in the day refuge. Fear: surface taxa steer up (still in water); lanternfish and sand lance steer down. School squid pulse–coast on the grid velocity, then hang on `sampleFlow`. Sex is a size tint (females slightly larger). Recruits when bloom × energy can carry the mixed budget; starve-cull recycles.
 
 **Vehicles** (`src/simulation/shark.js`) — gaits `burst` (glide between tail kicks), `ram` (must keep swimming), `benthic` (hug the bed), `jet` (pulse–coast, hang on the current). Swim: lateral tail, body wave, thunniform, vertical fluke, jet. Diets: `bite` school / `huntTaxa` / `huntKinds`, `filter` (`plankton.grazeAt` on `z`), `both` (minke). Sighted hunters (`sense: "sight"`, the default) scale detect, fear, and bite with `visualRange` / `samplePAR`; lanternfish photophores restore a fraction in the DSL. Sperm whale and orca `sense: "echo"` — darkness is not a starve. Energy drain, meals restore, starve after `starveDays`, carcass recycles. Females pup on a year-timer when energy and a mate are in range. Pilot mode drives the lead blue shark (`P`).
 
@@ -96,7 +97,7 @@ One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`
 | --- | --- | --- | --- | --- |
 | herring | forage · polarized | `z` | −20 / −110 · 400 m | Temp 0–20 °C. Default pancake. |
 | capelin | forage · polarized | `z` | −8 / −52 · 300 m | Temp −1.8–12 °C. |
-| menhaden | forage · polarized | `z` (higher graze) | −6 / −32 · 48 m | Inner-shelf. |
+| menhaden | forage · polarized | `p` (higher graze) | −6 / −32 · 48 m | Inner-shelf. Filter on phytoplankton. |
 | sardine | forage · polarized | `z` | −12 / −58 · 200 m | |
 | pilchard | forage · polarized | `z` | −14 / −68 · 150 m | |
 | anchovy | forage · polarized | `z` | −8 / −38 · 150 m | Latin follows the cell. |
@@ -145,9 +146,9 @@ One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`
 
 Water, caustics, fog, and sky follow the photic envelope and the day look (`src/render/water.js`, `caustics.js`, `environment.js`). Fish and seafloor shading keep attenuating with the same \(K_d\) below the 1% depth — midnight water is near-black, not herring-green. Depth layers that exist in this column: surface, sunlit, twilight, midnight, abyssal, seafloor (`G` / click the column). Click a metre on the ruler; if the floor under the camera is shallower than that depth, the camera walks into deeper water. Lamp (`K`) is camera fill after dark — optics, not habitat; it does not feed `visualRange`. Fear-radius debug (`F`). Follow / orbit / cinematic / surface camera (`C`); next target (`N`). Census (`I`) lists live counts; click a name to look.
 
-HUD (real state only): zone and camera depth, clock, weather, school count vs bloom cap, vehicle count, P/Z, SST, O₂ at the camera, 1% light depth, PAR at the camera, benthos, follow rig. Field-notes card from `FAUNA`: **In nature**, **Not in the model** (only if `missing` is non-empty), live diet in this cell (click a name) or **None in cell** with the natural diet under it, breath-hold meter for air-breathers.
+HUD (real state only): zone and camera depth, clock, weather, school count vs bloom cap, vehicle count, P/Z, SST, mixed layer, nutricline, O₂ at the camera, 1% light depth, PAR at the camera, benthos, follow rig. Field-notes card from `FAUNA`: **In nature**, **Not in the model** (only if `missing` is non-empty), live diet in this cell (click a name) or **None in cell** with the natural diet under it, breath-hold meter for air-breathers.
 
-Menu (`M` / `Tab`) starts most toggles off. Physical knobs: turbidity, SST anomaly, oxygen anomaly, storm, school cap, blue-shark headcount. Map: current overlay.
+Menu (`M` / `Tab`) starts most toggles off. Physical knobs: turbidity, SST anomaly, oxygen anomaly, storm (mixed layer + nutricline + current), school cap, blue-shark headcount. Map: current overlay.
 
 Knobs live in `src/config.js` / `SPECIES[id].fish` / `SPECIES[id].vehicle`. Wire new rows with `hud.on` in `src/main.js`.
 
@@ -170,11 +171,10 @@ Physics, chemistry, scale, and senses that every biome would read.
 | Carbonate chemistry, pH, Ω_arag | Calcifiers, pteropods, ocean acidification |
 | Air–sea heat, freshwater, CO₂ | The mixed layer is a climatology, not a flux |
 | Horizontal O₂ fronts, bed oxygen, dead zones | `sampleO2` x/z is reserved; coastal hypoxia is not a map |
-| Live upwelling, Ekman, vertical velocity | HYCOM is a mean current; the nutricline does not shoal under a wind |
+| Live wind, Ekman spiral, HYCOM vertical velocity | Climate upwell + storm lift the nutricline; HYCOM is still a mean *u*, *v* |
 | Mesoscale eddies as 3D rotors | Eddy term is a sine, not a chlorophyll ring or larval trap |
 | Internal waves, baroclinic tides, seamount mixing | Bathymetry is a wall, not a mixer |
 | Surface gravity waves, Stokes drift, Langmuir | Windrows of plankton; beach orbital motion |
-| Storm deepening of the mixed layer | Storm is a look; the thermocline does not mix |
 | Climate modes (ENSO, IOD, NAO, PDO) | Humboldt collapse, sardine–anchovy regimes |
 | Basin streaming of agents | Neighbour chunks cache patches; animals do not swim between cells |
 | Density / super-individuals beyond the camera | Far field is empty water, not biomass |
@@ -274,7 +274,7 @@ The cell this build is. Forage schools, named pelagic predators, NPZD, DVM, an O
 | Counterillumination, chromatophores, ink | Display and hunt, not a shader |
 | Bait-ball, sail-herd, bubble-net hydrodynamics | Generic mouth radius |
 | Endothermy in tunas and lamnids | Temperature is SST, not warm muscle |
-| Oligotrophic gyre vs bloom biome | The patch does not know it is a desert |
+| Oligotrophic gyre vs bloom biome | The column nutricline knows a desert; the 2D seed still paints patches |
 | Western boundary currents as live jets | Mean *u*, *v*, not the Gulf Stream or Kuroshio |
 | Migratory carbon pump | DVM is a depth programme, not an export flux |
 | Whale falls from this column | Carcasses recycle in place; they do not seed the bed succession |
@@ -327,7 +327,7 @@ The beach in the catalog tank is a wall and a tide sine. It is not a nursery, a 
 | Sea turtles on beaches | Nesting; tiger-shark ambush landmarks |
 | Hypoxic dead zones | Mississippi, Baltic, Black Sea — O₂ as a map, not a column |
 | River plumes, CDOM, sediment | Light and nutrients that are not a turbidity knob |
-| Upwelling coasts as a wind-driven pump | Humboldt / California / Canary / Benguela are hulls |
+| Upwelling coasts as a wind-driven pump | Humboldt / California / Canary / Benguela now shoal the nutricline; the wind itself is still climate, not a live vector |
 | Harmful algal blooms | Toxin, not only `p` |
 | Inlet larval ingress, fjord sills, lagoons | Nursery physics |
 | Beach-spawning die-offs | Capelin carcass pulses are not a budget |
@@ -338,7 +338,7 @@ Species cards list **In nature** and per-taxon gaps under **Not in the model**. 
 
 ## Tests
 
-Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, visual range, SST, Q10, oxygen / OMZ, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`.
+Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, visual range, SST, Q10, oxygen / OMZ, upwelling / mixed layer, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`.
 
 ```bash
 npm test

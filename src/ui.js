@@ -80,7 +80,7 @@ export const MENU = [
         id: "storm",
         kind: "toggle",
         label: "Storm",
-        hint: "Raises current speed and upwelling.",
+        hint: "Deepens the mixed layer, lifts nutrients toward the light, and raises current speed.",
         key: "T",
         cellOnly: true,
       },

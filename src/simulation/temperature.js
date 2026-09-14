@@ -28,8 +28,14 @@ export function climatologySST(lat, dayOfYear = 180) {
   return sst;
 }
 
-/** Mixed-layer depth as a negative y. Winter mixes deeper; the floor wins. */
-export function mixedLayerY(lat = CONFIG.world?.lat ?? 56, dayOfYear, floorY = CONFIG.floorY) {
+/** Mixed-layer depth as a negative y. Winter mixes deeper; storms mix
+ *  deeper still. The floor always wins. */
+export function mixedLayerY(
+  lat = CONFIG.world?.lat ?? 56,
+  dayOfYear,
+  floorY = CONFIG.floorY,
+  storm = 0
+) {
   const doy = dayOfYear ?? CONFIG.time?.dayIndex ?? 180;
   const sst = climatologySST(lat, doy);
   const a = Math.abs(lat);
@@ -38,6 +44,7 @@ export function mixedLayerY(lat = CONFIG.world?.lat ?? 56, dayOfYear, floorY = C
   let mld = 26 + winter * (36 + a * 0.45);
   if (sst > 24) mld = 38 + winter * 22;
   if (a > 60) mld = 18 + winter * 28;
+  mld += Math.max(0, storm) * (20 + a * 0.18);
   const floor = (floorY ?? CONFIG.floorY) + 8;
   return Math.max(floor, -mld);
 }
@@ -55,7 +62,7 @@ export function sampleTemp(x, y, z, t) {
   const lat = CONFIG.world?.lat ?? 56;
   const doy = CONFIG.time?.dayIndex ?? 180;
   const sst = climatologySST(lat, doy);
-  const mld = mixedLayerY(lat, doy);
+  const mld = CONFIG.thermoY ?? mixedLayerY(lat, doy);
   const deep = deepTemp(sst);
   if (y >= mld) return sst;
   const span = Math.max(24, Math.abs(CONFIG.floorY - mld));
@@ -96,11 +103,11 @@ export function inTempNiche(sst, niche) {
   return true;
 }
 
-/** Bind mixed-layer depth and a cell SST onto CONFIG after a patch load. */
-export function bindCellTemperature() {
+/** Bind mixed-layer depth and a cell SST onto CONFIG. `storm` 0–1 deepens the mixed layer. */
+export function bindCellTemperature(storm = 0) {
   const lat = CONFIG.world?.lat ?? 56;
   const doy = CONFIG.time?.dayIndex ?? 180;
   const sst = climatologySST(lat, doy);
   CONFIG.water.sst = sst;
-  CONFIG.thermoY = mixedLayerY(lat, doy, CONFIG.floorY);
+  CONFIG.thermoY = mixedLayerY(lat, doy, CONFIG.floorY, storm);
 }

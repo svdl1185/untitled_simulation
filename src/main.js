@@ -457,7 +457,7 @@ hud.on("turbidity", (n) => {
 });
 hud.on("sstAnomaly", (n) => {
   CONFIG.water.sstAnomaly = Number(n);
-  bindCellTemperature();
+  bindCellTemperature(day.storm);
   bindCellOxygen();
 });
 hud.on("o2Anomaly", (n) => {
@@ -688,7 +688,7 @@ function hudView() {
       id: "weather",
       label: "Weather",
       value: weatherText(),
-      hint: "Storm state. Storms raise current speed and upwelling.",
+      hint: "Storm state. Storms deepen the mixed layer, lift nutrients toward the light, and raise current speed.",
     },
     {
       id: "fish",
@@ -713,6 +713,18 @@ function hudView() {
       label: "SST",
       value: `${(day.look.sst ?? sampleTemp(0, -1, 0)).toFixed(1)} °C`,
       hint: "Climatological sea-surface temperature for this latitude and season, plus the SST-anomaly control.",
+    },
+    {
+      id: "mld",
+      label: "Mixed layer",
+      value: `${Math.abs(CONFIG.thermoY).toFixed(0)} m`,
+      hint: "Well-mixed surface layer. Winter and storms mix it deeper. Temperature and shear follow this depth.",
+    },
+    {
+      id: "nutricline",
+      label: "Nutricline",
+      value: `${Math.abs(plankton.nutriclineY()).toFixed(0)} m`,
+      hint: "Depth where nutrients rise. Eastern-boundary cells and storms lift this toward the light, which is where phytoplankton can grow.",
     },
     {
       id: "o2",

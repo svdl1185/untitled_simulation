@@ -116,6 +116,38 @@ export const VEHICLE_DEFAULTS = {
 };
 
 /**
+ * Typical foraging dive or surface interval in nature (minutes) →
+ * wall-clock seconds. The day clock is 180× (8 min ≈ 1 day). Breath-hold
+ * is milder so a 5 min orca dive is still tens of seconds on screen, and
+ * a 45 min sperm-whale forage is a couple of minutes — not a blink, and
+ * not the whole game-day.
+ *
+ * Shallow guilds (orca, dolphin, rorquals): compress 5.
+ * Sperm whale: compress 15.
+ */
+export function breathHold(natureMin, compress = 5) {
+  return Math.round((natureMin * 60 * 10) / compress) / 10;
+}
+
+/**
+ * Advance an air-breather's breath timer. Recovery only counts while
+ * at the surface; the commute up does not burn `surfaceTime`.
+ */
+export function tickBreathHold(surfacing, breathT, dt, cfg, atAir) {
+  const diveTime = cfg.diveTime ?? 28;
+  const surfaceTime = cfg.surfaceTime ?? 6;
+  if (surfacing) {
+    if (!atAir) return { surfacing: true, breathT: breathT > 0 ? breathT : surfaceTime };
+    const t = (Number.isFinite(breathT) ? breathT : surfaceTime) - dt;
+    if (t > 0) return { surfacing: true, breathT: t };
+    return { surfacing: false, breathT: diveTime };
+  }
+  const t = (Number.isFinite(breathT) ? breathT : diveTime) - dt;
+  if (t > 0) return { surfacing: false, breathT: t };
+  return { surfacing: true, breathT: surfaceTime };
+}
+
+/**
  * How individuals relate. Polarized is the herring pancake.
  * Loose is a surface aggregation (flying fish). Scatter is nearly
  * independent — keep it for later solitary pelagics.
@@ -256,6 +288,7 @@ export const SPECIES = {
       minSchoolSize: 140,
       metabolism: 0.01,
       grazeMul: 1.35,
+      grazeOn: "p",
       o2Min: 2,
     },
     look: {
@@ -1187,8 +1220,8 @@ export const SPECIES = {
       swim: "fluke",
       diet: "both",
       breathes: true,
-      surfaceTime: 6,
-      diveTime: 24,
+      surfaceTime: breathHold(1.5),
+      diveTime: breathHold(6),
       diveSpeed: 22,
       filterGraze: 0.1,
       filterGain: 0.48,
@@ -1231,8 +1264,8 @@ export const SPECIES = {
       swim: "fluke",
       diet: "bite",
       breathes: true,
-      surfaceTime: 7,
-      diveTime: 36,
+      surfaceTime: breathHold(2.5),
+      diveTime: breathHold(10),
       diveSpeed: 28,
       tints: [{ scale: 1.0, aggression: 0.65, tint: { r: 0.28, g: 0.3, b: 0.34 } }],
     },
@@ -1269,8 +1302,8 @@ export const SPECIES = {
       diet: "bite",
       sense: "echo",
       breathes: true,
-      surfaceTime: 8,
-      diveTime: 42,
+      surfaceTime: breathHold(8, 15),
+      diveTime: breathHold(45, 15),
       diveSpeed: 55,
       huntTaxa: ["marketsquid", "illex", "lanternfish"],
       huntKinds: ["humboldtsquid", "giantsquid"],
@@ -1313,8 +1346,8 @@ export const SPECIES = {
       diet: "bite",
       sense: "echo",
       breathes: true,
-      surfaceTime: 6,
-      diveTime: 28,
+      surfaceTime: breathHold(1.2),
+      diveTime: breathHold(6),
       diveSpeed: 32,
       tints: [
         { scale: 1.08, aggression: 1.25, tint: { r: 0.22, g: 0.22, b: 0.26 } },
@@ -1441,8 +1474,8 @@ export const SPECIES = {
       swim: "fluke",
       diet: "bite",
       breathes: true,
-      surfaceTime: 5,
-      diveTime: 18,
+      surfaceTime: breathHold(0.7),
+      diveTime: breathHold(2.5),
       diveSpeed: 24,
       huntTaxa: ["flyingfish", "sardinella", "anchovy", "sardine"],
       tints: [

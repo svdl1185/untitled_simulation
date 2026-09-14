@@ -70,6 +70,8 @@ export const CONFIG = {
     o2Demand: 0,
     omz: 0,
     omzCoreY: null,
+    upwell: 0,
+    nutriclineY: null,
   },
 
   fish: { ...FISH_DEFAULTS },

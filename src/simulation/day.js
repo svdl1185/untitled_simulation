@@ -310,12 +310,12 @@ export class DayCycle {
       if (next >= 24) {
         this.dayIndex += Math.floor(next / 24);
         CONFIG.time.dayIndex = this.dayIndex;
-        bindCellTemperature();
         bindCellOxygen();
       }
       this.hour = ((next % 24) + 24) % 24;
     }
     this.storm += (this.stormTarget - this.storm) * Math.min(1, dt * 0.55);
+    bindCellTemperature(this.storm);
     this.sample();
   }
 

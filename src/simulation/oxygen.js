@@ -102,21 +102,22 @@ function _invSmooth(s) {
  * Null if the column never goes that low.
  */
 export function oxyclineY(threshold = 1.4) {
-  const key = Math.round((threshold ?? 1.4) * 20) / 20;
-  if (_oxyCache.has(key)) return _oxyCache.get(key);
   const s = _state();
+  const cut = threshold ?? 1.4;
+  const key = `${Math.round(cut * 20) / 20}|${Math.round(s.mld)}|${Math.round(s.anomaly * 10)}|${Math.round(s.demand * 20)}`;
+  if (_oxyCache.has(key)) return _oxyCache.get(key);
   const surf = s.sat * 0.96 - s.demand * 0.15 + s.anomaly;
-  if (surf < key) {
+  if (surf < cut) {
     _oxyCache.set(key, -2);
     return -2;
   }
   const coreMin = s.omzMin - s.demand + s.anomaly;
-  if (s.core == null || coreMin >= key) {
+  if (s.core == null || coreMin >= cut) {
     _oxyCache.set(key, null);
     return null;
   }
   const span = Math.max(40, s.mld - s.core);
-  const t = (key - s.sat * 0.96) / (s.omzMin - s.sat * 0.96);
+  const t = (cut - s.sat * 0.96) / (s.omzMin - s.sat * 0.96);
   const y = s.mld - _invSmooth(Math.min(1, Math.max(0, t))) * span;
   _oxyCache.set(key, y);
   return y;

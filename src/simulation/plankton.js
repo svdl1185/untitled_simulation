@@ -26,7 +26,7 @@ const _flowD = { x: 0, y: 0, z: 0 };
  * Future guilds should only touch this class:
  *   sampleAt / grazeAt / sampleLayer / grazeLayer / depositLayer /
  *   recycle / overlap / forageDepth / grazeBenthos
- * School fish graze `z` unless a taxon sets `grazeOn: "p"` (krill).
+ * School fish graze `z` unless a taxon sets `grazeOn: "p"` (krill, menhaden).
  * Carcasses and excretion return mass to `n` and `d`.
  * Keep new species on that API so the NPZD budget stays closed as the
  * ecosystem grows.
@@ -113,11 +113,14 @@ export class Plankton {
     const { ny, layerY, pCol, zCol, nCol, dCol } = this;
     const thermo = CONFIG.thermoY ?? -30;
     const dayLook = { night: 0, caustic: 0.75, sunDir: { y: 0.72 }, storm: 0 };
+    const nutLine = nutriclineTarget(dayLook);
+    const nutSpan = Math.max(40, -CONFIG.floorY);
     for (let i = 0; i < ny; i++) {
       const y = layerY[i];
       const photic = samplePAR(y, dayLook);
-      const deep = Math.min(1, Math.max(0, (thermo - y) / Math.max(40, -CONFIG.floorY)));
-      nCol[i] = 0.14 + deep * 0.86;
+      const deep = Math.min(1, Math.max(0, (thermo - y) / nutSpan));
+      const nDeep = nProfile(y, nutLine);
+      nCol[i] = 0.14 + nDeep * 0.86;
       pCol[i] = Math.max(1e-4, photic * (0.2 + 0.8 * (1 - deep * 0.5)));
       const dy = y - thermo;
       zCol[i] = Math.max(1e-4, Math.exp(-(dy * dy) / (2 * 22 * 22)));
@@ -324,6 +327,28 @@ export class Plankton {
       }
     }
     return y;
+  }
+
+  /**
+   * Shallowest depth where the N column has risen to half of its
+   * maximum — the nutricline, not the deep-N peak.
+   */
+  nutriclineY() {
+    const { ny, layerY, nCol } = this;
+    if (!ny) return CONFIG.thermoY ?? -30;
+    let max = nCol[0];
+    for (let i = 1; i < ny; i++) if (nCol[i] > max) max = nCol[i];
+    const cut = max * 0.5;
+    if (nCol[0] >= cut) return layerY[0];
+    for (let i = 1; i < ny; i++) {
+      if (nCol[i] >= cut) {
+        const a = nCol[i - 1];
+        const b = nCol[i];
+        const t = (cut - a) / Math.max(1e-6, b - a);
+        return layerY[i - 1] + (layerY[i] - layerY[i - 1]) * t;
+      }
+    }
+    return layerY[ny - 1];
   }
 
   /** Zooplankton DVM depth: column peak, falling back to mixed layer. */
@@ -542,7 +567,9 @@ export class Plankton {
           Math.max(0, (CONFIG.shelfY - ground) / Math.max(8, CONFIG.shelfY - CONFIG.floorY))
         );
         const upwell =
-          (cfg.baseN * (0.35 + deep) + storm * cfg.upwell * deep + vent[i] * (0.012 + storm * 0.04)) *
+          (cfg.baseN * (0.35 + deep) +
+            (storm + (CONFIG.water?.upwell ?? 0) * 0.55) * cfg.upwell * deep +
+            vent[i] * (0.012 + storm * 0.04)) *
           (1 - nut);
 
         phy += (uptake - zg - mortP) * dt;
@@ -598,6 +625,8 @@ export class Plankton {
     const dusk = look?.dusk ?? 0;
     const rise = Math.min(1, night * 0.9 + dusk * 0.55 + dawn * 0.4);
     const thermo = CONFIG.thermoY ?? -30;
+    const nutLine = nutriclineTarget(look);
+    const nutSpan = Math.max(40, -CONFIG.floorY);
     const zWant = thermo - 4 + (-7.2 - (thermo - 4)) * rise;
     const sigZ = 18 + (1 - rise) * 10;
     const dayLook = { night: 0, caustic: 0.8, sunDir: { y: 0.74 }, storm: look?.storm ?? 0 };
@@ -609,8 +638,9 @@ export class Plankton {
 
     for (let i = 0; i < ny; i++) {
       const y = layerY[i];
-      const deep = Math.min(1, Math.max(0, (thermo - y) / Math.max(40, -CONFIG.floorY)));
-      nCol[i] += (0.12 + 0.88 * deep - nCol[i]) * kN;
+      const deep = Math.min(1, Math.max(0, (thermo - y) / nutSpan));
+      const nDeep = nProfile(y, nutLine);
+      nCol[i] += (0.12 + 0.88 * nDeep - nCol[i]) * kN;
       const pWant = Math.max(1e-5, samplePAR(y, dayLook) * (0.18 + 0.82 * Math.max(0, nCol[i])));
       pCol[i] += (pWant - pCol[i]) * kP;
       const dy = y - zWant;
@@ -668,8 +698,9 @@ export class Plankton {
     this.pzCoincide = p2 > 1e-8 && z2 > 1e-8 ? dot / Math.sqrt(p2 * z2) : 0.7;
     this.bloomY = this.peakY(pCol);
     this.zooY = this.peakY(zCol);
-    this.nutY = this.peakY(this.nCol);
+    this.nutY = this.nutriclineY();
     this.detY = this.peakY(this.dCol);
+    CONFIG.water.nutriclineY = this.nutY;
   }
 
   _lap(arr, wet, nx, nz, ix, iz) {
@@ -747,4 +778,19 @@ function _u8(v) {
   if (x < 0) return 0;
   if (x > 255) return 255;
   return x;
+}
+
+/** Depth where N starts to rise. Climate upwell and storms lift it toward the light. */
+function nutriclineTarget(look) {
+  const thermo = CONFIG.thermoY ?? -30;
+  const climate = CONFIG.water?.upwell ?? 0;
+  const storm = look?.storm ?? 0;
+  const lift = Math.min(1, climate + storm * 0.45);
+  const photic = -16;
+  return thermo * (1 - lift) + photic * lift;
+}
+
+/** 0–1 how far below the nutricline this depth sits. Rise is tens of metres, not the abyss. */
+function nProfile(y, nutLine) {
+  return Math.min(1, Math.max(0, (nutLine - y) / 48));
 }

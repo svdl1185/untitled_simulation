@@ -1,5 +1,5 @@
 import { attenuationKd, samplePAR, surfacePAR, visualClarity, visualHunter, visualRange } from "./light.js";
-import { bindCellTemperature, climatologySST, columnQ10, meanSST, q10Factor, sampleTemp } from "./temperature.js";
+import { bindCellTemperature, climatologySST, columnQ10, meanSST, mixedLayerY, q10Factor, sampleTemp } from "./temperature.js";
 import {
   bindCellOxygen,
   climateOmz,
@@ -8,6 +8,7 @@ import {
   sampleO2,
   saturationO2,
 } from "./oxygen.js";
+import { bindCellUpwell, climateUpwell, sampleFlow } from "./flow.js";
 import { CONFIG, breathTargetY, photicLimitY, columnZones } from "../config.js";
 import { Plankton, TROPHIC } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
@@ -326,4 +327,62 @@ function assert(cond, msg) {
   assert(shelf.y < -180, `placed camera y should be deep, got ${shelf.y.toFixed(0)}`);
 }
 
-console.log("column physics: 16 checks ok");
+{
+  const saved = {
+    lat: CONFIG.world.lat,
+    lon: CONFIG.world.lon,
+    lab: CONFIG.world.lab,
+    floorY: CONFIG.floorY,
+    thermoY: CONFIG.thermoY,
+    sst: CONFIG.water.sst,
+    upwell: CONFIG.water.upwell,
+  };
+
+  CONFIG.world.lab = false;
+  CONFIG.floorY = -4000;
+
+  assert(climateUpwell(-16, -76) > 0.55, "Peru should be a strong upwelling cell");
+  assert(climateUpwell(36, -122) > 0.4, "California Current should upwell");
+  assert(climateUpwell(28, -150) < 0.12, "North Pacific gyre should not upwell");
+  assert(climateUpwell(56, 3.2) < 0.12, "North Sea should not be an eastern-boundary upwell");
+
+  const calm = mixedLayerY(56, 180, -200, 0);
+  const blown = mixedLayerY(56, 180, -200, 1);
+  assert(blown < calm - 12, `storms should deepen the mixed layer (calm ${calm.toFixed(1)} storm ${blown.toFixed(1)})`);
+
+  CONFIG.world.lat = -16;
+  CONFIG.world.lon = -76;
+  bindCellTemperature();
+  bindCellUpwell();
+  const peru = new Plankton();
+  const day = { night: 0, caustic: 0.8, sunDir: { y: 0.7 }, storm: 0 };
+  for (let i = 0; i < 12; i++) peru._updateColumn(0.4, day);
+  const peruNut = peru.nutriclineY();
+
+  CONFIG.world.lat = 28;
+  CONFIG.world.lon = -150;
+  bindCellTemperature();
+  bindCellUpwell();
+  const gyre = new Plankton();
+  for (let i = 0; i < 12; i++) gyre._updateColumn(0.4, day);
+  const gyreNut = gyre.nutriclineY();
+  assert(
+    peruNut > gyreNut + 12,
+    `Peru nutricline should sit shallower than a gyre (${peruNut.toFixed(0)} vs ${gyreNut.toFixed(0)})`
+  );
+
+  CONFIG.water.upwell = 1;
+  CONFIG.thermoY = -32;
+  const lift = sampleFlow(0, -32, 0, 0, 0);
+  assert(lift.y > 0.08, `upwelling cell should have a mean upward flow at the thermocline, got ${lift.y.toFixed(3)}`);
+
+  CONFIG.world.lat = saved.lat;
+  CONFIG.world.lon = saved.lon;
+  CONFIG.world.lab = saved.lab;
+  CONFIG.floorY = saved.floorY;
+  CONFIG.thermoY = saved.thermoY;
+  CONFIG.water.sst = saved.sst;
+  CONFIG.water.upwell = saved.upwell;
+}
+
+console.log("column physics: 17 checks ok");
