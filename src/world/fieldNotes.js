@@ -56,12 +56,13 @@ export const FAUNA = {
     about:
       "Western Atlantic filter feeder, typically 20–35 cm. Estuarine and inner-shelf; rarely below about 50 m. Schools in murky coastal water. Eaten by striped bass, sharks, and birds.",
     program:
-      "Polarized shoal. Type II graze on phytoplankton p (the same knob krill uses; z is not a separate bite). Shallow DVM. o2Min 2 ml/L: they will not sit in a hypoxic shelf. Does not commute into the abyss.",
+      "Polarized shoal. Type II graze on phytoplankton p (the same knob krill uses; z is not a separate bite). Shallow DVM. o2Min 2 ml/L: they will not sit in a hypoxic shelf. Inner-shelf hull fades with distance from shore. Summer raises abundance in that hull; winter does not empty it.",
     missing: [
       "Striped bass and coastal birds are not agents.",
       "Estuarine nurseries and larval ingress through inlets are not a habitat.",
       "Gill-raker particle-size filtering is graze-on-p, not a filter that splits p versus z by size.",
       "The reduction fishery is not mortality.",
+      "North–south inshore migration is abundance on the hull, not a swim between cells.",
     ],
   },
   sardine: {
@@ -467,7 +468,7 @@ export const FAUNA = {
     sex: "Female / male.",
     about:
       "Tropical coastal shark, typically 3–4.5 m. Usually 0–100 m; recorded to about 350 m. Famous generalist.",
-    program: "Burst-and-glide. Coastal tropical hulls (Caribbean, East Pacific, West Africa, Indo-West Pacific, Hawaii) with school prey. Bites school fish. Not a filled latitude band; the Mediterranean is empty.",
+    program: "Burst-and-glide. Coastal tropical hulls (Caribbean, East Pacific, West Africa, Indo-West Pacific, Hawaii) fade with kilometres from shore. Bites school fish. Not a filled latitude band; the Mediterranean and the gyres are empty.",
     missing: [
       "Turtles, carrion, and seabirds are not agents. Energy is only from school-fish bites, not a fake constant.",
       "Night-inshore / day-offshore commutes are not a schedule.",
@@ -485,7 +486,7 @@ export const FAUNA = {
     sex: "Female / male.",
     about:
       "Tropical and subtropical sphyrnid, typically 1.5–3 m. Schools by day at seamounts; hunts at night. Usually 0–275 m; recorded to about 500 m.",
-    program: "Burst-and-glide, tighter pack spacing than tiger sharks. Bites school fish. Same coastal tropical hulls as the tiger shark, plus the Mediterranean.",
+    program: "Burst-and-glide, tighter pack spacing than tiger sharks. Bites school fish. Same coastal tropical hulls as the tiger shark (fade with kilometres from shore), plus the Mediterranean.",
     missing: [
       "Rays and seamount schooling landmarks are not in the cell.",
       "Electroreception is not a sense.",
@@ -677,7 +678,7 @@ export const FAUNA = {
     about:
       "Tropical ambush piscivore, typically 0.6–1.7 m. Reefs, wrecks, and clear coastal water. Usually 0–50 m; recorded to about 110 m. Sit-and-dash, not a ram tuna.",
     program:
-      "Scatter hashed-grid sit-and-dash (`diet: bite`): wide spacing, short neighbour bites, stays nearly horizontal. Coastal tropical hulls, same geography as the tiger shark. Prey-capped share, not a vehicle pack.",
+      "Scatter hashed-grid sit-and-dash (`diet: bite`): wide spacing, short neighbour bites, stays nearly horizontal. Coastal tropical hulls, same geography as the tiger shark, fading with kilometres from shore. Prey-capped share, not a vehicle pack.",
     missing: [
       "Reef structure as a sit-and-wait landmark is not a collider type.",
       "Hover-then-dash from a wreck or reef is scatter spacing, not ambush-from-structure.",

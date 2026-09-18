@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints. The **world map** is home. Click water to load that kilometre (GEBCO floor, a mean current, every catalogued animal whose range, thermal niche, and season cover the cell). **Filter** overlays current habitat for any catalog taxon — several at once — on this day of year. Land is not a cell. **Cells** picks a named kilometre: the 10 km catalog tank (whole catalog, stepped shelves, 2000 m) plus biomes from the coupling figure. Gap tiles still open the pelagic water at that site — they do not invent coral or a vent. Polar ice is coupled. Each named cell starts with the fauna that range would put there; names in the picker add or remove that biome’s usual cast.
+Open the URL Vite prints. The **world map** is home. Click water to load that kilometre (GEBCO floor, a mean current, every catalogued animal whose range, thermal niche, and season cover the cell). **Filter** overlays current habitat for any catalog taxon — several at once — on this day of year (range vs spawn, search, a map day-of-year scrubber). Land is not a cell. **Cells** picks a named kilometre: the 10 km catalog tank (whole catalog, stepped shelves, 2000 m) plus biomes from the coupling figure. Gap tiles still open the pelagic water at that site — they do not invent coral or a vent. Polar ice is coupled. Each named cell starts with the fauna that range would put there; names in the picker add or remove that biome’s usual cast.
 
 The public host is a Cloudflare Worker with the Vite `dist`. Atlas paths `/gebco`, `/gmrt`, `/hycom` are the same in `npm run dev` and in production (Vite proxy locally, Worker fetch on the edge). Attach a domain: [`docs/deploy.md`](docs/deploy.md).
 
@@ -111,13 +111,13 @@ Near the camera only. One hashed-grid school (cap 20k, `UniformGrid3D`, 32768 bu
 
 ### Range and presence
 
-Hulls and catalog niches in `src/world/ranges.js`. `presenceAt` scores every covering hull (or an oceanic prior) by seasonal occupancy, SST (soft shoulders), ice, OMZ, upwell, and shelf-vs-oceanic floor, then trophic gates. Weights 0–1; overlap is habitat. Empty is honest. School `share` and vehicle `count` scale with the weight. The **Day of year** slider is the calendar (`CONFIG.time.dayIndex`); live clock advances hour only. Map hover uses the same function plus a coarse GEBCO floor. **Filter** rasters geographic habitat (hull × season × SST × ice × floor) onto the basemap — the Wikipedia-style range, not a filled latitude band. Cell spawn still trophic-gates. `CONFIG.presence[id]` on `applyPatch`; spawn gated with `faunaPresent(id)`.
+Hulls and catalog niches in `src/world/ranges.js`. `presenceAt` scores every covering hull (or an oceanic prior) by seasonal occupancy, kilometres from shore, SST (soft shoulders), ice, OMZ, upwell, and shelf-vs-oceanic floor, then trophic gates. Weights 0–1; overlap is habitat. Empty is honest. School `share` and vehicle `count` scale with the weight. The **Day of year** slider is the calendar (`CONFIG.time.dayIndex`); live clock advances hour only. Map hover uses the same function plus a coarse GEBCO floor. **Filter** rasters geographic habitat (hull × coast × season × SST × ice × upwell × floor) onto the basemap — the Wikipedia-style range, not a filled latitude band. A day-of-year scrubber sits on the overlay. Range vs spawn toggles the trophic gate. Cell spawn still trophic-gates. Occupancy with `season.floor` scales abundance in a year-round hull and does not empty the cell; omit `floor` only on hulls the animals actually leave. `CONFIG.presence[id]` on `applyPatch`; spawn gated with `faunaPresent(id)`.
 
 - Most bite-predators need some *forage* school prey in the cell, not another piscivore. Bluefin needs *named* temperate forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel), not a flying-fish-only cell. Cod need herring, capelin, or sand lance, and a shelf (dropped if floor deeper than ~650 m). Humboldt needs named East-Pacific forage or lanternfish, an OMZ, and climate upwell. Toothfish need silverfish. Common dolphin need surface forage. Giant squid need lanternfish / market squid / Illex, and a floor deeper than ~350 m (`floor.max`).
 - Whale shark and minke eat the bloom — they can occupy a cell with no school fish. Minke feeding occupancy is a local-summer window.
 - Sperm whales are oceanic (`realm: "oceanic"`, floor deeper than ~400 m). Ice-avoid. They still dive if squid are missing; they do not get free calories.
-- Lanternfish, giant squid, blue shark, sperm whale, and orca: oceanic prior, then SST / ice / floor. Flying fish, skipjack, yellowfin, sailfish: circumtropical oceanic hulls (Mediterranean empty except mahi). Tiger shark and barracuda: coastal tropics. Hammerhead: those coasts plus the Med. Common dolphin: warm-temperate hulls. Benthos: every wet cell.
-- Humpback feeding hulls peak in local summer; tropical wintering hulls peak in local winter. Herring: North Sea / Georges Bank year-round, Norwegian Sea summer, Vestfjorden winter. Capelin beach-spawn is a coastal spring window. Bluefin feeding is local summer; Gulf / Med / West Pacific spawn is spring. Great white: Cape Cod summer, California autumn–winter, White Shark Café late winter–spring. Whale shark: tropical prior plus Ningaloo / Yucatán / Mozambique aggregations. Occupancy is a window, not a swim between cells.
+- Lanternfish, giant squid, blue shark, sperm whale, and orca: oceanic prior, then SST / ice / floor. Flying fish, skipjack, yellowfin, sailfish: circumtropical oceanic hulls (Mediterranean empty except mahi). Tiger shark and barracuda: coastal tropics, fading with kilometres from shore. Hammerhead: those coasts plus the Med. Common dolphin: warm-temperate hulls, a longer coastal fade. Benthos: every wet cell.
+- Humpback feeding hulls peak in local summer; tropical wintering hulls peak in local winter. Herring: North Sea / Georges Bank year-round, Norwegian Sea summer, Vestfjorden winter. Capelin beach-spawn is a coastal spring window. Bluefin feeding is local summer; Gulf / Med / West Pacific spawn in spring. Great white: Cape Cod summer, California autumn–winter, White Shark Café late winter–spring. Whale shark: tropical prior plus Ningaloo / Yucatán / Mozambique aggregations. Menhaden stay on the inner shelf year-round; summer raises abundance. Occupancy is a window, not a swim between cells.
 - Latin names follow the cell where stocks share an id (anchovy, mackerel, sardinella, sand lance, jack mackerel, Illex, krill, minke, toothfish).
 
 ### Catalog
@@ -130,7 +130,7 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 | --- | --- | --- | --- | --- |
 | herring | forage · polarized | `z` | −20 / −110 · 400 m | Temp −1.8–20 °C. Default pancake. North Sea year-round; Norwegian Sea summer; Vestfjorden winter. |
 | capelin | forage · polarized | `z` | −8 / −52 · 300 m | Temp −1.8–12 °C. Coastal spawn is a spring window. |
-| menhaden | forage · polarized | `p` (higher graze) | −6 / −32 · 48 m | Inner-shelf realm. Filter on phytoplankton. |
+| menhaden | forage · polarized | `p` (higher graze) | −6 / −32 · 48 m | Inner-shelf; fades with kilometres from shore. Summer abundance boost, winter still present. Filter on phytoplankton. |
 | sardine | forage · polarized | `z` | −12 / −58 · 200 m | |
 | pilchard | forage · polarized | `z` | −14 / −68 · 150 m | |
 | anchovy | forage · polarized | `z` | −8 / −38 · 150 m | Latin follows the cell. |
@@ -163,7 +163,7 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 | shark (blue) | burst · tail | any school | 1000 m | School forage prey; temp 8–28 °C. `o2Min` 1.4. |
 | bluefin | ram · thunniform | named temperate forage | 1000 m | Feeding occupancy local summer; Gulf / Med / West Pacific spawn in spring. `o2Min` 2.2. Count scales with weight. |
 | greatwhite | burst · tail | school | 1200 m | Cape Cod summer; California autumn–winter; White Shark Café late winter–spring. |
-| tigershark | burst · tail | school | 350 m | Coastal tropical hulls, not a lat band. Med empty. |
+| tigershark | burst · tail | school | 350 m | Coastal tropical hulls, fade from shore. Med empty. |
 | hammerhead | burst · tail | school | 500 m | Temp 16–31 °C. |
 | whaleshark | ram · tail | filter `z` | 1920 m | Tropical prior plus Ningaloo / Yucatán / Mozambique aggregations. Bloom prey — no school required. |
 | minke | ram · fluke | filter `z` **and** bite (incl. krill) | 400 m · ~50 m | Air-breather. High-lat hull, local-summer occupancy. Bloom prey. |
@@ -181,7 +181,7 @@ Water, caustics, fog, and sky follow the photic envelope and the day look (`src/
 
 HUD (real state only): **Station** (`src/world/station.js`) is the live note for this kilometre — phase, DVM and hunt programmes, bloom cap, column depths, OMZ if the cell has one, sea ice, bed carbon and infauna. Census lists hashed-grid and vehicle counts. Field-notes card from `FAUNA`: **In nature**, **Not in the model** (only if `missing` is non-empty), live diet in this cell (click a name) or **None in cell** with the natural diet under it, breath-hold meter for air-breathers. The left column is still the depth ruler.
 
-**Controls** (`M` / `Tab`) starts most toggles off. Physical knobs: turbidity, SST anomaly, oxygen anomaly, ice anomaly, storm (mixed layer + nutricline + current), **day of year** (season for SST, ice, polar night, and occupancy). Map: current overlay. **Filter** paints live habitat for any catalog taxon.
+**Controls** (`M` / `Tab`) starts most toggles off. Physical knobs: turbidity, SST anomaly, oxygen anomaly, ice anomaly, storm (mixed layer + nutricline + current), **day of year** (season for SST, ice, polar night, and occupancy). Map: current overlay. **Filter** paints live habitat for any catalog taxon (search, solo, range vs spawn, day-of-year scrubber).
 
 Knobs live in `src/config.js` / `SPECIES[id].fish` / `SPECIES[id].vehicle`. Wire new rows with `hud.on` in `src/main.js`.
 
@@ -211,7 +211,7 @@ Physics, chemistry, scale, and senses that every biome would read.
 | Climate modes (ENSO, IOD, NAO, PDO) | Humboldt collapse, sardine–anchovy regimes |
 | Basin streaming of agents | Neighbour chunks cache patches; animals do not swim between cells |
 | Density / super-individuals beyond the camera | Far field is empty water, not biomass |
-| AquaMaps / OBIS / acoustic DSL | Hulls are still coarse polygons; occupancy is habitat-scored |
+| AquaMaps / OBIS / acoustic DSL | Hulls are still polygons; coastal taxa fade with kilometres from shore; occupancy is habitat-scored |
 | Fishing mortality | Not a budget |
 | Age, stage, larval drift | Recruits are bloom × year-timer |
 | Spawn as a swim | Occupancy windows are coupled; animals still do not commute between cells |

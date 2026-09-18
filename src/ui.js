@@ -42,7 +42,7 @@ export const MENU = [
         id: "dayOfYear",
         kind: "slider",
         label: "Day of year",
-        hint: "Season for SST, ice, polar night, and who is in range. Occupancy is a window on a hull, not a swim between cells.",
+        hint: "Season for SST, ice, polar night, and who is in range. Occupancy scales abundance; it does not empty a hull the species still lives in.",
         min: 1,
         max: 365,
         step: 1,
@@ -447,7 +447,7 @@ export function createHUD() {
     if (about) about.hidden = dock !== "about";
     if (menu) menu.hidden = dock !== "menu";
     notes.classList.toggle("is-collapsed", !dock);
-    notes.classList.toggle("is-wide", dock === "about" || dock === "menu" || dock === "demos" || dock === "station");
+    notes.classList.toggle("is-wide", dock === "about" || dock === "menu" || dock === "demos" || dock === "station" || dock === "filter");
     if (columnRoot) columnRoot.hidden = !cell;
     document.body.classList.toggle("has-column", cell);
     syncFields();
@@ -534,8 +534,8 @@ export function createHUD() {
   }
 
   const demosView = bindDemos(demosBody, (id, payload) => emit(id, payload));
-  filterView = bindFilter(filterBody, (ids) => {
-    emit("mapFilter", ids);
+  filterView = bindFilter(filterBody, (kind, payload) => {
+    if (kind === "state") emit("mapFilter", payload);
     syncNav();
   });
 
@@ -654,6 +654,14 @@ export function createHUD() {
     },
     setDemoState(state) {
       demosView.setState(state);
+    },
+    showFilterNotes(id) {
+      filterView.showNotes?.(id);
+      if (id && !values.oceanMap) {
+        set("oceanMap", true);
+        emit("oceanMap", true);
+      }
+      if (dock !== "filter") setDock("filter");
     },
     setCameraLive,
     setEntered(on) {
@@ -1234,25 +1242,70 @@ function taxonGroup(id) {
 
 function bindFilter(root, emit) {
   if (!root) {
-    return { hasSelection() { return false; } };
+    return { hasSelection() { return false; }, showNotes() {}, trophic: () => false };
   }
   const selected = new Set();
+  let trophic = false;
+  let focusId = null;
+  let query = "";
   const lead = el("p", {
-    text: "Current habitat on this day of year. Hull, season, SST, ice, and floor — the Wikipedia-style range, not a filled latitude band. Several taxa overlay at once. Occupancy is a window, not a swim between cells.",
+    text: "Geographic habitat on this day of year: hull, coast distance, season, SST, ice, upwell, and floor. Occupancy scales how many animals the cell holds — it does not empty a range the species still lives in. Spawn mode adds the trophic gate the cell uses. Several taxa overlay at once.",
+  });
+  const search = el("input", {
+    type: "search",
+    class: "filter-search",
+    placeholder: "Search taxa",
+    autocomplete: "off",
   });
   const actions = el("div", { class: "filter-actions" });
+  const mode = el("button", { type: "button", class: "filter-clear", text: "Range" });
+  const solo = el("button", { type: "button", class: "filter-clear", text: "Solo" });
   const clear = el("button", { type: "button", class: "filter-clear", text: "Clear" });
-  actions.append(clear);
+  actions.append(mode, solo, clear);
   const list = el("div", { class: "filter-list" });
+  const notes = el("div", { class: "filter-notes", hidden: "" });
   const rows = new Map();
 
   function paint() {
+    const q = query.trim().toLowerCase();
     for (const [id, row] of rows) {
       const on = selected.has(id);
       row.classList.toggle("on", on);
+      row.classList.toggle("focus", id === focusId);
       row.setAttribute("aria-pressed", on ? "true" : "false");
+      const name = taxonName(id).toLowerCase();
+      const latin = (FAUNA[id]?.latin || "").toLowerCase();
+      row.hidden = !!(q && !name.includes(q) && !latin.includes(q));
     }
-    emit([...selected]);
+    mode.textContent = trophic ? "Spawn" : "Range";
+    mode.title = trophic
+      ? "Showing cells that would spawn (trophic gate on)"
+      : "Showing geographic range (Wikipedia-style)";
+    emit("state", { ids: [...selected], trophic });
+    renderNotes();
+  }
+
+  function renderNotes() {
+    const id = focusId && selected.has(focusId)
+      ? focusId
+      : selected.size === 1
+        ? [...selected][0]
+        : null;
+    if (!id || !FAUNA[id]) {
+      notes.hidden = true;
+      notes.replaceChildren();
+      return;
+    }
+    notes.hidden = false;
+    const sp = FAUNA[id];
+    const missing = (sp.missing || []).slice(0, 2).map((line) => el("p", { text: line }));
+    notes.replaceChildren(
+      el("p", { class: "about-label", text: sp.latin || taxonName(id) }),
+      el("p", { class: "filter-notes-about", text: sp.about || sp.program || "" }),
+      ...(missing.length
+        ? [el("p", { class: "about-label", text: "Not in the model" }), ...missing]
+        : [])
+    );
   }
 
   function addGroup(title, ids) {
@@ -1271,8 +1324,13 @@ function bindFilter(root, emit) {
         el("span", { text: taxonName(id) }),
       ]);
       row.addEventListener("click", () => {
-        if (selected.has(id)) selected.delete(id);
-        else selected.add(id);
+        if (selected.has(id)) {
+          selected.delete(id);
+          if (focusId === id) focusId = null;
+        } else {
+          selected.add(id);
+          focusId = id;
+        }
         paint();
       });
       rows.set(id, row);
@@ -1282,14 +1340,47 @@ function bindFilter(root, emit) {
 
   addGroup("School", SCHOOL_IDS);
   addGroup("Vehicles", VEHICLE_IDS);
-  clear.addEventListener("click", () => {
-    selected.clear();
+  search.addEventListener("input", () => {
+    query = search.value;
     paint();
   });
-  root.replaceChildren(lead, actions, list);
+  search.addEventListener("search", () => {
+    query = search.value;
+    paint();
+  });
+  mode.addEventListener("click", () => {
+    trophic = !trophic;
+    paint();
+  });
+  solo.addEventListener("click", () => {
+    const keep = focusId && selected.has(focusId)
+      ? focusId
+      : selected.size
+        ? [...selected][selected.size - 1]
+        : null;
+    selected.clear();
+    if (keep) {
+      selected.add(keep);
+      focusId = keep;
+    }
+    paint();
+  });
+  clear.addEventListener("click", () => {
+    selected.clear();
+    focusId = null;
+    paint();
+  });
+  root.replaceChildren(lead, search, actions, notes, list);
   return {
     hasSelection() {
       return selected.size > 0;
+    },
+    trophic: () => trophic,
+    showNotes(id) {
+      if (!id || !rows.has(id)) return;
+      selected.add(id);
+      focusId = id;
+      paint();
     },
   };
 }

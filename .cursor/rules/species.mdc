@@ -17,7 +17,7 @@ The camera is a window. A new animal must change a budget, a habitat, or a senso
 
 - **Common name, Latin name, guild.** Guild is the job (pelagic forage, surface, pelagic predator, demersal, mysticete, odontocete, cephalopod, later: benthos, gelatinous, mammal, reef).
 - **Catalog row** in `src/world/fauna.js` (`SPECIES`): `agent` (`school` | `vehicle`, later `density` / `field`). School: `share`, `diet` (`z` | `p` | `bite` | `both`), fish knobs, look. Vehicle: `count` / `max`. Field-note prose in `src/world/fieldNotes.js` (`FAUNA`). Cards in `src/species.js`.
-- **Why this cell.** Range hulls and catalog niches in `src/world/ranges.js`. `presenceAt` scores hull (or an oceanic prior) × season × SST × ice × OMZ × upwell × realm/floor, then trophic gates. School share and vehicle count scale with the weight. `CONFIG.presence[id]` on `applyPatch`. Spawn is gated with `faunaPresent(id)`. Empty is honest. Map **Filter** paints geographic habitat (hull × climate), not a filled latitude band.
+- **Why this cell.** Range hulls and catalog niches in `src/world/ranges.js`. `presenceAt` scores hull (or an oceanic prior) × season × coast distance × SST × ice × OMZ × upwell × realm/floor, then trophic gates. School share and vehicle count scale with the weight. `CONFIG.presence[id]` on `applyPatch`. Spawn is gated with `faunaPresent(id)`. Empty is honest. Map **Filter** paints geographic habitat (hull × coast × climate), not a filled latitude band. Spawn mode adds the trophic gate.
 
 ## 2. Food (even if the prey is not simulated yet)
 
@@ -67,7 +67,7 @@ Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 
 ## 6. Range and presence
 
 - Hull or catalog niche in `src/world/ranges.js`. Independent weights, not a single winner.
-- Optional `season: { peak, width, absolute }` on a range row is occupancy (local summer/winter via the query latitude, or a calendar-fixed aggregation if `absolute`), not a commute. Optional `occupancy` is a year-round prior so aggregations can pop.
+- Optional `season: { peak, width, absolute, floor }` on a range row is occupancy (local summer/winter via the query latitude, or a calendar-fixed aggregation if `absolute`), not a commute. `floor` keeps a year-round resident in the cell and only scales abundance; omit it on hulls the animals actually leave. Optional `occupancy` is a year-round prior so aggregations can pop. Optional `coastKm` fades coastal taxa with kilometres from shore (`src/world/coast.js`).
 - Catalog `realm` (`shelf` / `oceanic` / `slope`), `floor: { min, max }`, `temp`, `o2`, `ice`, `upwellMin` score the cell when `floorY` and `dayOfYear` are known. SST, floor, and realm use short shoulders, not a cliff.
 - `CONFIG.presence[id]` on `applyPatch` (every catalog id). Spawn gated with `faunaPresent(id)`. School `share` and vehicle `count` scale with the weight.
 - Trophic dependents: if no *forage* school prey is in the cell, most bite-predators are absent. Cod also need herring, capelin, or sand lance, and a shelf. Humboldt squid need named East-Pacific forage or lanternfish, an OMZ, and climate upwell. Toothfish need silverfish. Common dolphin need surface forage. Whale sharks and minke eat the bloom, so they can occupy a cell with no school fish. Sperm whales are oceanic (floor deeper than ~400 m); they still dive if squid are missing, and they do not get free calories.
@@ -88,7 +88,7 @@ Match existing module style in `src/simulation/`. No new frameworks. Keep the ha
 - Mesh under `src/render/`. Guild silhouette + swim (`tail` | `body` | `thunniform` | `fluke` | `jet` on `vehicle.swim` / `look.swim`); countershade; do not invent glow that is not a biological photophore. School looks live on `SPECIES[id].look`. Vehicles and school guilds are authored glTFs (`public/models/`, factory `art/build_fauna.py`); procedural builders remain as fallback.
 - Knobs in `src/config.js` / `SPECIES[id].fish` / `SPECIES[id].vehicle`. Toggles/sliders in `MENU` (`src/ui.js`), start **off**, wire with `hud.on` in `src/main.js`.
 - Prefer a physical control (depth, turbidity, nutrient) over a cosmetic one.
-- Field-notes card in `src/species.js` from `FAUNA`: **In nature**, **Not in the model** (`missing`, only if the array is non-empty). Diet lists live prey in this cell (click a name to look) or **None in cell**, with the natural diet under it. Air-breathers show a breath-hold meter. HUD readout only if it is a real state (counts, energy, zone, max depth, remaining breath). Map **Filter** paints current habitat for any catalog taxon, several at once.
+- Field-notes card in `src/species.js` from `FAUNA`: **In nature**, **Not in the model** (`missing`, only if the array is non-empty). Diet lists live prey in this cell (click a name to look) or **None in cell**, with the natural diet under it. Air-breathers show a breath-hold meter. HUD readout only if it is a real state (counts, energy, zone, max depth, remaining breath). Map **Filter** paints current habitat for any catalog taxon, several at once; search, solo, range vs spawn, and a day-of-year scrubber.
 
 ## 9. Scale
 

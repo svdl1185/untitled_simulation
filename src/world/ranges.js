@@ -1,10 +1,12 @@
 /**
- * Coarse range polygons until AquaMaps/OBIS slot into the atlas.
+ * Range polygons until AquaMaps/OBIS slot into the atlas.
  *
  * Every species whose hull covers the cell is present. Overlap is real
  * habitat, not a bug: Humboldt can hold anchoveta and sardine; the North
  * Sea can hold herring, mackerel, sharks, and cod in one patch.
  * Predators still need prey in the cell (trophic gate), not a lat split.
+ * Coastal taxa fade with kilometres from shore. Occupancy with a season
+ * floor scales abundance and does not empty a year-round hull.
  */
 
 import { emptyPresence, PRESENCE_IDS, SCHOOL_IDS, SPECIES, speciesLabel, isForagePrey } from "./fauna.js";
@@ -13,6 +15,7 @@ import { inOxygenNiche } from "../simulation/oxygen.js";
 import { climateIce } from "../simulation/ice.js";
 import { climateUpwell } from "../simulation/flow.js";
 import { CONFIG } from "../config.js";
+import { coastKmAt, coastWeight, fillRings } from "./coast.js";
 
 const HERRING_RESIDENT = [
   [
@@ -952,7 +955,7 @@ const RANGES = [
   { id: "herring", hulls: HERRING_WINTER, season: { peak: 15, width: 70 } },
   { id: "capelin", hulls: CAPELIN_HULLS, occupancy: 0.5 },
   { id: "capelin", hulls: CAPELIN_SPAWN, season: { peak: 150, width: 50 } },
-  { id: "menhaden", hulls: MENHADEN_HULLS },
+  { id: "menhaden", hulls: MENHADEN_HULLS, coastKm: 200, season: { peak: 210, width: 120, floor: 0.4 } },
   { id: "sardine", hulls: SARDINE_HULLS },
   { id: "pilchard", hulls: PILCHARD_HULLS },
   { id: "anchovy", hulls: ANCHOVY_HULLS },
@@ -969,9 +972,9 @@ const RANGES = [
   { id: "krill", hulls: [...SILVERFISH_HULLS, ...KRILL_NA_HULLS] },
   { id: "toothfish", hulls: SILVERFISH_HULLS },
   { id: "cod", hulls: COD_HULLS },
-  { id: "greatwhite", hulls: GREATWHITE_CORE },
-  { id: "greatwhite", hulls: GREATWHITE_CAPE, season: { peak: 210, width: 80 } },
-  { id: "greatwhite", hulls: GREATWHITE_CALIFORNIA, season: { peak: 300, width: 90 } },
+  { id: "greatwhite", hulls: GREATWHITE_CORE, coastKm: 480 },
+  { id: "greatwhite", hulls: GREATWHITE_CAPE, season: { peak: 210, width: 80 }, coastKm: 480 },
+  { id: "greatwhite", hulls: GREATWHITE_CALIFORNIA, season: { peak: 300, width: 90 }, coastKm: 480 },
   { id: "greatwhite", hulls: GREATWHITE_CAFE, season: { peak: 60, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_FEED, season: { peak: 210, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_BREED, season: { peak: 30, width: 70 } },
@@ -984,10 +987,10 @@ const RANGES = [
   { id: "yellowfin", hulls: TROPICAL_OCEANIC },
   { id: "sailfish", hulls: TROPICAL_OCEANIC },
   { id: "mahi", hulls: [...TROPICAL_OCEANIC, ...MED_HULL] },
-  { id: "tigershark", hulls: TROPICAL_COASTAL },
-  { id: "hammerhead", hulls: [...TROPICAL_COASTAL, ...MED_HULL] },
-  { id: "barracuda", hulls: TROPICAL_COASTAL },
-  { id: "commondolphin", hulls: COMMON_DOLPHIN_HULLS },
+  { id: "tigershark", hulls: TROPICAL_COASTAL, coastKm: 560 },
+  { id: "hammerhead", hulls: [...TROPICAL_COASTAL, ...MED_HULL], coastKm: 560 },
+  { id: "barracuda", hulls: TROPICAL_COASTAL, coastKm: 560 },
+  { id: "commondolphin", hulls: COMMON_DOLPHIN_HULLS, coastKm: 850 },
   { id: "whaleshark", hulls: TROPICAL_OCEANIC, occupancy: 0.32 },
   { id: "whaleshark", hulls: WHALESHARK_NINGALOO, season: { peak: 105, width: 55, absolute: true } },
   { id: "whaleshark", hulls: WHALESHARK_YUCATAN, season: { peak: 210, width: 50, absolute: true } },
@@ -1017,13 +1020,22 @@ export function seasonWeight(doy, peak, width, lat = 0, absolute = false) {
 function occupancyOf(spec, lat, dayOfYear) {
   const prior = spec.occupancy ?? 1;
   if (!spec.season) return prior;
-  return prior * seasonWeight(
+  const w = seasonWeight(
     dayOfYear,
     spec.season.peak,
     spec.season.width,
     lat,
     spec.season.absolute === true
   );
+  const floor = spec.season.floor ?? 0;
+  return prior * (floor + (1 - floor) * w);
+}
+
+function hullWeight(spec, lat, lon, dayOfYear) {
+  let w = occupancyOf(spec, lat, dayOfYear);
+  if (w <= 0.05) return 0;
+  if (spec.coastKm != null) w *= coastWeight(coastKmAt(lat, lon), spec.coastKm);
+  return w;
 }
 
 function taper(value, inner, outer) {
@@ -1158,7 +1170,7 @@ export function presenceAt(lat, lon, env = {}) {
 
   for (const spec of RANGES) {
     if (!inAny(x, lat, spec.hulls)) continue;
-    const occ = occupancyOf(spec, lat, climate.dayOfYear);
+    const occ = hullWeight(spec, lat, x, climate.dayOfYear);
     if (occ <= 0.05) continue;
     p[spec.id] = Math.max(p[spec.id] ?? 0, occ);
   }
@@ -1215,24 +1227,43 @@ export function habitatTint(id) {
   return { h: (i * GOLD) % 360, s: 62, l: 56 };
 }
 
-export function rasterHabitat({ cols = 160, rows = 76, dayOfYear, floorAt } = {}) {
+export const OVERLAY_COLS = 360;
+export const OVERLAY_ROWS = 170;
+
+export function rasterHabitat({
+  cols = OVERLAY_COLS,
+  rows = OVERLAY_ROWS,
+  dayOfYear,
+  floorAt,
+  ids,
+  trophic = false,
+} = {}) {
   const south = -85;
   const north = 85;
   const doy = dayOfYear ?? 180;
+  const want = new Set(ids?.length ? ids : OVERLAY_IDS);
+  if (trophic) {
+    for (const id of SCHOOL_IDS) if (isForagePrey(id)) want.add(id);
+  }
   const grid = {};
-  for (const id of OVERLAY_IDS) grid[id] = new Float32Array(cols * rows);
+  for (const id of want) grid[id] = new Float32Array(cols * rows);
+  const tmp = new Float32Array(cols * rows);
   const latOf = (j) => north - ((j + 0.5) / rows) * (north - south);
   const lonOf = (i) => -180 + ((i + 0.5) / cols) * 360;
 
   for (const spec of RANGES) {
+    if (!grid[spec.id]) continue;
+    tmp.fill(0);
+    for (const ring of spec.hulls) fillRings(tmp, cols, rows, south, north, [ring], 1, "max");
+    const g = grid[spec.id];
     for (let j = 0; j < rows; j++) {
       const lat = latOf(j);
-      const occ = occupancyOf(spec, lat, doy);
-      if (occ <= 0.05) continue;
+      const row = j * cols;
       for (let i = 0; i < cols; i++) {
-        if (!inAny(lonOf(i), lat, spec.hulls)) continue;
-        const idx = j * cols + i;
-        grid[spec.id][idx] = Math.max(grid[spec.id][idx], occ);
+        const idx = row + i;
+        if (tmp[idx] <= 0) continue;
+        const w = hullWeight(spec, lat, lonOf(i), doy);
+        if (w > g[idx]) g[idx] = w;
       }
     }
   }
@@ -1248,14 +1279,25 @@ export function rasterHabitat({ cols = 160, rows = 76, dayOfYear, floorAt } = {}
     for (let i = 0; i < cols; i++) {
       const lon = lonOf(i);
       const idx = j * cols + i;
+      let any = false;
+      for (const id of want) {
+        p[id] = grid[id][idx];
+        if (p[id] > 0.05) any = true;
+      }
+      if (!any) continue;
       const climate = climateEnv(lat, lon, { dayOfYear: doy, floorY: floorAt?.(lat, lon) });
-      for (const id of OVERLAY_IDS) p[id] = grid[id][idx];
-      for (const id of OVERLAY_IDS) {
+      for (const id of want) {
         if (p[id] <= 0.05) continue;
         const w = habitatWeight(SPECIES[id], climate);
         p[id] = w > 0.05 ? Math.min(1, p[id] * w) : 0;
       }
-      for (const id of OVERLAY_IDS) grid[id][idx] = p[id];
+      if (trophic) {
+        for (const id of want) {
+          if ((p[id] ?? 0) <= 0.05) continue;
+          if (!preySatisfied(SPECIES[id], p)) p[id] = 0;
+        }
+      }
+      for (const id of want) grid[id][idx] = p[id];
     }
   }
   return { cols, rows, south, north, grid };

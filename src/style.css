@@ -1098,7 +1098,42 @@ kbd {
 
 .filter-actions {
   display: flex;
-  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-search {
+  appearance: none;
+  width: 100%;
+  margin: 8px 0 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: rgba(5, 6, 8, 0.35);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.filter-search::placeholder {
+  color: var(--muted);
+}
+
+.filter-notes {
+  margin: 8px 0 12px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.filter-notes-about {
+  margin: 4px 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.filter-row.focus {
+  border-color: rgba(160, 230, 220, 0.55);
 }
 
 .filter-clear {
@@ -1232,15 +1267,42 @@ kbd {
   gap: 6px 10px;
   margin-top: 8px;
   max-width: 36rem;
+  pointer-events: auto;
 }
 
 .ocean-map-chip {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
   font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--ink);
+  cursor: pointer;
+}
+
+.ocean-map-season {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  max-width: 16rem;
+  pointer-events: auto;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85);
+}
+
+.ocean-map-season input {
+  width: 100%;
+  accent-color: #8fd4cc;
 }
 
 .ocean-map-chip i {

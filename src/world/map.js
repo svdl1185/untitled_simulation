@@ -1,8 +1,9 @@
 import { formatLatLon } from "./patch.js";
 import { gebcoMapUrl, fetchCurrentField } from "./atlas.js";
-import { presenceAt, presentNames, rasterHabitat, habitatTint } from "./ranges.js";
+import { presenceAt, presentNames, rasterHabitat, habitatTint, OVERLAY_COLS, OVERLAY_ROWS } from "./ranges.js";
 import { speciesLabel } from "./fauna.js";
 import { topoPolygons } from "./topo.js";
+import { setCoastPolygons } from "./coast.js";
 import { CONFIG } from "../config.js";
 import { formatDayOfYear } from "../simulation/day.js";
 
@@ -13,7 +14,7 @@ const WATER = "#07090c";
 const SOUTH = -85;
 const NORTH = 85;
 
-export function createOceanMap({ onEnter }) {
+export function createOceanMap({ onEnter, onSeason, onOverlayFocus }) {
   const root = document.createElement("div");
   root.id = "ocean-map";
   root.hidden = true;
@@ -24,6 +25,10 @@ export function createOceanMap({ onEnter }) {
         <p class="ocean-map-readout" id="ocean-map-readout">Hover water for coordinates and fauna in range</p>
         <p class="ocean-map-fauna" id="ocean-map-fauna"></p>
         <div class="ocean-map-swatches" id="ocean-map-swatches" hidden></div>
+        <label class="ocean-map-season" id="ocean-map-season" hidden>
+          <span id="ocean-map-season-read">Day of year</span>
+          <input type="range" id="ocean-map-season-input" min="1" max="365" step="1" />
+        </label>
       </div>
       <div class="ocean-map-bottom">
         <p class="ocean-map-status" id="ocean-map-status"></p>
@@ -41,6 +46,9 @@ export function createOceanMap({ onEnter }) {
   const readout = root.querySelector("#ocean-map-readout");
   const faunaList = root.querySelector("#ocean-map-fauna");
   const swatches = root.querySelector("#ocean-map-swatches");
+  const seasonRow = root.querySelector("#ocean-map-season");
+  const seasonRead = root.querySelector("#ocean-map-season-read");
+  const seasonInput = root.querySelector("#ocean-map-season-input");
   const status = root.querySelector("#ocean-map-status");
   const ctx = canvas.getContext("2d", { alpha: false });
   const sheet = document.createElement("canvas");
@@ -61,6 +69,7 @@ export function createOceanMap({ onEnter }) {
   let here = { lat: 56, lon: 3.2 };
   let dirty = true;
   let overlayIds = [];
+  let overlayTrophic = false;
   let overlayGrid = null;
   let overlayKey = "";
 
@@ -97,6 +106,9 @@ export function createOceanMap({ onEnter }) {
     if (land) return;
     const topo = await fetch("/world/land-50m.json").then((r) => r.json());
     land = topoPolygons(topo, "land");
+    setCoastPolygons(land);
+    overlayGrid = null;
+    overlayKey = "";
     dirty = true;
   }
 
@@ -249,6 +261,9 @@ export function createOceanMap({ onEnter }) {
       CONFIG.time?.dayIndex ?? 180,
       CONFIG.water?.sstAnomaly ?? 0,
       CONFIG.water?.iceAnomaly ?? 0,
+      overlayTrophic ? 1 : 0,
+      overlayIds.join(","),
+      land ? 1 : 0,
       bathyRaw ? 1 : 0,
     ].join("|");
   }
@@ -259,8 +274,10 @@ export function createOceanMap({ onEnter }) {
     if (overlayGrid && overlayKey === key) return overlayGrid;
     overlayKey = key;
     overlayGrid = rasterHabitat({
-      cols: 160,
-      rows: 76,
+      cols: OVERLAY_COLS,
+      rows: OVERLAY_ROWS,
+      ids: overlayIds,
+      trophic: overlayTrophic,
       dayOfYear: CONFIG.time?.dayIndex ?? 180,
       floorAt: bathyRaw ? (lat, lon) => floorYAt(lat, lon) : undefined,
     });
@@ -309,22 +326,50 @@ export function createOceanMap({ onEnter }) {
     swatches.replaceChildren();
     if (!overlayIds.length) {
       swatches.hidden = true;
+      if (seasonRow) seasonRow.hidden = true;
       return;
     }
     swatches.hidden = false;
+    if (seasonRow) {
+      seasonRow.hidden = false;
+      syncSeason();
+    }
     for (const id of overlayIds) {
       const tint = habitatTint(id);
-      const chip = document.createElement("span");
+      const chip = document.createElement("button");
+      chip.type = "button";
       chip.className = "ocean-map-chip";
       chip.innerHTML = `<i style="background:hsl(${tint.h} ${tint.s}% ${tint.l}%)"></i>${speciesLabel(id)}`;
+      chip.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onOverlayFocus?.(id);
+      });
       swatches.append(chip);
     }
   }
 
-  function setOverlay(ids) {
+  function setOverlay(ids, opts = {}) {
     overlayIds = (ids || []).filter(Boolean);
+    if (opts.trophic != null) overlayTrophic = !!opts.trophic;
+    overlayGrid = null;
+    overlayKey = "";
     renderSwatches();
     if (open) draw();
+  }
+
+  function setTrophic(on) {
+    overlayTrophic = !!on;
+    overlayGrid = null;
+    overlayKey = "";
+    if (open) draw();
+    if (hover) setHover(hover, false);
+  }
+
+  function syncSeason() {
+    const doy = CONFIG.time?.dayIndex ?? 180;
+    if (seasonInput && Number(seasonInput.value) !== doy) seasonInput.value = String(doy);
+    if (seasonRead) seasonRead.textContent = formatDayOfYear(doy);
   }
 
   function sampleLand(px, py) {
@@ -353,7 +398,7 @@ export function createOceanMap({ onEnter }) {
     return presenceAt(lat, lon, {
       floorY: floorYAt(lat, lon),
       dayOfYear: CONFIG.time?.dayIndex ?? 180,
-      trophic: overlayIds.length ? false : true,
+      trophic: overlayIds.length ? overlayTrophic : true,
     });
   }
 
@@ -377,7 +422,11 @@ export function createOceanMap({ onEnter }) {
       const hits = overlayIds
         .filter((id) => (fauna[id] ?? 0) > 0.05)
         .map((id) => `${speciesLabel(id)} ${(fauna[id] * 100) | 0}%`);
-      faunaList.textContent = hits.length ? hits.join(" · ") : "none of the filtered taxa in this cell";
+      faunaList.textContent = hits.length
+          ? hits.join(" · ")
+          : overlayTrophic
+            ? "none of the filtered taxa would spawn in this cell"
+            : "none of the filtered taxa in this cell";
     } else {
       const who = presentNames(fauna);
       faunaList.textContent = who.length ? who.join(", ") : "no implemented fauna";
@@ -392,6 +441,14 @@ export function createOceanMap({ onEnter }) {
     setHover(xyToLonLat(px, py), sampleLand(px, py));
   });
   canvas.addEventListener("pointerleave", () => setHover(null, false));
+  seasonInput?.addEventListener("input", () => {
+    const doy = Number(seasonInput.value);
+    if (onSeason) onSeason(doy);
+    else if (seasonRead) seasonRead.textContent = formatDayOfYear(doy);
+  });
+  seasonInput?.addEventListener("pointerdown", (e) => e.stopPropagation());
+  if (seasonInput) seasonInput.value = String(CONFIG.time?.dayIndex ?? 180);
+  syncSeason();
   canvas.addEventListener("click", async (e) => {
     if (loading) return;
     const rect = root.getBoundingClientRect();
@@ -478,10 +535,12 @@ export function createOceanMap({ onEnter }) {
     refresh() {
       overlayGrid = null;
       overlayKey = "";
+      syncSeason();
       if (open) draw();
       if (hover) setHover(hover, false);
     },
     setOverlay,
+    setTrophic,
     overlayIds: () => overlayIds.slice(),
   };
 }

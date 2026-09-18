@@ -13,13 +13,16 @@ import { bindCellIce, climateIce, iceAlgaeWant, iceThickness, iceTransmit } from
 import { DayCycle, solarSinElev } from "./day.js";
 import { CONFIG, breathTargetY, photicLimitY, openPhoticY, columnZones, dvmY } from "../config.js";
 import { Plankton, TROPHIC, bedAlgaeWant } from "./plankton.js";
-import { presenceAt } from "../world/ranges.js";
+import { presenceAt, rasterHabitat } from "../world/ranges.js";
 import { applyPatch, applyPresence, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
 import { faunaPresent } from "../config.js";
 import { School } from "./school.js";
 import { spawnPredators } from "./shark.js";
 import { seafloorHeight, findWaterAtDepth } from "./obstacles.js";
 import { vehicleCfg, knobsFor, SPECIES, allocateMixedSchoolCounts, schoolDiet, vehicleCountFor } from "../world/fauna.js";
+import { readFileSync } from "node:fs";
+import { setCoastPolygons, coastKmAt } from "../world/coast.js";
+import { topoPolygons } from "../world/topo.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -231,6 +234,15 @@ function assert(cond, msg) {
 }
 
 {
+  const topo = JSON.parse(readFileSync(new URL("../../public/world/land-50m.json", import.meta.url)));
+  setCoastPolygons(topoPolygons(topo, "land"));
+  const hawaii = coastKmAt(21.2, -157.8);
+  const gyre = coastKmAt(12, -30);
+  assert(hawaii != null && hawaii < 80, `Hawaii should sit near land, got ${hawaii} km`);
+  assert(gyre > 500, `open Atlantic gyre should be far from land, got ${gyre} km`);
+}
+
+{
   const mid = presenceAt(12, -30, { floorY: -4000, dayOfYear: 180 });
   assert(mid.lanternfish > 0, "tropical Atlantic should have lanternfish");
   assert(mid.giantsquid > 0, "abyssal tropical cell should hold giant squid");
@@ -279,8 +291,8 @@ function assert(cond, msg) {
   assert(nfldMay.capelin > 0.8, "Barents spring should boost spawning capelin");
   assert(nfldJan.capelin > 0 && nfldJan.capelin < nfldMay.capelin, "Barents winter capelin should sit on the feeding prior");
 
-  const gulfApr = presenceAt(26, -90, { floorY: -40, dayOfYear: 120 });
-  const gulfJan = presenceAt(26, -90, { floorY: -40, dayOfYear: 15 });
+  const gulfApr = presenceAt(29, -89.5, { floorY: -40, dayOfYear: 120 });
+  const gulfJan = presenceAt(29, -89.5, { floorY: -40, dayOfYear: 15 });
   assert(gulfApr.bluefin > 0, "Gulf of Mexico in April is bluefin spawning water");
   assert(!(gulfJan.bluefin > 0), "Gulf of Mexico in January should drop spawn occupancy");
 
@@ -303,6 +315,29 @@ function assert(cond, msg) {
   assert(!(presenceAt(56, 3.2, { floorY: -71, ...wiki }).tigershark > 0), "North Sea is not tiger-shark habitat");
   assert(presenceAt(12, -30, { floorY: -4000, ...wiki }).tuna > 0, "tropical gyre is skipjack water");
   assert(!(presenceAt(36, 15, { floorY: -200, ...wiki }).tuna > 0), "skipjack should not fill the Mediterranean");
+
+  const chesJan = presenceAt(36.2, -75.0, { floorY: -18, dayOfYear: 15 });
+  const chesJun = presenceAt(36.2, -75.0, { floorY: -18, dayOfYear: 180 });
+  assert(chesJan.menhaden > 0, "winter Chesapeake still holds menhaden — occupancy is abundance, not an empty cell");
+  assert(chesJun.menhaden > chesJan.menhaden, "summer should raise menhaden abundance in the same hull");
+
+  const offshore = presenceAt(8, -40, { floorY: -4000, ...wiki });
+  assert(!(offshore.tigershark > 0), "open water hundreds of km off Brazil is not tiger-shark habitat");
+
+  const pack = rasterHabitat({
+    cols: 90,
+    rows: 42,
+    ids: ["tigershark", "tuna"],
+    dayOfYear: 180,
+  });
+  const at = (lat, lon) => {
+    const i = Math.max(0, Math.min(pack.cols - 1, (((lon + 180) / 360) * pack.cols) | 0));
+    const j = Math.max(0, Math.min(pack.rows - 1, (((pack.north - lat) / (pack.north - pack.south)) * pack.rows) | 0));
+    return j * pack.cols + i;
+  };
+  assert(pack.grid.tigershark[at(24, -76)] > 0.05, "overlay should paint tiger sharks on the Bahamas shelf");
+  assert(!(pack.grid.tigershark[at(12, -30)] > 0.05), "overlay should not paint tiger sharks in the gyre");
+  assert(pack.grid.tuna[at(12, -30)] > 0.05, "overlay should paint skipjack across the tropical gyre");
 
   assert(vehicleCountFor("commondolphin", 0.3) < vehicleCountFor("commondolphin", 1), "vehicle count should scale with presence weight");
   assert(vehicleCountFor("spermwhale", 0.4) === 1, "a scarce vehicle should still seed one when present");

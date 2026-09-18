@@ -18,6 +18,7 @@ import { bindCellTemperature, sampleTemp } from "./simulation/temperature.js";
 import { bindCellOxygen, sampleO2 } from "./simulation/oxygen.js";
 import { bindCellIce } from "./simulation/ice.js";
 import { presenceAt } from "./world/ranges.js";
+import { warmCoast } from "./world/coast.js";
 import { createInput } from "./input.js";
 import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followCameraIndex } from "./camera.js";
 import { createHUD } from "./ui.js";
@@ -380,7 +381,15 @@ hud.setHint(cameraHint(CAM.FREE, false, false));
 const world = new WorldStream();
 const oceanMap = createOceanMap({
   onEnter: enterCell,
+  onSeason(doy) {
+    hud.set("dayOfYear", doy);
+    applySeason(doy);
+  },
+  onOverlayFocus(id) {
+    hud.showFilterNotes?.(id);
+  },
 });
+warmCoast().then(() => oceanMap.refresh?.()).catch(() => {});
 
 let cellEntered = false;
 
@@ -516,7 +525,10 @@ hud.on("oceanMap", (on) => {
   }
   oceanMap.setOpen(on);
 });
-hud.on("mapFilter", (ids) => oceanMap.setOverlay(ids));
+hud.on("mapFilter", (payload) => {
+  const ids = Array.isArray(payload) ? payload : payload?.ids;
+  oceanMap.setOverlay(ids, { trophic: payload?.trophic });
+});
 hud.on("demo", ({ id, presence } = {}) => {
   enterDemo(id, presence);
   oceanMap.setOpen(false);
