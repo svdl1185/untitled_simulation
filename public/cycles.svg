@@ -82,7 +82,7 @@
     <text x="40" y="252">herring pancake &#183; school squid</text>
     <text x="40" y="348">lanternfish DSL &#183; Humboldt in the OMZ</text>
     <text x="40" y="362">sperm whale forage &#183; giant squid</text>
-    <text x="40" y="488" fill="#e7f4f2">benthos carbon &#183; cod graze</text>
+    <text x="40" y="488" fill="#e7f4f2">benthos C &#183; infauna &#183; MPB &#183; cod graze</text>
   </g>
 
   <!-- PAR down -->
@@ -112,6 +112,9 @@
 
   <rect x="160" y="428" width="88" height="22" rx="3" fill="none" stroke="#a89068" stroke-dasharray="3 2"/>
   <text x="204" y="442" fill="#a89068" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">vents / seeps</text>
+
+  <rect x="68" y="428" width="72" height="22" rx="3" fill="#12351c" stroke="#7dcf7a"/>
+  <text x="104" y="442" fill="#e7f4f2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="8" text-anchor="middle">MPB</text>
 
   <!-- NPZD cycle -->
   <text x="330" y="122" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" letter-spacing="0.14em">NPZD LOOP</text>
@@ -174,7 +177,7 @@
 
   <!-- Biomes -->
   <text x="20" y="528" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" letter-spacing="0.14em">EVERY KIND OF OCEAN</text>
-  <text x="620" y="528" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="9" text-anchor="end">pelagic + ice field &#183; the rest still has to land</text>
+  <text x="620" y="528" fill="#9bb8b4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="9" text-anchor="end">pelagic + ice + living bed &#183; coral, coast, vents still open</text>
 
   <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">
     <rect x="12" y="540" width="148" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
@@ -187,11 +190,11 @@
 
     <rect x="324" y="540" width="148" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
     <text x="398" y="555" fill="#e7f4f2" font-weight="600" text-anchor="middle">Shelf carbon</text>
-    <text x="398" y="568" fill="#9bb8b4" font-size="8" text-anchor="middle">benthos field &#183; cod only</text>
+    <text x="398" y="568" fill="#9bb8b4" font-size="8" text-anchor="middle">C &#183; infauna &#183; MPB</text>
 
-    <rect x="480" y="540" width="148" height="36" rx="4" fill="none" stroke="#a89068" stroke-dasharray="4 3"/>
-    <text x="554" y="555" fill="#d4c4a0" font-weight="600" text-anchor="middle">Demersal fauna</text>
-    <text x="554" y="568" fill="#a89068" font-size="8" text-anchor="middle">infauna &#183; flatfish &#183; kelp</text>
+    <rect x="480" y="540" width="148" height="36" rx="4" fill="#0c2428" stroke="#7fd8cf"/>
+    <text x="554" y="555" fill="#e7f4f2" font-weight="600" text-anchor="middle">Demersal fauna</text>
+    <text x="554" y="568" fill="#9bb8b4" font-size="8" text-anchor="middle">infauna field &#183; cod graze</text>
 
     <rect x="12" y="584" width="148" height="36" rx="4" fill="none" stroke="#a89068" stroke-dasharray="4 3"/>
     <text x="86" y="599" fill="#d4c4a0" font-weight="600" text-anchor="middle">Coral reef</text>

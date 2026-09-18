@@ -65,6 +65,10 @@ function assert(cond, msg) {
     mixedY: -32,
     nutriclineY: -55,
     upwell: 0.02,
+    meanP: 0.1,
+    meanZ: 0.08,
+    meanB: 0.12,
+    meanI: 0.18,
     forageCount: 8000,
     forageCap: 9000,
     census: [
@@ -78,7 +82,7 @@ function assert(cond, msg) {
   assert(text.includes("clips") || text.includes("sand"), "shelf DVM hits the floor");
   assert(text.includes("Atlantic herring"), "herring named");
   assert(text.includes("Atlantic cod") && text.includes("bed"), "cod on the bed");
-  assert(text.includes("seafloor carbon"), "benthos coupled to cod");
+  assert(text.includes("infauna") && text.includes("living store"), "cod graze living infauna");
   assert(brief.column.some((row) => row.id === "omz" && row.value === "None"), "no OMZ on the shelf");
   assert((brief.missing || []).length >= 1, "shelf demo keeps its gap note");
 }

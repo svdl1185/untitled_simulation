@@ -24,9 +24,15 @@ const _flowD = { x: 0, y: 0, z: 0 };
  * column and the local seafloor. Production, P–Z graze, and detritus
  * export read the live column so the product stays one field.
  *
+ * The seafloor is a two-box field on the same 128×128 patch: `benthos`
+ * is organic carbon (pelagic rain plus microphytobenthos on photic
+ * floors); `infauna` is living density that Type-II-grazes that carbon.
+ * `grazeBenthos` bites the living store. Remineralisation returns N.
+ *
  * Future guilds should only touch this class:
  *   sampleAt / grazeAt / sampleLayer / grazeLayer / depositLayer /
- *   recycle / overlap / forageDepth / grazeBenthos
+ *   recycle / overlap / forageDepth / grazeBenthos / sampleBenthos /
+ *   sampleInfauna
  * School fish graze `z` unless a taxon sets `grazeOn: "p"` (krill, menhaden).
  * Carcasses and excretion return mass to `n` and `d`.
  * Keep new species on that API so the NPZD budget stays closed as the
@@ -62,6 +68,7 @@ export class Plankton {
     this.meanZ = 0;
     this.meanD = 0;
     this.meanB = 0;
+    this.meanI = 0;
     this.prodIndex = 0;
     this.bloomY = CONFIG.thermoY;
     this.zooY = CONFIG.thermoY;
@@ -72,6 +79,7 @@ export class Plankton {
     this.sinkFrac = 0;
     this._bytes = new Uint8Array(cells * 4);
     this.benthos = new Float32Array(cells);
+    this.infauna = new Float32Array(cells);
     this._initColumn();
     this.seed();
   }
@@ -143,6 +151,7 @@ export class Plankton {
     wet.fill(0);
     vent.fill(0);
     this.benthos.fill(0);
+    this.infauna.fill(0);
     const sx = this.spanX / 480;
     const sz = this.spanZ / 468;
     const phyto = [
@@ -211,6 +220,7 @@ export class Plankton {
         d[i] = _clamp01(det);
         vent[i] = v * (0.35 + depth);
         this.benthos[i] = 0.04 + depth * 0.12;
+        this.infauna[i] = 0.05 + (1 - depth) * 0.1;
       }
     }
     this._initColumn();
@@ -413,17 +423,21 @@ export class Plankton {
 
   grazeBenthos(x, z, amount) {
     if (amount <= 0) return 0;
-    const { nx, nz, wet, benthos } = this;
+    const { nx, nz, wet, infauna } = this;
     const { fx, fz } = this._indexWorld(x, z);
     const ix = Math.round(fx);
     const iz = Math.round(fz);
-    const taken = this._take(benthos, wet, nx, nz, ix, iz, amount);
+    const taken = this._take(infauna, wet, nx, nz, ix, iz, amount);
     if (taken > 0) this._give(this.n, wet, nx, nz, ix, iz, taken * CONFIG.plankton.excrete);
     return taken;
   }
 
   sampleBenthos(x, z) {
     return this._sampleField(this.benthos, x, z);
+  }
+
+  sampleInfauna(x, z) {
+    return this._sampleField(this.infauna, x, z);
   }
 
   _splatter(dens, x, z, signed) {
@@ -537,6 +551,7 @@ export class Plankton {
     let sumZ = 0;
     let sumD = 0;
     let sumB = 0;
+    let sumI = 0;
     let prod = 0;
     let wetN = 0;
 
@@ -579,13 +594,34 @@ export class Plankton {
         nut += (mortP * 0.45 + mortZ * 0.35 + remin + upwell - uptake) * dt;
 
         const bed = this.benthos;
+        const inf = this.infauna;
         const toBed = Math.max(0, det) * sinkFrac * (0.35 + deep * 0.8);
         det -= toBed;
         let benthic = bed[i] + toBed;
+        let living = inf[i];
+        const par = samplePAR(ground, look);
+        const mpbWant =
+          cfg.growB *
+          bedAlgaeWant(ground, par) *
+          (nut / (nut + cfg.kN)) *
+          productionQ10() *
+          dt;
+        const mpb = mpbWant < nut ? mpbWant : Math.max(0, nut);
+        benthic += mpb;
+        nut -= mpb;
+        const igWant =
+          cfg.grazeInf * (benthic / (benthic + cfg.kInf)) * living * q10 * dt;
+        const ig = igWant < benthic ? igWant : Math.max(0, benthic);
+        const mortI = cfg.mortInf * living * q10 * dt;
+        living += cfg.effInf * ig - mortI;
+        benthic -= ig;
+        nut += (1 - cfg.effInf) * ig + mortI * 0.4;
+        benthic += mortI * 0.6;
         const bedRemin = cfg.remin * 0.42 * q10 * benthic * dt;
         benthic -= bedRemin;
         nut += bedRemin;
         bed[i] = _clamp01(benthic);
+        inf[i] = _clamp01(living);
 
         nut = _clamp01(nut);
         phy = _clamp01(phy);
@@ -600,6 +636,7 @@ export class Plankton {
         sumZ += zoa;
         sumD += det;
         sumB += bed[i];
+        sumI += inf[i];
         prod += uptake;
         wetN++;
       }
@@ -611,10 +648,11 @@ export class Plankton {
     this.meanZ = sumZ * inv;
     this.meanD = sumD * inv;
     this.meanB = sumB * inv;
+    this.meanI = sumI * inv;
     this.mean = this.meanZ;
     this.prodIndex = prod * inv;
     this._toBytes();
-    setOxygenDemand(this.meanD, this.meanB);
+    setOxygenDemand(this.meanD, this.meanB + this.meanI * 0.45);
   }
 
   _updateColumn(dt, look) {
@@ -739,8 +777,9 @@ export class Plankton {
     let sumZ = 0;
     let sumD = 0;
     let sumB = 0;
+    let sumI = 0;
     let wetN = 0;
-    const { n, p, z, d, wet, benthos } = this;
+    const { n, p, z, d, wet, benthos, infauna } = this;
     for (let i = 0; i < n.length; i++) {
       if (!wet[i]) continue;
       sumN += n[i];
@@ -748,6 +787,7 @@ export class Plankton {
       sumZ += z[i];
       sumD += d[i];
       sumB += benthos[i];
+      sumI += infauna[i];
       wetN++;
     }
     const inv = 1 / Math.max(1, wetN);
@@ -756,6 +796,7 @@ export class Plankton {
     this.meanZ = sumZ * inv;
     this.meanD = sumD * inv;
     this.meanB = sumB * inv;
+    this.meanI = sumI * inv;
     this.mean = this.meanZ;
     this._toBytes();
   }
@@ -783,6 +824,16 @@ function _u8(v) {
   if (x < 0) return 0;
   if (x > 255) return 255;
   return x;
+}
+
+/**
+ * Extra bed-carbon production on photic floors. Zero below ~1% PAR.
+ * Shelf analog of `iceAlgaeWant`: light at the sand, not a second NPZD box.
+ */
+export function bedAlgaeWant(y, par) {
+  const light = Math.max(0, par ?? 0);
+  if (light < 0.01) return 0;
+  return light;
 }
 
 /** Depth where N starts to rise. Climate upwell and storms lift it toward the light. */

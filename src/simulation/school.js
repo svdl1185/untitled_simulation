@@ -98,7 +98,7 @@ const N27Z = new Int8Array(27);
  * opens a hole without detonating the shoal.
  *
  * Trophic: grazers Type II-pull `p` or `z`; piscivores bite named forage on
- * the neighbour walk; demersal taxa graze seafloor carbon. Starvation and
+ * the neighbour walk; demersal taxa graze living infauna on the bed. Starvation and
  * predator kills recycle biomass back into the NPZD water column.
  */
 export class School {

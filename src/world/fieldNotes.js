@@ -38,7 +38,7 @@ export const FAUNA = {
       "Species-pure polarized shoal on the shared grid. Type II graze on z. Competes with herring for the bloom cap where ranges overlap (Iceland, Barents, Labrador, Bering).",
     missing: [
       "Beach spawning and bird predation are not agents.",
-      "Ice cover is not a field.",
+      "Ice is a field; capelin are not ice-associated — polar cod shoal under pack.",
       "Semelparity (many stocks spawn once and die) is not a life-history — they recruit and starve like any other school fish.",
       "Males do not grow spawning ridges or a hooked lower jaw; sex is a size tint.",
       "The beach rolling run onto the strand is not a state.",
@@ -401,14 +401,14 @@ export const FAUNA = {
     common: "Atlantic cod",
     latin: "Gadus morhua",
     guild: "Demersal predator",
-    diet: "Fish, benthos, crabs",
+    diet: "Fish, infauna, crabs",
     sex: "Female / male. Females are larger.",
     about:
-      "North Atlantic shelf gadid, typically 40–120 cm. Lives on the sand and in the lower column, usually 10–400 m; recorded to about 600 m. Not an abyssal fish. Eats herring, capelin, sand lance, and benthos.",
+      "North Atlantic shelf gadid, typically 40–120 cm. Lives on the sand and in the lower column, usually 10–400 m; recorded to about 600 m. Not an abyssal fish. Eats herring, capelin, sand lance, and infauna.",
     program:
-      "Scatter school on the shelf floor (`habitat: benthic`). Neighbour-walk bites herring, capelin, sand lance, sprat, and polar cod (huntTaxa). Also Type II-grazes seafloor carbon when on the bed. Prey-capped headcount so a North Sea cell holds a shoal of cod, not a vehicle pair. Dropped if the cell floor is deeper than about 650 m — that is slope/abyss, not shelf.",
+      "Scatter school on the shelf floor (`habitat: benthic`). Neighbour-walk bites herring, capelin, sand lance, sprat, and polar cod (huntTaxa). Also Type II-grazes living infauna when on the bed (`grazeBenthos`). Prey-capped headcount so a North Sea cell holds a shoal of cod, not a vehicle pair. Dropped if the cell floor is deeper than about 650 m — that is slope/abyss, not shelf.",
     missing: [
-      "Crabs and named benthic taxa are not agents — the seafloor field is detrital carbon, not a crab loop.",
+      "Named crabs, polychaetes, and amphipods are not agents — the bed field is infauna density, not a crab loop.",
       "Fishing mortality is not in the budget.",
       "Skrei / Lofoten spawning migrations are a hull, not a commute.",
       "Drumming in spawning aggregations is not a sound field.",
@@ -766,18 +766,19 @@ export const FAUNA = {
   benthos: {
     id: "benthos",
     common: "Benthos",
-    latin: "Seafloor carbon",
+    latin: "Seafloor carbon and infauna",
     guild: "Benthos",
-    diet: "Sinking detritus",
+    diet: "Sinking detritus; microphytobenthos on photic floors",
     sex: "Unsexed field.",
     about:
-      "The living and recently dead organic film on the seafloor: microbes, small invertebrates, and the carbon that fell from the pelagic. Not a crab or a worm loop yet — a density of recycled mass the demersal guild can actually eat.",
+      "Two boxes on the bed: organic carbon (pelagic rain plus microphytobenthos where the sand is sunlit) and living infauna density that grazes that carbon. Not a named worm or a crab — a field the demersal guild can actually eat.",
     program:
-      "Field agent. Detritus sinks down the shared NPZD column; the 2D patch holds mass; the seafloor store receives the bottom flux. Cod graze it when they are on the bed. Remineralises back to dissolved N. Present in every wet cell.",
+      "Field agent. Detritus sinks down the shared NPZD column onto a 2D carbon store. Photic floors grow extra carbon from PAR (the shelf analog of ice algae). Infauna Type-II-grazes that carbon, remineralises, and is what `grazeBenthos` bites. Cod graze the living store when they are on the bed. Present in every wet cell.",
     missing: [
-      "Named benthic taxa (crabs, amphipods, polychaetes) are not agents.",
+      "Named benthic taxa (crabs, amphipods, polychaetes) are not agents — infauna is a density, not a worm mesh.",
       "Sediment grain size is not a field. Bed oxygen is the column sample at the seafloor, not a sediment profile.",
       "Bioturbation is not mixing.",
+      "Phytodetritus pulses after blooms are rain plus MPB, not a seasonal dump.",
     ],
   },
 };

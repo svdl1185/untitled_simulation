@@ -12,7 +12,7 @@ import { bindCellUpwell, climateUpwell, sampleFlow } from "./flow.js";
 import { bindCellIce, climateIce, iceAlgaeWant, iceThickness, iceTransmit } from "./ice.js";
 import { DayCycle, solarSinElev } from "./day.js";
 import { CONFIG, breathTargetY, photicLimitY, openPhoticY, columnZones, dvmY } from "../config.js";
-import { Plankton, TROPHIC } from "./plankton.js";
+import { Plankton, TROPHIC, bedAlgaeWant } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
 import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
 import { faunaPresent } from "../config.js";
@@ -102,7 +102,46 @@ function assert(cond, msg) {
   assert(taken >= 0, "benthos graze should be non-negative");
   bloom.update(0.2, { night: 0, caustic: 0.8, sunDir: { y: 0.7 }, storm: 0 }, 0);
   assert(bloom.meanB >= 0, "benthos mean should stay defined after a step");
+  assert(bloom.meanI >= 0, "infauna mean should stay defined after a step");
+  assert(bloom.infauna.length === bloom.benthos.length, "infauna is a 2D living store");
   assert(bloom.prodIndex >= 0, "production index should be tracked");
+}
+
+{
+  const day = { night: 0, caustic: 1, sunDir: { y: 0.8 }, storm: 0 };
+  const parShelf = samplePAR(-20, day);
+  const parAbyss = samplePAR(-2000, day);
+  assert(bedAlgaeWant(-20, parShelf) > 0.05, "photic floors grow microphytobenthos");
+  assert(bedAlgaeWant(-2000, parAbyss) === 0, "abyss does not grow microphytobenthos");
+  assert(bedAlgaeWant(-8, 0) === 0, "night or zero PAR is not a bed source");
+}
+
+{
+  applyPatch(makeSyntheticPatch());
+  const bloom = new Plankton();
+  let x = 0;
+  let z = 0;
+  let found = false;
+  for (let iz = 0; iz < bloom.nz && !found; iz++) {
+    for (let ix = 0; ix < bloom.nx && !found; ix++) {
+      const i = iz * bloom.nx + ix;
+      if (!bloom.wet[i] || bloom.infauna[i] < 0.01) continue;
+      x = bloom.minX + (ix + 0.5) * bloom.cellX;
+      z = bloom.minZ + (iz + 0.5) * bloom.cellZ;
+      found = true;
+    }
+  }
+  assert(found, "synthetic shelf should seed wet infauna");
+  const live0 = bloom.sampleInfauna(x, z);
+  const carbon0 = bloom.sampleBenthos(x, z);
+  const taken = bloom.grazeBenthos(x, z, 0.02);
+  assert(taken > 0, "cod bite should take living infauna on a wet shelf");
+  assert(bloom.sampleInfauna(x, z) < live0, "grazeBenthos depletes infauna, not a detritus film");
+  assert(Math.abs(bloom.sampleBenthos(x, z) - carbon0) < 1e-8, "a bite should not lift bed carbon");
+  const day = { night: 0, caustic: 0.9, sunDir: { y: 0.75 }, storm: 0 };
+  for (let i = 0; i < 24; i++) bloom.update(0.35, day, i * 0.35);
+  assert(bloom.meanI > 0, `shelf infauna should stay alive, got ${bloom.meanI}`);
+  assert(bloom.meanB >= 0, "two-box bed carbon stays non-negative");
 }
 
 {
@@ -490,4 +529,4 @@ function assert(cond, msg) {
   assert(day.look.night < 0.15, "North Sea noon is still day");
 }
 
-console.log("column physics: 22 checks ok");
+console.log("column physics: 24 checks ok");

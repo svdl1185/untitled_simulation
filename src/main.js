@@ -740,6 +740,7 @@ function hudView() {
     meanP: plankton.meanP,
     meanZ: plankton.meanZ,
     meanB: plankton.meanB,
+    meanI: plankton.meanI,
     forageCount: school.count,
     forageCap: foodCap,
     ice: CONFIG.water?.ice ?? 0,
