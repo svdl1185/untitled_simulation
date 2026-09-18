@@ -1238,7 +1238,7 @@ function bindFilter(root, emit) {
   }
   const selected = new Set();
   const lead = el("p", {
-    text: "Current habitat on this day of year. Same occupancy as the cell: hull, season, SST, ice, floor, then trophic gate. Several taxa overlay at once. Occupancy is a window, not a swim between cells.",
+    text: "Current habitat on this day of year. Hull, season, SST, ice, and floor — the Wikipedia-style range, not a filled latitude band. Several taxa overlay at once. Occupancy is a window, not a swim between cells.",
   });
   const actions = el("div", { class: "filter-actions" });
   const clear = el("button", { type: "button", class: "filter-clear", text: "Clear" });

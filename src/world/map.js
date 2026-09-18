@@ -353,6 +353,7 @@ export function createOceanMap({ onEnter }) {
     return presenceAt(lat, lon, {
       floorY: floorYAt(lat, lon),
       dayOfYear: CONFIG.time?.dayIndex ?? 180,
+      trophic: overlayIds.length ? false : true,
     });
   }
 

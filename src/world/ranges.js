@@ -144,16 +144,16 @@ const SARDINE_HULLS = [
     [20, -16],
   ],
   [
-    [18, -30],
+    [18, -26],
     [18, -38],
-    [32, -38],
-    [32, -30],
+    [34, -38],
+    [34, -26],
   ],
   [
-    [110, -32],
+    [110, -28],
     [110, -44],
     [180, -44],
-    [180, -32],
+    [180, -28],
   ],
   [
     [-180, -32],
@@ -213,7 +213,8 @@ const ANCHOVY_HULLS = [
 
 const SARDINELLA_HULLS = [
   [
-    [-62, 22],
+    [-62, 28],
+    [-80, 28],
     [-90, 22],
     [-98, 18],
     [-90, 8],
@@ -234,12 +235,20 @@ const SARDINELLA_HULLS = [
   ],
   [
     [38, 24],
-    [38, -8],
-    [78, -18],
-    [110, -12],
-    [130, 8],
+    [38, -28],
+    [78, -22],
+    [120, -22],
+    [152, -18],
+    [152, 10],
+    [130, 12],
     [120, 22],
     [78, 24],
+  ],
+  [
+    [142, -24],
+    [156, -24],
+    [156, -10],
+    [142, -10],
   ],
 ];
 
@@ -618,12 +627,199 @@ const BLUEFIN_SPAWN = [
   ],
 ];
 
-const WHALESHARK_TROPICS = [
+const TROPICAL_OCEANIC = [
+  [
+    [-98, 8],
+    [-90, 28],
+    [-82, 34],
+    [-75, 42],
+    [-8, 42],
+    [-8, 32],
+    [16, 18],
+    [18, -8],
+    [16, -36],
+    [-15, -40],
+    [-45, -42],
+    [-72, -32],
+    [-82, -8],
+    [-98, 12],
+  ],
+  [
+    [20, -36],
+    [20, 12],
+    [32, 28],
+    [60, 26],
+    [78, 24],
+    [100, 22],
+    [128, 8],
+    [128, -38],
+    [110, -42],
+    [40, -42],
+  ],
+  [
+    [100, -8],
+    [108, 20],
+    [122, 36],
+    [150, 42],
+    [180, 42],
+    [180, -42],
+    [150, -44],
+    [110, -40],
+  ],
+  [
+    [-180, 42],
+    [-120, 42],
+    [-72, 32],
+    [-72, -40],
+    [-180, -42],
+  ],
+];
+
+const MED_HULL = [
+  [
+    [-6, 30],
+    [12, 30],
+    [36, 32],
+    [36, 42],
+    [8, 45],
+    [-6, 38],
+  ],
+];
+
+/** Galeocerdo / Sphyrna / Sphyraena: coastal and island tropics, not the gyres. */
+const TROPICAL_COASTAL = [
+  [
+    [-98, 18],
+    [-94, 30],
+    [-84, 30],
+    [-80, 28],
+    [-81, 40],
+    [-70, 36],
+    [-62, 26],
+    [-58, 12],
+    [-48, -2],
+    [-34, -8],
+    [-34, -28],
+    [-48, -34],
+    [-58, -22],
+    [-70, 2],
+    [-78, 10],
+    [-88, 16],
+  ],
+  [
+    [-126, 34],
+    [-110, 34],
+    [-104, 22],
+    [-78, 8],
+    [-72, -2],
+    [-72, -28],
+    [-80, -32],
+    [-92, -16],
+    [-110, 10],
+    [-120, 22],
+    [-126, 28],
+  ],
+  [
+    [-179, 18],
+    [-154, 18],
+    [-154, 29],
+    [-179, 29],
+  ],
+  [
+    [-18, 20],
+    [-5, 16],
+    [10, 6],
+    [16, -8],
+    [20, -34],
+    [10, -35],
+    [-5, -18],
+    [-18, 6],
+  ],
+  [
+    [28, -36],
+    [50, -28],
+    [58, -8],
+    [44, 14],
+    [50, 26],
+    [78, 24],
+    [96, 16],
+    [100, -8],
+    [80, -20],
+    [44, -12],
+    [32, -28],
+  ],
+  [
+    [100, -12],
+    [108, 18],
+    [122, 34],
+    [146, 36],
+    [156, 18],
+    [180, -10],
+    [180, -42],
+    [148, -46],
+    [112, -40],
+    [108, -22],
+  ],
+  [
+    [-180, -10],
+    [-170, -18],
+    [-170, -42],
+    [-180, -42],
+  ],
+];
+
+const COMMON_DOLPHIN_HULLS = [
+  [
+    [-80, 28],
+    [-70, 50],
+    [-8, 55],
+    [-6, 36],
+    [-20, 30],
+    [-62, 28],
+  ],
+  ...MED_HULL,
+  [
+    [-130, 22],
+    [-116, 42],
+    [-110, 32],
+    [-110, 18],
+    [-120, 18],
+  ],
+  [
+    [-82, 4],
+    [-70, -42],
+    [-78, -42],
+    [-84, -8],
+  ],
+  [
+    [128, 28],
+    [148, 44],
+    [148, 30],
+    [132, 28],
+  ],
+  [
+    [165, -32],
+    [180, -32],
+    [180, -48],
+    [165, -48],
+  ],
   [
     [-180, -32],
-    [180, -32],
-    [180, 32],
-    [-180, 32],
+    [-170, -32],
+    [-170, -48],
+    [-180, -48],
+  ],
+  [
+    [14, -26],
+    [36, -26],
+    [36, -38],
+    [14, -38],
+  ],
+  [
+    [110, -32],
+    [154, -32],
+    [154, -44],
+    [110, -44],
   ],
 ];
 
@@ -783,28 +979,28 @@ const RANGES = [
   { id: "minke", hulls: MINKE_HULLS, season: { peak: 210, width: 100 } },
   { id: "bluefin", hulls: BLUEFIN_FEED, season: { peak: 210, width: 110 } },
   { id: "bluefin", hulls: BLUEFIN_SPAWN, season: { peak: 120, width: 55, absolute: true } },
-  { id: "whaleshark", hulls: WHALESHARK_TROPICS, occupancy: 0.32 },
+  { id: "flyingfish", hulls: TROPICAL_OCEANIC },
+  { id: "tuna", hulls: TROPICAL_OCEANIC },
+  { id: "yellowfin", hulls: TROPICAL_OCEANIC },
+  { id: "sailfish", hulls: TROPICAL_OCEANIC },
+  { id: "mahi", hulls: [...TROPICAL_OCEANIC, ...MED_HULL] },
+  { id: "tigershark", hulls: TROPICAL_COASTAL },
+  { id: "hammerhead", hulls: [...TROPICAL_COASTAL, ...MED_HULL] },
+  { id: "barracuda", hulls: TROPICAL_COASTAL },
+  { id: "commondolphin", hulls: COMMON_DOLPHIN_HULLS },
+  { id: "whaleshark", hulls: TROPICAL_OCEANIC, occupancy: 0.32 },
   { id: "whaleshark", hulls: WHALESHARK_NINGALOO, season: { peak: 105, width: 55, absolute: true } },
   { id: "whaleshark", hulls: WHALESHARK_YUCATAN, season: { peak: 210, width: 50, absolute: true } },
   { id: "whaleshark", hulls: WHALESHARK_MOZ, season: { peak: 15, width: 55, absolute: true } },
 ];
 
-/** Cosmopolitan / lat-band taxa: geographic prior is 1, then catalog niches. */
+/** Cosmopolitan pelagic taxa: geographic prior is 1, then catalog niches. */
 const OPEN_RANGE = [
-  "flyingfish",
   "lanternfish",
   "giantsquid",
   "shark",
-  "tuna",
-  "tigershark",
-  "hammerhead",
   "spermwhale",
   "orca",
-  "commondolphin",
-  "mahi",
-  "barracuda",
-  "yellowfin",
-  "sailfish",
 ];
 
 export function seasonWeight(doy, peak, width, lat = 0, absolute = false) {
@@ -979,9 +1175,11 @@ export function presenceAt(lat, lon, env = {}) {
     p[id] = w > 0.05 ? Math.min(1, p[id] * w) : 0;
   }
 
-  for (const id of Object.keys(p)) {
-    if ((p[id] ?? 0) <= 0.05) continue;
-    if (!preySatisfied(SPECIES[id], p)) p[id] = 0;
+  if (env.trophic !== false) {
+    for (const id of Object.keys(p)) {
+      if ((p[id] ?? 0) <= 0.05) continue;
+      if (!preySatisfied(SPECIES[id], p)) p[id] = 0;
+    }
   }
   return p;
 }
@@ -1056,10 +1254,6 @@ export function rasterHabitat({ cols = 160, rows = 76, dayOfYear, floorAt } = {}
         if (p[id] <= 0.05) continue;
         const w = habitatWeight(SPECIES[id], climate);
         p[id] = w > 0.05 ? Math.min(1, p[id] * w) : 0;
-      }
-      for (const id of OVERLAY_IDS) {
-        if (p[id] <= 0.05) continue;
-        if (!preySatisfied(SPECIES[id], p)) p[id] = 0;
       }
       for (const id of OVERLAY_IDS) grid[id][idx] = p[id];
     }

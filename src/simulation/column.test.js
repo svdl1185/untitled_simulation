@@ -294,6 +294,16 @@ function assert(cond, msg) {
   assert(cafeMar.greatwhite > 0, "White Shark Café in March should hold great whites");
   assert(!(cafeJun.greatwhite > 0), "White Shark Café in June should empty");
 
+  const wiki = { dayOfYear: 180, trophic: false };
+  assert(presenceAt(24, -76, { floorY: -80, ...wiki }).tigershark > 0, "Bahamas is tiger-shark water");
+  assert(presenceAt(21.2, -157.8, { floorY: -2000, ...wiki }).tigershark > 0, "Hawaii is tiger-shark water");
+  assert(!(presenceAt(12, -30, { floorY: -4000, ...wiki }).tigershark > 0), "open Atlantic gyre is not tiger-shark habitat");
+  assert(!(presenceAt(36, 15, { floorY: -200, ...wiki }).tigershark > 0), "Mediterranean is not tiger-shark habitat");
+  assert(presenceAt(36, 15, { floorY: -200, ...wiki }).hammerhead > 0, "scalloped hammerhead reaches the Mediterranean");
+  assert(!(presenceAt(56, 3.2, { floorY: -71, ...wiki }).tigershark > 0), "North Sea is not tiger-shark habitat");
+  assert(presenceAt(12, -30, { floorY: -4000, ...wiki }).tuna > 0, "tropical gyre is skipjack water");
+  assert(!(presenceAt(36, 15, { floorY: -200, ...wiki }).tuna > 0), "skipjack should not fill the Mediterranean");
+
   assert(vehicleCountFor("commondolphin", 0.3) < vehicleCountFor("commondolphin", 1), "vehicle count should scale with presence weight");
   assert(vehicleCountFor("spermwhale", 0.4) === 1, "a scarce vehicle should still seed one when present");
 }

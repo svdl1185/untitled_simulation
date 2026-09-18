@@ -387,7 +387,7 @@ export const FAUNA = {
     about:
       "Tropical and subtropical tuna, typically 40–80 cm. Ram ventilator — must keep swimming. Usually 0–200 m; recorded to about 260 m. Schools with birds on surface forage. Broadcast spawner.",
     program:
-      "Polarized hashed-grid tuna (`diet: bite`). Neighbour-walk bites on forage fish in the photic-to-upper-mesopelagic band. Share of the prey-capped school slice, not a Reynolds handful. o2Min 2.4 ml/L — they will not follow lanternfish or Humboldt into the OMZ. Recruit from the mixed school budget when energy holds. Absent without school prey, poleward of about 40°.",
+      "Polarized hashed-grid tuna (`diet: bite`). Neighbour-walk bites on forage fish in the photic-to-upper-mesopelagic band. Share of the prey-capped school slice, not a Reynolds handful. o2Min 2.4 ml/L — they will not follow lanternfish or Humboldt into the OMZ. Recruit from the mixed school budget when energy holds. Circumtropical oceanic hulls; the Mediterranean is empty.",
     missing: [
       "Bird-associated surface feeding is not a cue.",
       "Squid diet is school fish only.",
@@ -467,7 +467,7 @@ export const FAUNA = {
     sex: "Female / male.",
     about:
       "Tropical coastal shark, typically 3–4.5 m. Usually 0–100 m; recorded to about 350 m. Famous generalist.",
-    program: "Burst-and-glide. Tropical (|lat| < 28°) with school prey. Bites school fish.",
+    program: "Burst-and-glide. Coastal tropical hulls (Caribbean, East Pacific, West Africa, Indo-West Pacific, Hawaii) with school prey. Bites school fish. Not a filled latitude band; the Mediterranean is empty.",
     missing: [
       "Turtles, carrion, and seabirds are not agents. Energy is only from school-fish bites, not a fake constant.",
       "Night-inshore / day-offshore commutes are not a schedule.",
@@ -485,7 +485,7 @@ export const FAUNA = {
     sex: "Female / male.",
     about:
       "Tropical and subtropical sphyrnid, typically 1.5–3 m. Schools by day at seamounts; hunts at night. Usually 0–275 m; recorded to about 500 m.",
-    program: "Burst-and-glide, tighter pack spacing than tiger sharks. Bites school fish. |lat| < 32°.",
+    program: "Burst-and-glide, tighter pack spacing than tiger sharks. Bites school fish. Same coastal tropical hulls as the tiger shark, plus the Mediterranean.",
     missing: [
       "Rays and seamount schooling landmarks are not in the cell.",
       "Electroreception is not a sense.",
@@ -613,7 +613,7 @@ export const FAUNA = {
     about:
       "Small oceanic dolphin, typically 1.7–2.4 m. Tropical and warm-temperate. Hunts surface forage, often with tunas. Usually the upper 200 m; recorded near 300 m. Must surface to breathe.",
     program:
-      "Ram vehicle, authored dolphin glTF, smaller than orca. Banks in the turn. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather: hangs level at the surface and blows a small puff, then a foraging dive toward that prey or typical forage ~18 m, clamped by min(300 m, this cell's floor). Typical 2.5 min dive / ~40 s blow series, mapped 5× onto wall-clock; recovery only counts at the air. Present |lat| < 40° when that prey exists.",
+      "Ram vehicle, authored dolphin glTF, smaller than orca. Banks in the turn. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather: hangs level at the surface and blows a small puff, then a foraging dive toward that prey or typical forage ~18 m, clamped by min(300 m, this cell's floor). Typical 2.5 min dive / ~40 s blow series, mapped 5× onto wall-clock; recovery only counts at the air. Warm-temperate hulls (North Atlantic, Med, California, Japan, New Zealand, South Africa, southern Australia), not a filled tropical band.",
     missing: [
       "Tuna-dolphin associations are not a cue.",
       "Long-beaked D. capensis is not a second id.",
@@ -656,7 +656,7 @@ export const FAUNA = {
     about:
       "Tropical surface hunter, typically 0.8–1.5 m. Lives with flotsam in the top ~85 m. Fast-growing. Eaten by billfish and sharks.",
     program:
-      "Loose hashed-grid hunter in the surface band (`diet: bite`). Neighbour-walk bites on school fish. Prey-capped share, not a vehicle pair. Absent poleward of about 32°.",
+      "Loose hashed-grid hunter in the surface band (`diet: bite`). Neighbour-walk bites on school fish. Prey-capped share, not a vehicle pair. Circumtropical oceanic hulls plus the Mediterranean.",
     missing: [
       "Flotsam / FADs are not objects.",
       "Aerial flying-fish strikes are not a behaviour.",
@@ -677,7 +677,7 @@ export const FAUNA = {
     about:
       "Tropical ambush piscivore, typically 0.6–1.7 m. Reefs, wrecks, and clear coastal water. Usually 0–50 m; recorded to about 110 m. Sit-and-dash, not a ram tuna.",
     program:
-      "Scatter hashed-grid sit-and-dash (`diet: bite`): wide spacing, short neighbour bites, stays nearly horizontal. Tropical (|lat| < 28°). Prey-capped share, not a vehicle pack.",
+      "Scatter hashed-grid sit-and-dash (`diet: bite`): wide spacing, short neighbour bites, stays nearly horizontal. Coastal tropical hulls, same geography as the tiger shark. Prey-capped share, not a vehicle pack.",
     missing: [
       "Reef structure as a sit-and-wait landmark is not a collider type.",
       "Hover-then-dash from a wreck or reef is scatter spacing, not ambush-from-structure.",
@@ -696,7 +696,7 @@ export const FAUNA = {
     about:
       "Tropical tuna, typically 1–1.8 m. Deeper and larger than skipjack. Often 0–250 m; recorded to about 500 m. Can share a cell with skipjack because skipjack stay shallower.",
     program:
-      "Polarized hashed-grid tuna (`diet: bite`). Neighbour-walk bites on school fish. Prey-capped share. o2Min 2 ml/L so the −500 m record is an oxygen ceiling, not a commute. Tropical (|lat| < 32°).",
+      "Polarized hashed-grid tuna (`diet: bite`). Neighbour-walk bites on school fish. Prey-capped share. o2Min 2 ml/L so the −500 m record is an oxygen ceiling, not a commute. Circumtropical oceanic hulls; the Mediterranean is empty.",
     missing: [
       "FADs and dolphin-associated schools are not cues.",
       "Mixed-species tuna schools are pack spacing, not an association.",
@@ -735,7 +735,7 @@ export const FAUNA = {
     about:
       "Tropical billfish, typically 2–3 m. Fastest cruise in the catalog. Usually the upper 50–100 m; recorded to about 200 m. Raises the sail when herding bait. Depth partitions it from yellowfin.",
     program:
-      "Loose hashed-grid billfish (`diet: bite`). Tropical (|lat| < 32°) with school prey. Neighbour-walk bites restore energy on the prey-capped slice.",
+      "Loose hashed-grid billfish (`diet: bite`). Circumtropical oceanic hulls with school prey. Neighbour-walk bites restore energy on the prey-capped slice.",
     missing: [
       "Sail-herding hydrodynamics are not a behaviour.",
       "The sail is the mesh, not a scoring device.",

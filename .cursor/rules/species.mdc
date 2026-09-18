@@ -17,7 +17,7 @@ The camera is a window. A new animal must change a budget, a habitat, or a senso
 
 - **Common name, Latin name, guild.** Guild is the job (pelagic forage, surface, pelagic predator, demersal, mysticete, odontocete, cephalopod, later: benthos, gelatinous, mammal, reef).
 - **Catalog row** in `src/world/fauna.js` (`SPECIES`): `agent` (`school` | `vehicle`, later `density` / `field`). School: `share`, `diet` (`z` | `p` | `bite` | `both`), fish knobs, look. Vehicle: `count` / `max`. Field-note prose in `src/world/fieldNotes.js` (`FAUNA`). Cards in `src/species.js`.
-- **Why this cell.** Range hulls and catalog niches in `src/world/ranges.js`. `presenceAt` scores hull (or oceanic prior) × season × SST × ice × OMZ × upwell × realm/floor, then trophic gates. School share and vehicle count scale with the weight. `CONFIG.presence[id]` on `applyPatch`. Spawn is gated with `faunaPresent(id)`. Empty is honest. Map **Filter** overlays that occupancy.
+- **Why this cell.** Range hulls and catalog niches in `src/world/ranges.js`. `presenceAt` scores hull (or an oceanic prior) × season × SST × ice × OMZ × upwell × realm/floor, then trophic gates. School share and vehicle count scale with the weight. `CONFIG.presence[id]` on `applyPatch`. Spawn is gated with `faunaPresent(id)`. Empty is honest. Map **Filter** paints geographic habitat (hull × climate), not a filled latitude band.
 
 ## 2. Food (even if the prey is not simulated yet)
 
