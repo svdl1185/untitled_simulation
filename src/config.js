@@ -1,5 +1,6 @@
 import {
   FISH_DEFAULTS,
+  DAY_SECONDS,
   dominantSchoolId,
   emptyPresence,
   knobsFor,
@@ -48,9 +49,9 @@ export const CONFIG = {
   cellSize: 3.8,
 
   time: {
-    // Real seconds per 24 h. Long enough that a ~90 m DVM dive is
-    // a fraction of daylight, not the whole morning.
-    dayLength: 480,
+    // Real seconds per 24 h. Long enough that a breath-hold and a
+    // ~90 m DVM dive are a fraction of daylight, not the whole morning.
+    dayLength: DAY_SECONDS,
     daysPerYear: 12,
     dayIndex: 180,
   },
@@ -86,41 +87,45 @@ export const CONFIG = {
 
   flow: {
     tide: 1.85,
-    tidePeriod: 48,
+    tidePeriod: 96,
     longshore: 1.2,
-    longshorePeriod: 74,
+    longshorePeriod: 148,
     shear: 0.9,
     stormMul: 1.65,
     meanU: 0,
     meanV: 0,
   },
 
+  /**
+   * NPZD rates are per wall-clock second, halved from the 8 min-day
+   * tuning so a 16 min day holds the same production per sim-day.
+   */
   plankton: {
     nx: 128,
     nz: 128,
-    graze: 0.00018,
+    graze: 0.00009,
     halfSat: 0.2,
-    growP: 0.046,
+    growP: 0.023,
     kN: 0.16,
-    grazeZ: 0.052,
+    grazeZ: 0.026,
     kP: 0.26,
     effZ: 0.42,
-    mortP: 0.007,
-    mortZ: 0.01,
-    remin: 0.018,
-    mix: 0.07,
-    upwell: 0.022,
+    mortP: 0.0035,
+    mortZ: 0.005,
+    remin: 0.009,
+    mix: 0.035,
+    upwell: 0.011,
     baseN: 0.004,
     carcass: 0.1,
     spawnCost: 0.018,
     excrete: 0.36,
     detritus: 0.24,
-    sink: 0.012,
-    growB: 0.008,
+    sink: 0.006,
+    growB: 0.004,
     kInf: 0.2,
-    grazeInf: 0.036,
+    grazeInf: 0.018,
     effInf: 0.4,
-    mortInf: 0.009,
+    mortInf: 0.0045,
   },
 
   /** Headcount / energy / meal recorder for the headless viability suite. */

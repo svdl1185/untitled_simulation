@@ -15,6 +15,22 @@
  * `agent: "field"`   — Eulerian guild (benthos carbon + infauna). Later: `"density"` for super-individuals.
  */
 
+/** Wall-clock seconds per sim day. 16 min ≈ 1 day (90×). */
+export const DAY_SECONDS = 960;
+const DAY_REF = 480;
+
+/**
+ * Per-second cruise drain so a full tank lasts `days` sim-days.
+ * Bigger animals use 2–2.5; dolphin 1.5.
+ */
+export function drainForDays(days, starveAt = 0.06) {
+  return +((1 - starveAt) / (Math.max(0.2, days) * DAY_SECONDS)).toFixed(7);
+}
+
+function schoolMet(old = 0.012) {
+  return +(old * (drainForDays(1.5, 0.07) / 0.012)).toFixed(6);
+}
+
 export const FISH_DEFAULTS = {
   restSpacing: 1.48,
   sepRadius: 2.25,
@@ -30,8 +46,8 @@ export const FISH_DEFAULTS = {
   cruiseWeight: 0.68,
   depthWeight: 0.55,
   forageWeight: 3.6,
-  forageGain: 0.16,
-  metabolism: 0.012,
+  forageGain: 0.02,
+  metabolism: schoolMet(),
   starveAt: 0.07,
   recruitEnergy: 0.52,
   spawnEnergy: 0.42,
@@ -101,7 +117,7 @@ export const VEHICLE_DEFAULTS = {
   lungeTime: 2.15,
   biteCooldown: 0.16,
   lungeBiteCooldown: 0.1,
-  energyDrain: 0.002,
+  energyDrain: drainForDays(2),
   eatEnergy: 0.08,
   hungry: 0.42,
   satiated: 0.82,
@@ -126,16 +142,18 @@ export const VEHICLE_DEFAULTS = {
 
 /**
  * Typical foraging dive or surface interval in nature (minutes) →
- * wall-clock seconds. The day clock is 180× (8 min ≈ 1 day). Breath-hold
- * is milder so a 5 min orca dive is still tens of seconds on screen, and
- * a 45 min sperm-whale forage is a couple of minutes — not a blink, and
- * not the whole game-day.
+ * wall-clock seconds. The day clock is 90× (16 min ≈ 1 day). Breath-hold
+ * is milder so a 6 min orca dive is still a couple of minutes on screen, and
+ * a 45 min sperm-whale forage is several minutes — not a blink, and
+ * not the whole game-day. Tanks stretch with `DAY_SECONDS` so a longer
+ * day actually slows oxygen drop.
  *
  * Shallow guilds (orca, dolphin, rorquals): compress 5.
  * Sperm whale: compress 15.
  */
 export function breathHold(natureMin, compress = 5) {
-  return Math.round((natureMin * 60 * 10) / compress) / 10;
+  const scale = DAY_SECONDS / DAY_REF;
+  return Math.round((natureMin * 60 * 10 * scale) / compress) / 10;
 }
 
 /** Depth (y) at which an air-breather is at the air and can recover. */
@@ -312,7 +330,7 @@ export const SPECIES = {
       maxSpeed: 9.4,
       fleeSpeed: 18,
       minSchoolSize: 160,
-      metabolism: 0.014,
+      metabolism: schoolMet(0.014),
     },
     look: {
       body: [0.4, 1.02, 1],
@@ -347,7 +365,7 @@ export const SPECIES = {
       maxSpeed: 8.2,
       fleeSpeed: 16,
       minSchoolSize: 140,
-      metabolism: 0.01,
+      metabolism: schoolMet(0.01),
       grazeMul: 1.35,
       grazeOn: "p",
       o2Min: 2,
@@ -450,7 +468,7 @@ export const SPECIES = {
       maxSpeed: 11.2,
       fleeSpeed: 20,
       minSchoolSize: 200,
-      metabolism: 0.015,
+      metabolism: schoolMet(0.015),
     },
     look: {
       body: [0.34, 1.28, 1],
@@ -518,7 +536,7 @@ export const SPECIES = {
       maxSpeed: 14.2,
       fleeSpeed: 26,
       minSchoolSize: 80,
-      metabolism: 0.013,
+      metabolism: schoolMet(0.013),
       grazeMul: 0.85,
       diet: "both",
       huntTaxa: ["herring", "capelin", "sprat", "sandlance", "anchovy", "sardine", "polarcod"],
@@ -559,7 +577,7 @@ export const SPECIES = {
       pitchLimit: 0.22,
       pitchDamp: 3.4,
       maxTurn: 1.55,
-      metabolism: 0.016,
+      metabolism: schoolMet(0.016),
       grazeMul: 0.55,
       anchorTop: -1.05,
     },
@@ -597,7 +615,7 @@ export const SPECIES = {
       maxSpeed: 8.8,
       fleeSpeed: 16,
       minSchoolSize: 220,
-      metabolism: 0.016,
+      metabolism: schoolMet(0.016),
     },
     look: {
       body: [0.32, 1.08, 1],
@@ -633,7 +651,7 @@ export const SPECIES = {
       maxSpeed: 9.6,
       fleeSpeed: 18,
       minSchoolSize: 140,
-      metabolism: 0.014,
+      metabolism: schoolMet(0.014),
     },
     look: {
       shape: "needle",
@@ -670,7 +688,7 @@ export const SPECIES = {
       maxSpeed: 7.4,
       fleeSpeed: 14,
       minSchoolSize: 120,
-      metabolism: 0.011,
+      metabolism: schoolMet(0.011),
       iceAssociated: true,
     },
     look: {
@@ -706,7 +724,7 @@ export const SPECIES = {
       maxSpeed: 8.6,
       fleeSpeed: 16,
       minSchoolSize: 180,
-      metabolism: 0.012,
+      metabolism: schoolMet(0.012),
       iceAssociated: true,
     },
     look: {
@@ -740,7 +758,7 @@ export const SPECIES = {
       pitchLimit: 0.28,
       pitchDamp: 2.8,
       maxTurn: 1.5,
-      metabolism: 0.015,
+      metabolism: schoolMet(0.015),
       grazeMul: 0.7,
       anchorTop: -1.2,
     },
@@ -776,7 +794,7 @@ export const SPECIES = {
       pitchLimit: 0.95,
       pitchDamp: 0.85,
       maxTurn: 2.15,
-      metabolism: 0.018,
+      metabolism: schoolMet(0.018),
       grazeMul: 0.9,
       minSchoolSize: 8,
     },
@@ -813,7 +831,7 @@ export const SPECIES = {
       fleeSpeed: 12,
       pitchLimit: 0.7,
       pitchDamp: 1.4,
-      metabolism: 0.014,
+      metabolism: schoolMet(0.014),
       grazeMul: 0.55,
       o2Min: 0.08,
       minSchoolSize: 12,
@@ -853,7 +871,7 @@ export const SPECIES = {
       pitchLimit: 0.82,
       pitchDamp: 1.1,
       maxTurn: 1.85,
-      metabolism: 0.02,
+      metabolism: schoolMet(0.02),
       grazeMul: 1.35,
       grazeOn: "p",
       minSchoolSize: 16,
@@ -894,7 +912,7 @@ export const SPECIES = {
       minSpeed: 3.2,
       maxSpeed: 11.4,
       fleeSpeed: 20,
-      metabolism: 0.013,
+      metabolism: schoolMet(0.013),
       grazeMul: 0.85,
       minSchoolSize: 140,
     },
@@ -928,7 +946,7 @@ export const SPECIES = {
       pitchLimit: 0.95,
       pitchDamp: 0.85,
       maxTurn: 2.2,
-      metabolism: 0.019,
+      metabolism: schoolMet(0.019),
       grazeMul: 0.85,
       minSchoolSize: 8,
     },
@@ -989,7 +1007,7 @@ export const SPECIES = {
       maxSpeed: 16,
       fleeSpeed: 22,
       minSchoolSize: 24,
-      metabolism: 0.018,
+      metabolism: schoolMet(0.018),
       o2Min: 2.4,
       biteRadius: 1.35,
       eatEnergy: 0.07,
@@ -1038,7 +1056,7 @@ export const SPECIES = {
       maxSpeed: 5.4,
       fleeSpeed: 8.5,
       minSchoolSize: 8,
-      metabolism: 0.008,
+      metabolism: schoolMet(0.008),
       biteRadius: 1.15,
       eatEnergy: 0.1,
       fearRadius: 9,
@@ -1086,7 +1104,7 @@ export const SPECIES = {
       maxSpeed: 4.8,
       fleeSpeed: 7.2,
       minSchoolSize: 4,
-      metabolism: 0.007,
+      metabolism: schoolMet(0.007),
       biteRadius: 1.35,
       eatEnergy: 0.11,
       fearRadius: 11,
@@ -1126,7 +1144,7 @@ export const SPECIES = {
       biteRadius: 2.4,
       lungeBiteRadius: 5.2,
       mouthOffset: 2.4,
-      energyDrain: 0.0018,
+      energyDrain: drainForDays(2),
       eatEnergy: 0.12,
       starveDays: 4,
       gait: "burst",
@@ -1159,7 +1177,7 @@ export const SPECIES = {
       lungeFearRadius: 44,
       biteRadius: 2.1,
       mouthOffset: 1.8,
-      energyDrain: 0.0016,
+      energyDrain: drainForDays(2),
       eatEnergy: 0.1,
       gait: "burst",
       mesh: "shark",
@@ -1192,7 +1210,7 @@ export const SPECIES = {
       lungeFearRadius: 38,
       biteRadius: 1.6,
       mouthOffset: 1.4,
-      energyDrain: 0.0021,
+      energyDrain: drainForDays(2),
       eatEnergy: 0.08,
       gait: "burst",
       mesh: "hammerhead",
@@ -1229,7 +1247,7 @@ export const SPECIES = {
       biteRadius: 0.2,
       lungeBiteRadius: 0.2,
       mouthOffset: 4.2,
-      energyDrain: 0.001,
+      energyDrain: drainForDays(2.5),
       eatEnergy: 0.04,
       hungry: 0.5,
       satiated: 0.88,
@@ -1270,7 +1288,7 @@ export const SPECIES = {
       biteRadius: 2.8,
       lungeBiteRadius: 4.2,
       mouthOffset: 3.4,
-      energyDrain: 0.0012,
+      energyDrain: drainForDays(2.5),
       eatEnergy: 0.09,
       starveDays: 5,
       gait: "ram",
@@ -1314,7 +1332,7 @@ export const SPECIES = {
       biteRadius: 4.5,
       lungeBiteRadius: 7.2,
       mouthOffset: 5.5,
-      energyDrain: 0.0011,
+      energyDrain: drainForDays(2.5),
       eatEnergy: 0.14,
       starveDays: 6,
       gait: "burst",
@@ -1355,7 +1373,7 @@ export const SPECIES = {
       biteRadius: 3.2,
       lungeBiteRadius: 5.5,
       mouthOffset: 6.2,
-      energyDrain: 0.0013,
+      energyDrain: drainForDays(2.5),
       eatEnergy: 0.16,
       starveDays: 7,
       gait: "burst",
@@ -1401,7 +1419,7 @@ export const SPECIES = {
       biteRadius: 2.2,
       lungeBiteRadius: 4.8,
       mouthOffset: 2.8,
-      energyDrain: 0.0022,
+      energyDrain: drainForDays(2),
       eatEnergy: 0.13,
       starveDays: 4,
       gait: "ram",
@@ -1446,7 +1464,7 @@ export const SPECIES = {
       pitchLimit: 0.95,
       pitchDamp: 0.85,
       maxTurn: 2.2,
-      metabolism: 0.02,
+      metabolism: schoolMet(0.02),
       biteRadius: 1.4,
       eatEnergy: 0.07,
       fearRadius: 16,
@@ -1497,7 +1515,7 @@ export const SPECIES = {
       biteRadius: 2.4,
       lungeBiteRadius: 3.8,
       mouthOffset: 3.4,
-      energyDrain: 0.0015,
+      energyDrain: drainForDays(2),
       eatEnergy: 0.12,
       starveDays: 5.5,
       gait: "jet",
@@ -1537,7 +1555,7 @@ export const SPECIES = {
       biteRadius: 1.15,
       lungeBiteRadius: 2.0,
       mouthOffset: 0.95,
-      energyDrain: 0.0024,
+      energyDrain: drainForDays(1.5),
       eatEnergy: 0.08,
       starveDays: 3,
       gait: "ram",
@@ -1578,7 +1596,7 @@ export const SPECIES = {
       maxSpeed: 16,
       fleeSpeed: 22,
       minSchoolSize: 8,
-      metabolism: 0.019,
+      metabolism: schoolMet(0.019),
       biteRadius: 1.2,
       eatEnergy: 0.07,
       fearRadius: 11,
@@ -1618,7 +1636,7 @@ export const SPECIES = {
       maxSpeed: 14,
       fleeSpeed: 26,
       minSchoolSize: 4,
-      metabolism: 0.014,
+      metabolism: schoolMet(0.014),
       biteRadius: 1.15,
       eatEnergy: 0.08,
       fearRadius: 10,
@@ -1662,7 +1680,7 @@ export const SPECIES = {
       maxSpeed: 18,
       fleeSpeed: 24,
       minSchoolSize: 12,
-      metabolism: 0.018,
+      metabolism: schoolMet(0.018),
       o2Min: 2,
       biteRadius: 1.5,
       eatEnergy: 0.08,
@@ -1706,7 +1724,7 @@ export const SPECIES = {
       biteRadius: 1.8,
       lungeBiteRadius: 3.2,
       mouthOffset: 1.05,
-      energyDrain: 0.0022,
+      energyDrain: drainForDays(2),
       eatEnergy: 0.1,
       starveDays: 3.5,
       gait: "ram",
@@ -1742,7 +1760,7 @@ export const SPECIES = {
       maxSpeed: 22,
       fleeSpeed: 28,
       minSchoolSize: 4,
-      metabolism: 0.02,
+      metabolism: schoolMet(0.02),
       biteRadius: 1.4,
       eatEnergy: 0.08,
       fearRadius: 16,

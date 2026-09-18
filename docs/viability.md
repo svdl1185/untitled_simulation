@@ -15,7 +15,7 @@ npm run viability -- --days 7 --fish 8000
 npm run viability -- --place shelf --days 14 --fish 2000
 ```
 
-`--dt` is the integrator step (seconds of sim time). One sim day is `CONFIG.time.dayLength` (480 s). The logger keeps the full trace for the requested span.
+`--dt` is the integrator step (seconds of sim time). One sim day is `CONFIG.time.dayLength` (960 s). The logger keeps the full trace for the requested span.
 
 ## Flags
 

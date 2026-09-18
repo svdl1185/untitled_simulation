@@ -471,7 +471,7 @@ export class ViabilityLog {
   }
 
   days() {
-    const day = CONFIG.time.dayLength || 480;
+    const day = CONFIG.time.dayLength || 960;
     return this.t / day;
   }
 

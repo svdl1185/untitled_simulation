@@ -23,7 +23,7 @@ export const MENU = [
         id: "liveClock",
         kind: "toggle",
         label: "Live clock",
-        hint: "Advance local solar time. One on-screen day is 8 minutes.",
+        hint: "Advance local solar time. One on-screen day is 16 minutes.",
         key: "L",
         value: true,
       },
