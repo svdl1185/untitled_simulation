@@ -524,7 +524,7 @@ export const FAUNA = {
     about:
       "Small rorqual, typically 7–10 m. Northern (acutorostrata) and Antarctic (bonaerensis) minke share this id. Usually feeds in the upper 100 m; recorded to about 400 m. Must surface to breathe. Lunge-feeds on krill and forage fish.",
     program:
-      "Ram vehicle, fluke swim, slender rorqual mesh (not a humpback clone). Diet both: filter-graze z and bite school fish, including krill swarms when that taxon is present. Air-breather: hangs level at the surface and blows, then a foraging dive toward prey or typical forage ~50 m, clamped by min(400 m, this cell's floor). Typical 6 min dive / 1.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air.",
+      "Ram vehicle, authored minke glTF (slender rorqual, not a humpback clone). Diet both: filter-graze z and bite school fish, including krill swarms when that taxon is present. Air-breather: hangs level at the surface and blows, then a foraging dive toward prey or typical forage ~50 m, clamped by min(400 m, this cell's floor). Typical 6 min dive / 1.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air.",
     missing: [
       "Lunge-feeding bubble nets are not a hydrodynamics model.",
       "Ice-edge krill super-swarms are still a school patch, not a basin field.",
@@ -612,7 +612,7 @@ export const FAUNA = {
     about:
       "Small oceanic dolphin, typically 1.7–2.4 m. Tropical and warm-temperate. Hunts surface forage, often with tunas. Usually the upper 200 m; recorded near 300 m. Must surface to breathe.",
     program:
-      "Ram vehicle, dolphin mesh, smaller than orca. Banks in the turn. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather: hangs level at the surface and blows a small puff, then a foraging dive toward that prey or typical forage ~18 m, clamped by min(300 m, this cell's floor). Typical 2.5 min dive / ~40 s blow series, mapped 5× onto wall-clock; recovery only counts at the air. Present |lat| < 40° when that prey exists.",
+      "Ram vehicle, authored dolphin glTF, smaller than orca. Banks in the turn. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather: hangs level at the surface and blows a small puff, then a foraging dive toward that prey or typical forage ~18 m, clamped by min(300 m, this cell's floor). Typical 2.5 min dive / ~40 s blow series, mapped 5× onto wall-clock; recovery only counts at the air. Present |lat| < 40° when that prey exists.",
     missing: [
       "Tuna-dolphin associations are not a cue.",
       "Long-beaked D. capensis is not a second id.",

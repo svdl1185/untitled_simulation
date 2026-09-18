@@ -5,9 +5,9 @@ import { authoredVehicleGeometry } from "./models.js";
 import { CONFIG } from "../config.js";
 
 /**
- * Vehicle silhouettes. Orca is an authored glTF; the rest are procedural
- * stand-ins. Swim is a separate shader mode so a whale does not
- * lateral-undulate like a shark.
+ * Vehicle silhouettes. Authored glTFs when preloadAuthoredMeshes has run;
+ * procedural stand-ins otherwise. Swim is a separate shader mode so a whale
+ * does not lateral-undulate like a shark.
  */
 
 function prepare(g) {
@@ -41,7 +41,7 @@ export function createSharkMesh(uniforms, opts = {}) {
   const kind = opts.kind || "";
   const sex = opts.sex ?? 0;
   const swim = opts.swim || swimForForm(form);
-  const authored = authoredVehicleGeometry(form, sex);
+  const authored = authoredVehicleGeometry(form, sex, kind);
   const geo = authored
     ? authored
     : mergeGeometries(partsFor(form, tint, kind, sex).map(prepare), false);

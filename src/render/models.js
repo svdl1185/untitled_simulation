@@ -2,13 +2,55 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 /**
- * Authored vehicle glTFs. One shared BufferGeometry per form/sex — vehicles
- * are rares, so a few thousand triangles is fine; do not put these on the
- * 20k school instancer. Nose must be +Z, dorsal +Y, origin at the body
- * centre, matching the fluke/tail swim shaders in sharkMesh.js.
+ * Authored glTFs. Vehicles are rares (a few hundred tris is fine). School
+ * guilds stay under ~600 tris for the 20k instancer. Nose +Z, dorsal +Y,
+ * origin at the body centre — same axes as the swim shaders.
+ *
+ * Vehicles key by catalog id, then by mesh form. School keys by look.shape.
+ * School UV.x = belly mix, UV.y = part (0 body, 0.5 fin, 0.85 eye, 1 photophore).
  */
 const VEHICLE_GLB = {
   orca: "/models/orca.glb",
+  shark: "/models/shark.glb",
+  greatwhite: "/models/greatwhite.glb",
+  tigershark: "/models/tigershark.glb",
+  hammerhead: "/models/hammerhead.glb",
+  whaleshark: "/models/whaleshark.glb",
+  minke: "/models/minke.glb",
+  humpback: "/models/humpback.glb",
+  spermwhale: "/models/spermwhale.glb",
+  commondolphin: "/models/dolphin.glb",
+  bluefin: "/models/bluefin.glb",
+  giantsquid: "/models/giantsquid.glb",
+};
+
+const VEHICLE_FORM = {
+  shark: "shark",
+  greatwhite: "shark",
+  tigershark: "shark",
+  hammerhead: "hammerhead",
+  whaleshark: "whaleshark",
+  minke: "whale",
+  humpback: "whale",
+  spermwhale: "spermwhale",
+  orca: "orca",
+  commondolphin: "dolphin",
+  bluefin: "tuna",
+  giantsquid: "squid",
+};
+
+const SCHOOL_GLB = {
+  fish: "/models/school-fish.glb",
+  flying: "/models/school-flying.glb",
+  needle: "/models/school-needle.glb",
+  squid: "/models/school-squid.glb",
+  lantern: "/models/school-lantern.glb",
+  krill: "/models/school-krill.glb",
+  tuna: "/models/school-tuna.glb",
+  cod: "/models/school-cod.glb",
+  mahi: "/models/school-mahi.glb",
+  barracuda: "/models/school-barracuda.glb",
+  billfish: "/models/school-billfish.glb",
 };
 
 const geos = new Map();
@@ -34,31 +76,115 @@ function bake(obj) {
   return prepare(geo);
 }
 
-export async function preloadVehicleMeshes() {
-  const loader = new GLTFLoader();
+function firstMesh(gltf) {
+  const named = {};
+  gltf.scene.traverse((o) => {
+    if (o.isMesh) named[o.name] = o;
+  });
+  return named;
+}
+
+function registerVehicle(kind, named) {
+  const form = VEHICLE_FORM[kind] || kind;
+  const male = named[`${kind}_male`] || named[`${form}_male`] || named.orca_male;
+  const female = named[`${kind}_female`] || named[`${form}_female`] || named.orca_female;
+  const first = male || female || Object.values(named)[0];
+  if (male) {
+    const geo = bake(male);
+    geos.set(`${kind}:1`, geo);
+    geos.set(`${form}:1`, geo);
+  }
+  if (female) {
+    const geo = bake(female);
+    geos.set(`${kind}:0`, geo);
+    geos.set(`${form}:0`, geo);
+  }
+  if (!male && !female && first) {
+    const geo = bake(first);
+    geos.set(`${kind}:1`, geo);
+    geos.set(`${form}:1`, geo);
+  }
+}
+
+async function loadAll(loader, entries, onGltf) {
   await Promise.all(
-    Object.entries(VEHICLE_GLB).map(async ([form, url]) => {
+    entries.map(async ([key, url]) => {
       try {
         const gltf = await loader.loadAsync(url);
-        const named = {};
-        gltf.scene.traverse((o) => {
-          if (o.isMesh) named[o.name] = o;
-        });
-        const male = named.orca_male || named[`${form}_male`];
-        const female = named.orca_female || named[`${form}_female`];
-        if (male) geos.set(`${form}:1`, bake(male));
-        if (female) geos.set(`${form}:0`, bake(female));
-        if (!male && !female) {
-          const first = Object.values(named)[0];
-          if (first) geos.set(`${form}:1`, bake(first));
-        }
+        onGltf(key, firstMesh(gltf));
       } catch (err) {
-        console.warn(`authored mesh ${form} failed`, err);
+        console.warn(`authored mesh ${key} failed`, err);
       }
     })
   );
 }
 
-export function authoredVehicleGeometry(form, sex) {
-  return geos.get(`${form}:${sex ? 1 : 0}`) || geos.get(`${form}:1`) || null;
+export async function preloadAuthoredMeshes() {
+  const loader = new GLTFLoader();
+  await loadAll(loader, Object.entries(VEHICLE_GLB), registerVehicle);
+  await loadAll(loader, Object.entries(SCHOOL_GLB), (shape, named) => {
+    const mesh = named[`school_${shape}`] || Object.values(named)[0];
+    if (mesh) geos.set(`school:${shape}`, bake(mesh));
+  });
+}
+
+export async function preloadVehicleMeshes() {
+  return preloadAuthoredMeshes();
+}
+
+export function authoredVehicleGeometry(form, sex, kind = "") {
+  const s = sex ? 1 : 0;
+  return (
+    geos.get(`${kind}:${s}`) ||
+    geos.get(`${kind}:1`) ||
+    geos.get(`${form}:${s}`) ||
+    geos.get(`${form}:1`) ||
+    null
+  );
+}
+
+export function authoredSchoolGeometry(shape = "fish") {
+  return geos.get(`school:${shape}`) || geos.get("school:fish") || null;
+}
+
+export function recolorSchoolGeometry(src, look = {}) {
+  const geo = src.clone();
+  geo.userData.shared = false;
+  const uv = geo.attributes.uv;
+  if (!uv) return geo;
+  const back = look.back || [0.18, 0.28, 0.24];
+  const belly = look.belly || [0.82, 0.88, 0.84];
+  const fin = look.fin || [0.22, 0.32, 0.3];
+  const glow = look.glow || [0.55, 0.85, 0.45];
+  const eye = look.eye || [0.08, 0.1, 0.12];
+  const n = uv.count;
+  const out = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const mix = uv.getX(i);
+    // glTF flips Blender V, so part was authored as 1 − this channel.
+    const part = 1 - uv.getY(i);
+    let r, g, b;
+    if (part > 0.92) {
+      r = glow[0];
+      g = glow[1];
+      b = glow[2];
+    } else if (part > 0.7) {
+      r = eye[0];
+      g = eye[1];
+      b = eye[2];
+    } else if (part > 0.3) {
+      r = fin[0];
+      g = fin[1];
+      b = fin[2];
+    } else {
+      r = back[0] * (1 - mix) + belly[0] * mix;
+      g = back[1] * (1 - mix) + belly[1] * mix;
+      b = back[2] * (1 - mix) + belly[2] * mix;
+    }
+    out[i * 3] = r;
+    out[i * 3 + 1] = g;
+    out[i * 3 + 2] = b;
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(out, 3));
+  return geo;
 }

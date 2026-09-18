@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { attachWorldShading } from "./caustics.js";
+import { authoredSchoolGeometry, recolorSchoolGeometry } from "./models.js";
 import { lookFor } from "../world/fauna.js";
 
 function prepare(g) {
@@ -15,6 +16,8 @@ function prepare(g) {
 export function createFishGeometry(speciesId = "herring") {
   const look = lookFor(speciesId);
   const shape = look.shape || "fish";
+  const authored = authoredSchoolGeometry(shape);
+  if (authored) return recolorSchoolGeometry(authored, look);
   if (shape === "squid") return createSquidGeometry(look);
   if (shape === "krill") return createKrillGeometry(look);
   if (shape === "lantern") return createLanternGeometry(look);

@@ -120,7 +120,7 @@ Hulls in `src/world/ranges.js`. `presenceAt` ORs every covering hull, then troph
 
 ### Catalog
 
-One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`src/render/fish.js`, `src/render/sharkMesh.js`) with countershade, except **orca**, which is an authored glTF (`public/models/orca.glb`; male/female dorsal, vertex-color patches, same fluke shader). Lanternfish photophores are mesh dots plus emissive against the dark, and a `look.photophores` flag that restores visual detect in low PAR.
+One table plus presence plus a shared budget. Silhouettes are authored glTFs (`public/models/`, `src/render/models.js`): one mesh per vehicle (orca male/female dorsal), one guild mesh per school `look.shape`, recolored from catalog `look`. Swim is still a vertex shader. Procedural builders in `fish.js` / `sharkMesh.js` remain as fallback. Lanternfish photophores are mesh dots plus emissive against the dark, and a `look.photophores` flag that restores visual detect in low PAR.
 
 **School (hashed grid)**
 
@@ -220,7 +220,6 @@ Physics, chemistry, scale, and senses that every biome would read.
 | Vehicle–vehicle bites besides sperm whale × giant squid | Humboldt is school `huntTaxa`; other pairs still need `huntKinds`. Humboldt cannibalism is not a loop |
 | Disease, parasites, epizootics | Not a budget |
 | Pressure, compressibility, gas solubility | Deep physiology |
-| Authored meshes besides orca | Remaining guild silhouettes |
 | Sediment grain size and transport | Burying, gravel spawn beds, resuspension turbidity |
 
 ### 2. Seafloor besides tropical coral reefs

@@ -7,7 +7,7 @@ import { DayCycle } from "./simulation/day.js";
 import { Plankton } from "./simulation/plankton.js";
 import { createFishGeometry, createFishMaterial } from "./render/fish.js";
 import { createSharkMesh, syncSharkMesh } from "./render/sharkMesh.js";
-import { preloadVehicleMeshes } from "./render/models.js";
+import { preloadAuthoredMeshes } from "./render/models.js";
 import { createWaterSurface, createSeafloor, createSandDetail, createThermocline } from "./render/water.js";
 import { createOutcrops } from "./render/outcrops.js";
 import { createWorldUniforms, syncWorldUniforms } from "./render/caustics.js";
@@ -102,6 +102,7 @@ function rebuildFishLayers() {
   }
 }
 
+await preloadAuthoredMeshes();
 rebuildFishLayers();
 
 window.__sim = { school, shark, sharks, plankton, camera, fishLayers, day, outcrops, renderer, getCam: () => camMode, setCam: (m) => applyCamera(m) };
@@ -292,7 +293,6 @@ const eatFX = createEatParticles();
 scene.add(eatFX.points);
 const blowFX = createBlowParticles();
 scene.add(blowFX.points);
-await preloadVehicleMeshes();
 for (const s of sharks) {
   bindShark(s);
   addSharkMesh(s);
