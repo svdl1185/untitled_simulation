@@ -1,6 +1,6 @@
 import { CONFIG, faunaPresent } from "./config.js";
 import { getActivePatch } from "./world/patch.js";
-import { SPECIES, knobsFor, vehicleCfg, SCHOOL_IDS, schoolDiet, isSchoolBiter } from "./world/fauna.js";
+import { SPECIES, knobsFor, vehicleCfg, SCHOOL_IDS, schoolDiet, isSchoolBiter, airY } from "./world/fauna.js";
 import { FAUNA } from "./world/fieldNotes.js";
 
 export { FAUNA };
@@ -201,7 +201,8 @@ function predatorState(s) {
   const cfg = s.cfg || CONFIG.shark;
   if (s.controlled) return "Pilot";
   if (s.energy < cfg.starveAt) return "Starving";
-  if (cfg.breathes && s.surfacing) return "Breathing";
+  if (cfg.breathes && s.surfacing && s.y > airY(cfg)) return "Breathing";
+  if (cfg.breathes && s.surfacing) return "Surfacing";
   if (cfg.breathes && !s.surfacing) return "Foraging dive";
   if (s.sex === 0 && s.mateT <= 0 && s.energy >= cfg.mateEnergy) return "Courting";
   const modes = {
@@ -313,9 +314,8 @@ function dietStat(id, ctx) {
 function breathOxygen(s) {
   const cfg = s.cfg || CONFIG.shark;
   if (!cfg.breathes) return null;
-  const minY = (cfg.minDepth ?? -2) - 2.4;
-  if (s.surfacing) {
-    if (s.y < minY) return 0;
+  const atAir = s.y > airY(cfg);
+  if (s.surfacing && atAir) {
     const total = Math.max(0.01, cfg.surfaceTime ?? 6);
     return Math.min(1, Math.max(0, 1 - (s.breathT ?? 0) / total));
   }
@@ -331,7 +331,7 @@ function oxygenStat(s) {
     label: "Oxygen",
     value: `${Math.round(frac * 100)}%`,
     meter: frac,
-    hint: "Remaining breath-hold. Recovers only at the surface; drains while submerged.",
+    hint: "Remaining breath-hold. Leaves for the surface before the tank is empty; 0% underwater is drowning. Recovers only at the air.",
   };
 }
 

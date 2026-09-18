@@ -138,20 +138,71 @@ export function breathHold(natureMin, compress = 5) {
   return Math.round((natureMin * 60 * 10) / compress) / 10;
 }
 
+/** Depth (y) at which an air-breather is at the air and can recover. */
+export function airY(cfg) {
+  return (cfg.minDepth ?? -2) - 2.4;
+}
+
 /**
- * Advance an air-breather's breath timer. Recovery only counts while
- * at the surface; the commute up does not burn `surfaceTime`.
+ * Wall-clock seconds to swim from `y` to the air at `diveSpeed`.
+ * The 1.35× is a heading/steer margin, not extra tank.
  */
-export function tickBreathHold(surfacing, breathT, dt, cfg, atAir) {
+export function commuteTime(y, cfg) {
+  const dist = Math.max(0, airY(cfg) - (Number.isFinite(y) ? y : airY(cfg)));
+  const spd = Math.max(4, cfg.diveSpeed ?? 24);
+  return (dist / spd) * 1.35;
+}
+
+/**
+ * Remaining dive seconds at which the animal must leave for the air.
+ * Floor is 12% of the tank so the HUD still shows oxygen on the way up.
+ */
+export function ascentReserve(y, cfg) {
+  const diveTime = cfg.diveTime ?? 28;
+  return Math.max(diveTime * 0.12, commuteTime(y, cfg));
+}
+
+/**
+ * Typical nature minutes plus a commute pad so leaving before the tank
+ * is empty does not steal forage time that used to sit after 0%.
+ */
+export function diveHold(natureMin, compress, forageDepth, diveSpeed, minDepth) {
+  const hold = breathHold(natureMin, compress);
+  const pad = ascentReserve(forageDepth, {
+    diveTime: hold,
+    diveSpeed,
+    minDepth: minDepth ?? -1.2,
+  });
+  return Math.round((hold + pad) * 10) / 10;
+}
+
+/**
+ * Advance an air-breather's breath timer. The tank drains while
+ * submerged, including the commute up. Recovery (the `surfaceTime`
+ * hang) only starts at the air. Empty tank underwater is drowning.
+ *
+ * `extra.y` is current depth (for the ascent reserve). `extra.justArrived`
+ * resets the hang clock on the first frame at the air.
+ */
+export function tickBreathHold(surfacing, breathT, dt, cfg, atAir, extra) {
   const diveTime = cfg.diveTime ?? 28;
   const surfaceTime = cfg.surfaceTime ?? 6;
+  const y = extra?.y;
+  const reserve = Number.isFinite(y) ? ascentReserve(y, cfg) : diveTime * 0.12;
   if (surfacing) {
-    if (!atAir) return { surfacing: true, breathT: breathT > 0 ? breathT : surfaceTime };
-    const t = (Number.isFinite(breathT) ? breathT : surfaceTime) - dt;
+    if (!atAir) {
+      const t = (Number.isFinite(breathT) ? breathT : reserve) - dt;
+      if (t <= 0) return { surfacing: true, breathT: 0, drowned: true };
+      return { surfacing: true, breathT: t };
+    }
+    const hang = extra?.justArrived ? surfaceTime : Number.isFinite(breathT) ? breathT : surfaceTime;
+    const t = hang - dt;
     if (t > 0) return { surfacing: true, breathT: t };
     return { surfacing: false, breathT: diveTime };
   }
   const t = (Number.isFinite(breathT) ? breathT : diveTime) - dt;
+  if (t <= 0 && !atAir) return { surfacing: true, breathT: 0, drowned: true };
+  if (t <= reserve && !atAir) return { surfacing: true, breathT: Math.max(t, 0.01) };
   if (t > 0) return { surfacing: false, breathT: t };
   return { surfacing: true, breathT: surfaceTime };
 }
@@ -1230,7 +1281,7 @@ export const SPECIES = {
       diet: "both",
       breathes: true,
       surfaceTime: breathHold(1.5),
-      diveTime: breathHold(6),
+      diveTime: diveHold(6, 5, -50, 22, -1.2),
       diveSpeed: 22,
       filterGraze: 0.1,
       filterGain: 0.48,
@@ -1274,7 +1325,7 @@ export const SPECIES = {
       diet: "bite",
       breathes: true,
       surfaceTime: breathHold(2.5),
-      diveTime: breathHold(10),
+      diveTime: diveHold(10, 5, -60, 28, -1.2),
       diveSpeed: 28,
       tints: [{ scale: 1.0, aggression: 0.65, tint: { r: 0.28, g: 0.3, b: 0.34 } }],
     },
@@ -1316,7 +1367,7 @@ export const SPECIES = {
       sense: "echo",
       breathes: true,
       surfaceTime: breathHold(8, 15),
-      diveTime: breathHold(45, 15),
+      diveTime: diveHold(45, 15, -700, 55, -1.2),
       diveSpeed: 55,
       huntTaxa: ["marketsquid", "illex", "lanternfish", "humboldtsquid"],
       huntKinds: ["giantsquid"],
@@ -1361,7 +1412,7 @@ export const SPECIES = {
       sense: "echo",
       breathes: true,
       surfaceTime: breathHold(1.2),
-      diveTime: breathHold(6),
+      diveTime: diveHold(6, 5, -90, 32, -1.2),
       diveSpeed: 32,
       tints: [
         { scale: 1.08, aggression: 1.25, tint: { r: 0.22, g: 0.22, b: 0.26 } },
@@ -1496,7 +1547,7 @@ export const SPECIES = {
       diet: "bite",
       breathes: true,
       surfaceTime: breathHold(0.7),
-      diveTime: breathHold(2.5),
+      diveTime: diveHold(2.5, 5, -18, 24, -1.1),
       diveSpeed: 24,
       huntTaxa: ["flyingfish", "sardinella", "anchovy", "sardine"],
       tints: [

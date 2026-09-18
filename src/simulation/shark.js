@@ -9,6 +9,8 @@ import {
   vehiclePodId,
   vehiclePodSlot,
   tickBreathHold,
+  airY,
+  ascentReserve,
 } from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, placeInColumn } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
@@ -231,7 +233,8 @@ export class Shark {
       kickForce = kick * kick * (this.lunging ? 9 : 3.1) * this.thrust * this.cruiseMul * coastKick;
     }
     this.vx += this.fwdX * kickForce * dt;
-    const kickY = swim === "jet" ? 1 : swim === "fluke" ? 0.55 : 0.25;
+    const commuting = cfg.breathes && this.surfacing && this.y <= airY(cfg);
+    const kickY = swim === "jet" || commuting ? 1 : swim === "fluke" ? 0.55 : 0.25;
     this.vy += this.fwdY * kickForce * dt * kickY;
     this.vz += this.fwdZ * kickForce * dt;
     if (gliding && (cfg.gait === "jet" || swim === "jet" || cfg.gait === "benthic")) {
@@ -242,7 +245,7 @@ export class Shark {
     }
 
     this._limitSpeed(this.speedCap);
-    if (cfg.breathes && this.surfacing && this.y > (cfg.minDepth ?? -2) - 2.4) {
+    if (cfg.breathes && this.surfacing && this.y > airY(cfg)) {
       const hang = Math.hypot(this.vx, this.vy, this.vz);
       const cap = (cfg.cruiseSpeed ?? 6) * 0.4 * this.cruiseMul;
       if (hang > cap) {
@@ -289,9 +292,12 @@ export class Shark {
 
     this._orientFromVelocity(dt, cfg);
 
-    if (cfg.breathes && this.surfacing && this.y > (cfg.minDepth ?? -2) - 10) {
+    if (cfg.breathes && this.surfacing && this.y > airY(cfg) - 3.5) {
       this.pitch += (0 - this.pitch) * Math.min(1, dt * 2.8);
       this.roll += (0 - this.roll) * Math.min(1, dt * 2.4);
+    } else if (cfg.breathes && this.surfacing && this.y < airY(cfg) - 10) {
+      this.pitch += (-0.72 - this.pitch) * Math.min(1, dt * 2.2);
+      this.roll += (0 - this.roll) * Math.min(1, dt * 2.2);
     } else if (cfg.breathes && !this.surfacing && this.y > (cfg.minDepth ?? -2) - 28) {
       this.pitch += (0.58 - this.pitch) * Math.min(1, dt * 1.7);
       this.roll += (0 - this.roll) * Math.min(1, dt * 2.2);
@@ -427,10 +433,19 @@ export class Shark {
       }
       return;
     }
-    const atAir = this.y > (cfg.minDepth ?? -2) - 2.4;
-    const next = tickBreathHold(this.surfacing, this.breathT, dt, cfg, atAir);
+    const atAir = this.y > airY(cfg);
+    const justArrived = atAir && this._submerged;
+    this._submerged = !atAir;
+    const next = tickBreathHold(this.surfacing, this.breathT, dt, cfg, atAir, {
+      y: this.y,
+      justArrived: justArrived && this.surfacing,
+    });
     this.surfacing = next.surfacing;
     this.breathT = next.breathT;
+    if (next.drowned) {
+      this.cause = this.cause || "drown";
+      this.dead = true;
+    }
   }
 
   _tickBlow(dt, cfg) {
@@ -874,6 +889,14 @@ export class Shark {
 
     if (cfg.breathes) ty = this._breathTargetY(tx, tz, ty, cfg);
 
+    const commuting = cfg.breathes && this.surfacing && this.y <= airY(cfg) - 8;
+    if (commuting) {
+      const rise = airY(cfg) - this.y;
+      const ahead = Math.min(Math.max(12, rise * 0.45), 48);
+      tx = this.x + this.fwdX * ahead;
+      tz = this.z + this.fwdZ * ahead;
+    }
+
     const tGround = seafloorHeight(tx, tz);
     ty = Math.min(ty, cfg.minDepth - 0.4);
     ty = Math.max(ty, tGround + cfg.floorClearance + 1.2, oxygenLimitY(cfg));
@@ -891,7 +914,7 @@ export class Shark {
       this.bursting = true;
     }
 
-    const follow = 1 - Math.exp(-dt * (this.aiMode === "strike" ? 8.5 : 2.4));
+    const follow = 1 - Math.exp(-dt * (this.aiMode === "strike" ? 8.5 : commuting ? 5.8 : 2.4));
     this.seekX += (tx - this.seekX) * follow;
     this.seekY += (ty - this.seekY) * follow;
     this.seekZ += (tz - this.seekZ) * follow;
@@ -1076,7 +1099,7 @@ export class Shark {
       this.vz *= s;
     } else if (!this.controlled && spd < (this.cfg.minSpeed ?? 4.4)) {
       const hanging =
-        this.cfg.breathes && this.surfacing && this.y > (this.cfg.minDepth ?? -2) - 2.4;
+        this.cfg.breathes && this.surfacing && this.y > airY(this.cfg);
       const coast =
         hanging ||
         (!this.bursting &&
@@ -1107,7 +1130,10 @@ export class Shark {
     let desiredPitch = Math.max(-0.55, Math.min(0.58, -Math.atan2(this.vy, horiz)));
     if (cfg.gait === "benthic") desiredPitch *= 0.12;
     if (this.kind === "barracuda") desiredPitch *= 0.22;
-    if (cfg.breathes && this.surfacing) desiredPitch *= 0.12;
+    const hanging = cfg.breathes && this.surfacing && this.y > airY(cfg);
+    const commuting = cfg.breathes && this.surfacing && !hanging;
+    if (hanging) desiredPitch *= 0.12;
+    else if (commuting) desiredPitch = Math.max(-1.05, Math.min(0.15, desiredPitch * 1.55));
     else if (cfg.breathes) desiredPitch = Math.max(-0.75, Math.min(0.45, desiredPitch * 1.25));
     if (swim === "jet") desiredPitch = Math.max(-0.85, Math.min(0.85, desiredPitch * 1.35));
     let dyaw = desiredYaw - this.yaw;
@@ -1122,11 +1148,13 @@ export class Shark {
         ? 5.8
         : swim === "jet"
           ? 6.2
-          : cfg.breathes && !this.surfacing
-            ? 2.6
-            : swim === "fluke" && (cfg.length ?? 11) > 8
-              ? 1.55
-              : 3.1;
+          : commuting
+            ? 4.4
+            : cfg.breathes && !this.surfacing
+              ? 2.6
+              : swim === "fluke" && (cfg.length ?? 11) > 8
+                ? 1.55
+                : 3.1;
     this.pitch += (desiredPitch - this.pitch) * (1 - Math.exp(-dt * pitchK));
     const len = cfg.length ?? 11;
     const bankMul =
@@ -1281,6 +1309,13 @@ function seedVehiclePose(shark, i, count, school) {
   shark.x = placed.x;
   shark.y = placed.y;
   shark.z = placed.z;
+  if (kindCfg.breathes) {
+    const air = airY(kindCfg);
+    shark._submerged = shark.y <= air;
+    if (shark.surfacing && shark.y <= air) {
+      shark.breathT = Math.max(shark.breathT || 0, ascentReserve(shark.y, kindCfg));
+    }
+  }
   shark.yDeep = shark.y;
   shark.yShallow = shark.y;
   shark.yaw = podded ? ang : ang + Math.PI;
