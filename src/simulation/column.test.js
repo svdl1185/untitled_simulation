@@ -305,6 +305,17 @@ function assert(cond, msg) {
   const cafeJun = presenceAt(28, -132, { floorY: -4000, dayOfYear: 180 });
   assert(cafeMar.greatwhite > 0, "White Shark Café in March should hold great whites");
   assert(!(cafeJun.greatwhite > 0), "White Shark Café in June should empty");
+  const capeJan = presenceAt(41.7, -70, { floorY: -80, dayOfYear: 15, trophic: false });
+  const capeJun = presenceAt(41.7, -70, { floorY: -80, dayOfYear: 180, trophic: false });
+  assert(capeJan.greatwhite > 0, "Cape Cod in January still holds great whites — the IUCN band is year-round");
+  assert(capeJun.greatwhite > capeJan.greatwhite, "Cape Cod summer should raise great-white abundance");
+  assert(presenceAt(36, 15, { floorY: -200, dayOfYear: 180, trophic: false }).greatwhite > 0, "Mediterranean is great-white water");
+  assert(presenceAt(12, -30, { floorY: -4000, dayOfYear: 180, trophic: false }).greatwhite > 0, "tropical Atlantic is in the IUCN great-white band");
+  assert(!(presenceAt(20, -150, { floorY: -4000, dayOfYear: 180, trophic: false }).greatwhite > 0), "North Pacific gyre is not great-white habitat");
+  assert(!(presenceAt(-20, -120, { floorY: -4000, dayOfYear: 180, trophic: false }).greatwhite > 0), "South Pacific gyre is not great-white habitat");
+  assert(presenceAt(-41.3, 174.8, { floorY: -200, dayOfYear: 180, trophic: false }).greatwhite > 0, "New Zealand is great-white water");
+  assert(!(presenceAt(56, 3.2, { floorY: -71, dayOfYear: 180, trophic: false }).greatwhite > 0), "North Sea is north of the great-white band");
+  assert(presenceAt(68, 15, { floorY: -300, dayOfYear: 180, trophic: false }).bluefin > 0, "Norwegian Sea summer is Atlantic bluefin feeding water");
 
   const wiki = { dayOfYear: 180, trophic: false };
   assert(presenceAt(24, -76, { floorY: -80, ...wiki }).tigershark > 0, "Bahamas is tiger-shark water");

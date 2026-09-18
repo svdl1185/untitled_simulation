@@ -398,48 +398,116 @@ const MARKETSQUID_HULLS = [
   ],
 ];
 
-const GREATWHITE_HULLS = [
+const GREATWHITE_RANGE = [
   [
-    [-126, 24],
-    [-126, 42],
-    [-116, 42],
-    [-116, 24],
+    [-98, 20],
+    [-90, 30],
+    [-82, 35],
+    [-76, 50],
+    [-8, 50],
+    [6, 45],
+    [36, 42],
+    [36, 30],
+    [20, 32],
+    [20, -50],
+    [-50, -50],
+    [-70, -48],
+    [-70, -18],
+    [-82, 8],
+    [-90, 14],
   ],
+  [
+    [20, 32],
+    [50, 30],
+    [80, 24],
+    [110, 16],
+    [130, 0],
+    [130, -50],
+    [20, -50],
+  ],
+  [
+    [110, -50],
+    [180, -50],
+    [180, -38],
+    [165, -22],
+    [155, 10],
+    [150, 46],
+    [128, 46],
+    [122, 34],
+    [118, 10],
+    [110, -12],
+  ],
+  [
+    [-180, -50],
+    [-165, -50],
+    [-165, -38],
+    [-180, -38],
+  ],
+  [
+    [160, 12],
+    [180, 12],
+    [180, -4],
+    [160, -4],
+  ],
+  [
+    [-180, 12],
+    [-95, 10],
+    [-85, 4],
+    [-85, -4],
+    [-180, -4],
+  ],
+  [
+    [-130, 22],
+    [-116, 22],
+    [-116, 50],
+    [-135, 50],
+    [-135, 40],
+    [-130, 32],
+  ],
+  [
+    [-82, -18],
+    [-70, -18],
+    [-70, -50],
+    [-82, -50],
+  ],
+  [
+    [150, -42],
+    [180, -42],
+    [180, -50],
+    [150, -50],
+  ],
+  [
+    [-180, -42],
+    [-82, -42],
+    [-82, -50],
+    [-180, -50],
+  ],
+];
+
+const GREATWHITE_CAPE = [
   [
     [-76, 32],
     [-76, 46],
     [-64, 46],
     [-64, 32],
   ],
+];
+
+const GREATWHITE_CALIFORNIA = [
   [
-    [-78, -28],
-    [-78, -42],
-    [-70, -42],
-    [-70, -28],
+    [-126, 24],
+    [-126, 42],
+    [-116, 42],
+    [-116, 24],
   ],
+];
+
+const GREATWHITE_CAFE = [
   [
-    [110, -28],
-    [110, -40],
-    [154, -40],
-    [154, -28],
-  ],
-  [
-    [128, 30],
-    [128, 42],
-    [146, 42],
-    [146, 30],
-  ],
-  [
-    [-10, 30],
-    [-8, 44],
-    [16, 44],
-    [16, 32],
-  ],
-  [
-    [14, -28],
-    [14, -36],
-    [28, -36],
-    [28, -28],
+    [-140, 23],
+    [-125, 23],
+    [-125, 32],
+    [-140, 32],
   ],
 ];
 
@@ -544,25 +612,6 @@ const HUMPBACK_BREED = [
   ],
 ];
 
-const GREATWHITE_CORE = [
-  GREATWHITE_HULLS[2],
-  GREATWHITE_HULLS[3],
-  GREATWHITE_HULLS[4],
-  GREATWHITE_HULLS[5],
-  GREATWHITE_HULLS[6],
-];
-
-const GREATWHITE_CAPE = [GREATWHITE_HULLS[1]];
-const GREATWHITE_CALIFORNIA = [GREATWHITE_HULLS[0]];
-const GREATWHITE_CAFE = [
-  [
-    [-140, 23],
-    [-125, 23],
-    [-125, 32],
-    [-140, 32],
-  ],
-];
-
 const COD_HULLS = [
   [
     [-76, 42],
@@ -589,10 +638,12 @@ const MINKE_HULLS = [
 
 const BLUEFIN_FEED = [
   [
-    [-70, 40],
-    [-70, 60],
-    [10, 60],
-    [10, 40],
+    [-76, 36],
+    [-76, 70],
+    [25, 72],
+    [25, 42],
+    [10, 36],
+    [-20, 36],
   ],
   [
     [140, 32],
@@ -972,9 +1023,9 @@ const RANGES = [
   { id: "krill", hulls: [...SILVERFISH_HULLS, ...KRILL_NA_HULLS] },
   { id: "toothfish", hulls: SILVERFISH_HULLS },
   { id: "cod", hulls: COD_HULLS },
-  { id: "greatwhite", hulls: GREATWHITE_CORE, coastKm: 480 },
-  { id: "greatwhite", hulls: GREATWHITE_CAPE, season: { peak: 210, width: 80 }, coastKm: 480 },
-  { id: "greatwhite", hulls: GREATWHITE_CALIFORNIA, season: { peak: 300, width: 90 }, coastKm: 480 },
+  { id: "greatwhite", hulls: GREATWHITE_RANGE, occupancy: 0.5 },
+  { id: "greatwhite", hulls: GREATWHITE_CAPE, season: { peak: 210, width: 80 } },
+  { id: "greatwhite", hulls: GREATWHITE_CALIFORNIA, season: { peak: 300, width: 90 } },
   { id: "greatwhite", hulls: GREATWHITE_CAFE, season: { peak: 60, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_FEED, season: { peak: 210, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_BREED, season: { peak: 30, width: 70 } },

@@ -446,9 +446,9 @@ export const FAUNA = {
     diet: "Fish, marine mammals, carrion",
     sex: "Female / male. Females are larger.",
     about:
-      "Temperate coastal lamnid, typically 4–6 m. California, northeast US, Chile, southern Australia, Japan, Mediterranean, South Africa. Often 0–250 m; recorded to about 1200 m on offshore dives. Adults eat mammals; juveniles eat fish.",
+      "Temperate to subtropical lamnid, typically 4–6 m. Circumglobal in coastal and offshore waters of every ocean except the two Pacific gyres and the polar seas. Major aggregations: Farallones / Guadalupe, Cape Cod, Western Cape, Neptune Islands, New Zealand, the Mediterranean. Often 0–250 m; recorded to about 1200 m on offshore dives. Adults eat mammals; juveniles eat fish.",
     program:
-      "Burst-and-glide vehicle. Bites school fish. Larger fear radius than the blue shark. Temperate coastal hulls; northeast US is local summer, California/Guadalupe is autumn–winter, the White Shark Café is late winter–spring.",
+      "Burst-and-glide vehicle. Bites school fish. Larger fear radius than the blue shark. IUCN/Cypron band year-round (occupancy 0.5); Cape Cod local summer, California/Guadalupe autumn–winter, and the White Shark Café late winter–spring raise abundance. They do not hug a 480 km shore fade — the range is pelagic.",
     missing: [
       "Seals, sea lions, and whale carcasses are not agents — this build is the fish-eating programme.",
       "Endothermy / regional warm muscle is not a temperature field.",
@@ -716,7 +716,7 @@ export const FAUNA = {
     about:
       "Temperate giant tuna. Atlantic, Pacific, and southern bluefin share this id (latin follows hemisphere). Typically 1.5–3 m. Endothermic; hunts from the surface to about 1000 m. Needs named temperate forage, not a flying-fish-only cell.",
     program:
-      "Ram gait. Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel, menhaden). Uses the column down to min(1000 m, this cell's floor). Feeding occupancy peaks in local summer; Gulf of Mexico / Mediterranean / West Pacific spawn is a spring window.",
+      "Ram gait. Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel, menhaden). Uses the column down to min(1000 m, this cell's floor). Feeding occupancy peaks in local summer from the northwest Atlantic to Norway and in the West Pacific; Gulf of Mexico / Mediterranean / West Pacific spawn is a spring window.",
     missing: [
       "Regional endothermy is not a temperature field.",
       "Spawning in the Gulf of Mexico / Mediterranean is occupancy on a hull, not a migration.",

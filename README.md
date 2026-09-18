@@ -117,7 +117,7 @@ Hulls and catalog niches in `src/world/ranges.js`. `presenceAt` scores every cov
 - Whale shark and minke eat the bloom — they can occupy a cell with no school fish. Minke feeding occupancy is a local-summer window.
 - Sperm whales are oceanic (`realm: "oceanic"`, floor deeper than ~400 m). Ice-avoid. They still dive if squid are missing; they do not get free calories.
 - Lanternfish, giant squid, blue shark, sperm whale, and orca: oceanic prior, then SST / ice / floor. Flying fish, skipjack, yellowfin, sailfish: circumtropical oceanic hulls (Mediterranean empty except mahi). Tiger shark and barracuda: coastal tropics, fading with kilometres from shore. Hammerhead: those coasts plus the Med. Common dolphin: warm-temperate hulls, a longer coastal fade. Benthos: every wet cell.
-- Humpback feeding hulls peak in local summer; tropical wintering hulls peak in local winter. Herring: North Sea / Georges Bank year-round, Norwegian Sea summer, Vestfjorden winter. Capelin beach-spawn is a coastal spring window. Bluefin feeding is local summer; Gulf / Med / West Pacific spawn in spring. Great white: Cape Cod summer, California autumn–winter, White Shark Café late winter–spring. Whale shark: tropical prior plus Ningaloo / Yucatán / Mozambique aggregations. Menhaden stay on the inner shelf year-round; summer raises abundance. Occupancy is a window, not a swim between cells.
+- Humpback feeding hulls peak in local summer; tropical wintering hulls peak in local winter. Herring: North Sea / Georges Bank year-round, Norwegian Sea summer, Vestfjorden winter. Capelin beach-spawn is a coastal spring window. Bluefin feeding is local summer from the northwest Atlantic to Norway, plus the West Pacific; Gulf / Med / West Pacific spawn in spring. Great white: IUCN circumglobal band (not the two Pacific gyres); Cape Cod summer, California autumn–winter, and the White Shark Café late winter–spring raise abundance. Whale shark: tropical prior plus Ningaloo / Yucatán / Mozambique aggregations. Menhaden stay on the inner shelf year-round; summer raises abundance. Occupancy is a window, not a swim between cells.
 - Latin names follow the cell where stocks share an id (anchovy, mackerel, sardinella, sand lance, jack mackerel, Illex, krill, minke, toothfish).
 
 ### Catalog
@@ -161,8 +161,8 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 | Id | Gait · swim | Eats | Max · typical forage | Gates |
 | --- | --- | --- | --- | --- |
 | shark (blue) | burst · tail | any school | 1000 m | School forage prey; temp 8–28 °C. `o2Min` 1.4. |
-| bluefin | ram · thunniform | named temperate forage | 1000 m | Feeding occupancy local summer; Gulf / Med / West Pacific spawn in spring. `o2Min` 2.2. Count scales with weight. |
-| greatwhite | burst · tail | school | 1200 m | Cape Cod summer; California autumn–winter; White Shark Café late winter–spring. |
+| bluefin | ram · thunniform | named temperate forage | 1000 m | Feeding occupancy local summer, including Norway. Gulf / Med / West Pacific spawn in spring. `o2Min` 2.2. Count scales with weight. |
+| greatwhite | burst · tail | school | 1200 m | IUCN circumglobal band, not the Pacific gyres. Cape Cod / California / Café raise abundance. |
 | tigershark | burst · tail | school | 350 m | Coastal tropical hulls, fade from shore. Med empty. |
 | hammerhead | burst · tail | school | 500 m | Temp 16–31 °C. |
 | whaleshark | ram · tail | filter `z` | 1920 m | Tropical prior plus Ningaloo / Yucatán / Mozambique aggregations. Bloom prey — no school required. |
