@@ -116,6 +116,11 @@ export const CONFIG = {
     excrete: 0.36,
     detritus: 0.24,
     sink: 0.012,
+    growB: 0.008,
+    kInf: 0.2,
+    grazeInf: 0.036,
+    effInf: 0.4,
+    mortInf: 0.009,
   },
 
   /** Headcount / energy / meal recorder for the headless viability suite. */

@@ -145,7 +145,7 @@ export function censusList(school, sharks = [], plankton) {
     counts[id] = (counts[id] || 0) + 1;
   }
   if (plankton && faunaPresent("benthos")) {
-    counts.benthos = Math.max(1, Math.round((plankton.meanB ?? 0) * 100));
+    counts.benthos = Math.max(1, Math.round((plankton.meanI ?? plankton.meanB ?? 0) * 100));
   }
   present.sort((a, b) => {
     const ga = CENSUS_GUILD_ORDER.indexOf(a.guild);

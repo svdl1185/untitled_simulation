@@ -47,7 +47,8 @@ The jargon the model actually uses. Same list lives in the in-app **About** pane
 | **Nutricline** | The depth where nutrients increase. Climate upwell and storms shoal it so N sits in the light. |
 | **Photic** | The sunlit layer, down to ~1% light. Photosynthesis lives here. |
 | **Ice** | Sea-ice concentration and thickness from latitude and season. Transmission through floes plus leads. Polar night / midnight sun follow solar elevation. |
-| **Benthos** | Carbon on the seafloor from sinking detritus. Cod graze that field. |
+| **Benthos** | Organic carbon on the seafloor (pelagic rain plus microphytobenthos) and living infauna density. Cod graze the living store. |
+| **MPB** | Microphytobenthos. Light-driven production on photic floors — the shelf analog of ice algae. |
 | **Type II** | Saturating graze: fast when food is scarce, capped when it is dense. |
 | **GEBCO / GMRT / HYCOM** | Atlas: map tint, seafloor elevation, mean current. |
 | **Vehicle** | A rare Reynolds integrator (sharks, whales, giant squid, air-breathers). Abundance is a catalog knob, not the integrator: numerous mesopredators are `school` with `diet: "bite"`. |
@@ -61,7 +62,7 @@ The live inventory. A module is listed here only if an animal or a budget actual
 
 The **world map** is home. Click water to load a 1 km cell (`PATCH_SIZE_M`). Land is not a cell. Floor comes from GMRT (`/gmrt`, 80×80 elevation). Mean current from HYCOM (`/hycom`) when that service answers; otherwise the cell note says local tide and eddies only. GEBCO WMS tints the map (`/gebco`). Same-origin paths in `npm run dev` and on the Cloudflare Worker (`workers/atlas.js`).
 
-**Cells** (`src/world/demos.js`) is a picker of named kilometres. The **catalog tank** is the 10 km lab: beach on +Z, inner shelf ~−40 m, mid-shelf ~−110 m, outer ledge ~−220 m, slope terrace ~−800 m, a canyon and a seamount, basin to −2000 m. Every catalogued animal is present. Not a biogeographic range. Coupled tiles (open pelagic, Humboldt OMZ, North Sea shelf, Antarctic slope, polar ice) load a real atlas cell when GMRT answers, or a synthetic floor if it does not. Gap tiles (demersal fauna, coral reef, coast / estuary, vent / hadal) still open the pelagic kilometre at that site so the missing biome is visible as a gap, not faked with a mesh. The picker preselects animals whose range covers the cell; toggling a name adds or removes species that are normally present in that kind of ocean.
+**Cells** (`src/world/demos.js`) is a picker of named kilometres. The **catalog tank** is the 10 km lab: beach on +Z, inner shelf ~−40 m, mid-shelf ~−110 m, outer ledge ~−220 m, slope terrace ~−800 m, a canyon and a seamount, basin to −2000 m. Every catalogued animal is present. Not a biogeographic range. Coupled tiles (open pelagic, Humboldt OMZ, North Sea shelf, Antarctic slope, polar ice, demersal bed) load a real atlas cell when GMRT answers, or a synthetic floor if it does not. Gap tiles (coral reef, coast / estuary, vent / hadal) still open the pelagic kilometre at that site so the missing biome is visible as a gap, not faked with a mesh. The picker preselects animals whose range covers the cell; toggling a name adds or removes species that are normally present in that kind of ocean.
 
 **WorldStream** caches neighbour chunk ids (cap 8). This pass binds one cell; animals do not swim between cells.
 
@@ -81,7 +82,7 @@ Agents never get a private sun, current, temperature, or oxygen. They sample the
 | **Ice** `climateIce` | Concentration 0–1 from latitude, longitude, and season. Thickness follows concentration. `iceTransmit` is leads plus Beer–Lambert through the floe — PAR, caustics, and visual hunt all read it. Ice algae is extra P in the top ~10 m. Polar cod, krill, and silverfish `iceAssociated`: DVM shoals toward the ice–water film. Polar night / midnight sun follow solar elevation (`solarSinElev`), not a 24 h clock. `iceAnomaly` is a control. Catalog tank is ice-free. Drift, ice age, and mapped polynyas are still gaps. |
 | **Upwelling** `climateUpwell` | 0–1 climate lift from eastern-boundary currents (Humboldt, California, Canary, Benguela) and the equatorial cold tongue. Gyres and the North Sea are near zero. Shoals the NPZD nutricline so N sits in the light; storms add a further lift. Catalog tank forces a visible lift. HUD reads mixed-layer and nutricline depth. |
 | **NPZD** `plankton.js` | Separable 3D: \(C(x,y,z)=\mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). 128×128 typed arrays `n`, `p`, `z`, `d` — not a 128³ grid. Column shape: P in the photic / DCM, Z on a DVM, N a nutricline that **shoals under climate upwell and storms**, D sinks. **Ice algae** adds P in the top ~10 m when the cell holds ice. `sampleAt` / `grazeAt` return 0 below the local seafloor. Production uses PAR × P profile; Z grazing uses P–Z column coincidence. Type II half-saturation. Carcasses and excretion return mass to `n` and `d`. |
-| **Benthos** | Column-bottom detritus flux onto a 2D seafloor store. Remineralises to N. Cod `grazeBenthos` on the bed. Present in every wet cell. HUD reads mean carbon. |
+| **Benthos** | Two boxes on the 2D seafloor patch: organic carbon from sinking detritus plus **microphytobenthos** on photic floors, and living **infauna** that Type-II-grazes that carbon. Cod `grazeBenthos` bites the living store. Remineralises to N. Present in every wet cell. HUD reads carbon and infauna. Named worms and crabs are still gaps. |
 
 Green P slices sit on the live photic bins; yellow-green Z sparkles on the DVM (`src/render/plankton.js`).
 
@@ -105,7 +106,7 @@ Near the camera only. One hashed-grid school (cap 20k, `UniformGrid3D`, 32768 bu
 - Predator bites restore energy; named prey missing is a programmed starve, not a constant.
 - Sperm whale × giant squid is the vehicle-on-vehicle bite (`huntKinds`). Humboldt is `huntTaxa` on the school pack.
 - Q10 and hypoxia scale rates.
-- Closed mass: graze, excretion, carcass, sink, remineralisation, benthos graze.
+- Closed mass: graze, excretion, carcass, sink, remineralisation, MPB uptake, infauna graze, benthos graze.
 
 ### Range and presence
 
@@ -170,13 +171,13 @@ One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`
 | commondolphin | ram · fluke | flying fish, sardinella, anchovy, sardine | 300 m · ~18 m | Air-breather. `|lat| < 40`. Count 18. |
 | giantsquid | jet | lanternfish, market squid, Illex | 1200 m · night −420 / day −850 | Floor deeper than ~350 m. `|lat| < 55`. Lanternfish glow restores detect. |
 
-**Field guild** — benthos: seafloor carbon from sinking detritus. Cod graze it. Not crabs or worms.
+**Field guild** — benthos: seafloor carbon plus living infauna. Photic floors grow microphytobenthos. Cod graze the living store. Not named crabs or worms.
 
 ### Rendering, HUD, and controls
 
 Water, caustics, fog, and sky follow the photic envelope and the day look (`src/render/water.js`, `caustics.js`, `environment.js`). Fish and seafloor shading keep attenuating with the same \(K_d\) below the 1% depth — midnight water is near-black, not herring-green. A shelf floor inside the envelope stays sunlit. Depth layers that exist in this column: surface, sunlit, twilight, midnight, abyssal, seafloor (`G` / click the column). Click a metre on the ruler; if the floor under the camera is shallower than that depth, the camera walks into deeper water. Lamp (`K`) is camera fill after dark — optics, not habitat; it does not feed `visualRange`. Fear-radius debug (`F`). Follow / orbit / cinematic / surface camera (`C`); next target (`N`). **Station** is the briefing for this kilometre: clock and weather, how forage and predators are using the column right now, mixed layer / nutricline / OMZ / sea ice, and named-cell gaps. Census (`I`) lists live counts; click a name to look.
 
-HUD (real state only): **Station** (`src/world/station.js`) is the live note for this kilometre — phase, DVM and hunt programmes, bloom cap, column depths, OMZ if the cell has one. Census lists hashed-grid and vehicle counts. Field-notes card from `FAUNA`: **In nature**, **Not in the model** (only if `missing` is non-empty), live diet in this cell (click a name) or **None in cell** with the natural diet under it, breath-hold meter for air-breathers. The left column is still the depth ruler.
+HUD (real state only): **Station** (`src/world/station.js`) is the live note for this kilometre — phase, DVM and hunt programmes, bloom cap, column depths, OMZ if the cell has one, sea ice, bed carbon and infauna. Census lists hashed-grid and vehicle counts. Field-notes card from `FAUNA`: **In nature**, **Not in the model** (only if `missing` is non-empty), live diet in this cell (click a name) or **None in cell** with the natural diet under it, breath-hold meter for air-breathers. The left column is still the depth ruler.
 
 **Controls** (`M` / `Tab`) starts most toggles off. Physical knobs: turbidity, SST anomaly, oxygen anomaly, ice anomaly, storm (mixed layer + nutricline + current), school cap, blue-shark headcount. Map: current overlay.
 
@@ -186,7 +187,7 @@ Knobs live in `src/config.js` / `SPECIES[id].fish` / `SPECIES[id].vehicle`. Wire
 
 The honest list. Closing a row means moving it into **What is coupled now**, not deleting the gap. A mesh without a budget, a habitat, or a sensory cue is still a gap. Species cards keep the per-taxon holes under **Not in the model**.
 
-The kilometre we load today is a **pelagic cell**, and polar ice is now a field on that cell: concentration, under-ice PAR, ice-algal P, cryopelagic DVM. Three other systems are first-class ocean, not later colour, so a coral, a vent, or an estuary is not buried under “named benthos.”
+The kilometre we load today is a **pelagic cell** with a living bed and polar ice as fields: concentration, under-ice PAR, ice-algal P, cryopelagic DVM, microphytobenthos, infauna. Coral reefs, coasts, and vents are first-class ocean, not later colour — a coral or an estuary is not buried under “named benthos.”
 
 ### 1. The ocean as a system
 
@@ -224,12 +225,12 @@ Physics, chemistry, scale, and senses that every biome would read.
 
 ### 2. Seafloor besides tropical coral reefs
 
-Soft sediment, rocky shelf, kelp, slope, seamount, abyss, hadal, seeps, and vents. Carbon on the bed is a field; almost nothing that lives in it is an agent. Cod graze that field. That is the whole demersal loop.
+Soft sediment, rocky shelf, kelp, slope, seamount, abyss, hadal, seeps, and vents. Carbon and infauna on the bed are a field; almost none of the named animals that live in it are agents. Cod graze that living store. Flatfish, kelp, and crabs are still gaps.
 
 | Gap | Why it matters |
 | --- | --- |
-| Named infauna and epifauna | Polychaetes, amphipods, bivalves, nematodes, meiofauna — the actual benthos |
-| Crabs, lobsters, shrimp, amphipod scavengers | Cod’s “crabs” are seafloor carbon |
+| Named infauna and epifauna | Polychaetes, amphipods, bivalves, nematodes, meiofauna as agents — the field is density, not a worm mesh |
+| Crabs, lobsters, shrimp, amphipod scavengers | Cod’s “crabs” are infauna density |
 | Echinoderms | Brittle-star plains, urchin barrens, holothurian herds, crinoids |
 | Sponges, sea pens, gorgonians, glass-sponge reefs | Structure and filter budgets on mud and rock |
 | Cold-water coral (*Lophelia* and kin) | A carbonate reef that is not tropical and not photic |
@@ -239,7 +240,6 @@ Soft sediment, rocky shelf, kelp, slope, seamount, abyss, hadal, seeps, and vent
 | Sleeper sharks, sixgill, Greenland shark, dogfish | Demersal predators |
 | Kelp forests and urchin–otter coupling | Canopy light, holdfast habitat, carbon export — temperate rocky reef |
 | Maerl / rhodolith beds | Living gravel, not sand |
-| Microphytobenthos on shallow floors | A light-driven bed budget, not only pelagic rain |
 | Bioturbation and sediment redox | Oxic / suboxic / sulfidic layers; denitrification |
 | Phytodetritus pulses after blooms | Seasonal food on the abyssal plain |
 | Hydrothermal vents | Chemosynthesis (*Riftia*, vent shrimp, yeti crabs); not a detritus film |
@@ -310,7 +310,7 @@ The cell this build is. Forage schools, named pelagic predators, NPZD, DVM, an O
 | Whale falls from this column | Carcasses recycle in place; they do not seed the bed succession |
 | Remoras, pilotfish | Commensals on the large vehicles |
 | Surface boiling, lunge kinematics, spyhop / breach | Behaviours |
-| School piscivory | Mackerel and jack mackerel still only graze `z` |
+| Jack mackerel piscivory | Mackerel already bites (`diet: "both"`); jack mackerel still only grazes `z` |
 | Lunar inhibition of DVM | Night is night |
 | Diadromy through this cell | Eels, salmon — the Sargasso and the river are not places |
 
@@ -365,7 +365,7 @@ Species cards list **In nature** and per-taxon gaps under **Not in the model**. 
 
 ## Tests
 
-Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, visual range, SST, Q10, oxygen / OMZ, upwelling / mixed layer, sea ice / polar night, separable NPZD, benthos, giant-squid gates): `src/simulation/column.test.js`. Air-breather breath-hold vs nature minutes: `src/simulation/breath.test.js`.
+Diagnose whether animals actually eat, starve, recruit, or go extinct, including min/max depth: [`docs/viability.md`](docs/viability.md). Column physics (PAR, visual range, SST, Q10, oxygen / OMZ, upwelling / mixed layer, sea ice / polar night, separable NPZD, benthos / infauna / MPB, giant-squid gates): `src/simulation/column.test.js`. Air-breather breath-hold vs nature minutes: `src/simulation/breath.test.js`.
 
 ```bash
 npm test

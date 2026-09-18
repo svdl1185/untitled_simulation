@@ -9,7 +9,7 @@ This repo is a **scientific ocean simulation**. The camera is a window. Do not a
 
 ## Layers (keep them coupled)
 
-1. **Fields** — flow, PAR, temperature, NPZD, benthos. Cheap to sample everywhere (`src/simulation/flow.js`, `light.js`, `temperature.js`, `plankton.js`).
+1. **Fields** — flow, PAR, temperature, NPZD, benthos carbon and infauna. Cheap to sample everywhere (`src/simulation/flow.js`, `light.js`, `temperature.js`, `plankton.js`).
 2. **Agents** — herring, sharks, squid. Nearby resolution only (`school.js`, `shark.js`).
 3. **Budgets** — bloom mean and photic production cap grazers; school piscivores take a prey-capped slice of the same grid; grazing depletes bloom; bites restore energy; detritus sinks; Q10 scales rates. New life must eat something and be limited by something.
 
