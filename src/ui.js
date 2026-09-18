@@ -2,8 +2,9 @@ import { CONFIG } from "./config.js";
 import { CAMERA_MODES } from "./camera.js";
 import { formatDayOfYear } from "./simulation/day.js";
 import { DEMO_CELLS, defaultToggles, demoById, presenceFromToggles, sandboxIds } from "./world/demos.js";
-import { SPECIES } from "./world/fauna.js";
+import { SPECIES, SCHOOL_IDS, VEHICLE_IDS } from "./world/fauna.js";
 import { FAUNA } from "./world/fieldNotes.js";
+import { habitatTint } from "./world/ranges.js";
 
 /**
  * Add a control: push an item into MENU, then hud.on(id, handler) in main.js.
@@ -203,6 +204,7 @@ const KEY_HELP = [
   ["M / Tab", "Open or close controls"],
   ["O", "World map (home)"],
   ["Cells", "Named kilometres: catalog tank and biomes"],
+  ["Filter", "Overlay current habitat of any catalog taxon"],
   ["Station", "This kilometre: what the water is doing"],
   ["I", "Census, when a cell is open"],
   ["Click census", "Jump to that animal"],
@@ -254,6 +256,7 @@ export function createHUD() {
   const btnAbout = document.getElementById("btn-about");
   const btnMap = document.getElementById("btn-map");
   const btnCells = document.getElementById("btn-cells");
+  const btnFilter = document.getElementById("btn-filter");
   const btnStation = document.getElementById("btn-station");
   const hint = document.getElementById("pilot-hint");
   const notes = document.getElementById("hud-notes");
@@ -261,6 +264,8 @@ export function createHUD() {
   const stationPanel = document.getElementById("hud-station");
   const demosPanel = document.getElementById("hud-demos");
   const demosBody = document.getElementById("hud-demos-body");
+  const filterPanel = document.getElementById("hud-filter");
+  const filterBody = document.getElementById("hud-filter-body");
   const censusPanel = document.getElementById("hud-census");
   const columnRoot = document.getElementById("hud-column");
   const stationBody = document.getElementById("hud-station-body");
@@ -290,6 +295,7 @@ export function createHUD() {
     if (fn) fn(id);
   });
   const noteRows = bindNotes(subjectNotes);
+  let filterView = { hasSelection() { return false; } };
 
   let dock = null;
   let cameraLive = false;
@@ -401,6 +407,7 @@ export function createHUD() {
       if (dock === "subject") emit("dismissSubject", true);
       dock = null;
     }
+    if (!mapOn && dock === "filter") dock = null;
     if (btnMap) {
       btnMap.classList.toggle("on", mapOn);
       btnMap.setAttribute("aria-pressed", mapOn ? "true" : "false");
@@ -408,6 +415,11 @@ export function createHUD() {
     if (btnCells) {
       btnCells.classList.toggle("on", dock === "demos");
       btnCells.setAttribute("aria-expanded", dock === "demos" ? "true" : "false");
+    }
+    if (btnFilter) {
+      const filterOn = dock === "filter" || filterView.hasSelection();
+      btnFilter.classList.toggle("on", filterOn);
+      btnFilter.setAttribute("aria-expanded", dock === "filter" ? "true" : "false");
     }
     if (btnStation) {
       btnStation.hidden = !cell;
@@ -429,6 +441,7 @@ export function createHUD() {
     }
     if (stationPanel) stationPanel.hidden = dock !== "station";
     if (demosPanel) demosPanel.hidden = dock !== "demos";
+    if (filterPanel) filterPanel.hidden = dock !== "filter";
     if (censusPanel) censusPanel.hidden = dock !== "census";
     if (subjectPanel) subjectPanel.hidden = dock !== "subject";
     if (about) about.hidden = dock !== "about";
@@ -521,6 +534,10 @@ export function createHUD() {
   }
 
   const demosView = bindDemos(demosBody, (id, payload) => emit(id, payload));
+  filterView = bindFilter(filterBody, (ids) => {
+    emit("mapFilter", ids);
+    syncNav();
+  });
 
   btnMenu.addEventListener("click", () => toggleDock("menu"));
   btnAbout?.addEventListener("click", () => toggleDock("about"));
@@ -532,6 +549,14 @@ export function createHUD() {
     emit("oceanMap", next);
   });
   btnCells?.addEventListener("click", () => toggleDock("demos"));
+  btnFilter?.addEventListener("click", () => {
+    const next = dock !== "filter";
+    if (next && !values.oceanMap) {
+      set("oceanMap", true);
+      emit("oceanMap", true);
+    }
+    setDock(next ? "filter" : null);
+  });
   btnFollow.addEventListener("click", () => emit("followSubject", true));
   document.addEventListener(
     "pointerdown",
@@ -542,6 +567,7 @@ export function createHUD() {
       if (t.closest(".nav-bar")) return;
       if (t.closest("#hud-notes")) return;
       if (t.closest(".hud-tip")) return;
+      if (dock === "filter" && t.closest("#ocean-map")) return;
       setDock(null);
     },
     true
@@ -1204,6 +1230,68 @@ function taxonGroup(id) {
   if (agent === "school") return "School";
   if (agent === "vehicle") return "Vehicles";
   return "Field";
+}
+
+function bindFilter(root, emit) {
+  if (!root) {
+    return { hasSelection() { return false; } };
+  }
+  const selected = new Set();
+  const lead = el("p", {
+    text: "Current habitat on this day of year. Same occupancy as the cell: hull, season, SST, ice, floor, then trophic gate. Several taxa overlay at once. Occupancy is a window, not a swim between cells.",
+  });
+  const actions = el("div", { class: "filter-actions" });
+  const clear = el("button", { type: "button", class: "filter-clear", text: "Clear" });
+  actions.append(clear);
+  const list = el("div", { class: "filter-list" });
+  const rows = new Map();
+
+  function paint() {
+    for (const [id, row] of rows) {
+      const on = selected.has(id);
+      row.classList.toggle("on", on);
+      row.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    emit([...selected]);
+  }
+
+  function addGroup(title, ids) {
+    list.append(el("p", { class: "filter-kicker", text: title }));
+    const sorted = ids.slice().sort((a, b) => taxonName(a).localeCompare(taxonName(b)));
+    for (const id of sorted) {
+      const tint = habitatTint(id);
+      const swatch = el("i", { class: "filter-swatch" });
+      swatch.style.background = `hsl(${tint.h} ${tint.s}% ${tint.l}%)`;
+      const row = el("button", {
+        type: "button",
+        class: "filter-row",
+        "aria-pressed": "false",
+      }, [
+        swatch,
+        el("span", { text: taxonName(id) }),
+      ]);
+      row.addEventListener("click", () => {
+        if (selected.has(id)) selected.delete(id);
+        else selected.add(id);
+        paint();
+      });
+      rows.set(id, row);
+      list.append(row);
+    }
+  }
+
+  addGroup("School", SCHOOL_IDS);
+  addGroup("Vehicles", VEHICLE_IDS);
+  clear.addEventListener("click", () => {
+    selected.clear();
+    paint();
+  });
+  root.replaceChildren(lead, actions, list);
+  return {
+    hasSelection() {
+      return selected.size > 0;
+    },
+  };
 }
 
 function bindDemos(root, emit) {

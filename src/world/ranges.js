@@ -7,28 +7,55 @@
  * Predators still need prey in the cell (trophic gate), not a lat split.
  */
 
-import { emptyPresence, SCHOOL_IDS, SPECIES, speciesLabel, isForagePrey } from "./fauna.js";
-import { inTempNiche, climatologySST } from "../simulation/temperature.js";
+import { emptyPresence, PRESENCE_IDS, SCHOOL_IDS, SPECIES, speciesLabel, isForagePrey } from "./fauna.js";
+import { climatologySST } from "../simulation/temperature.js";
 import { inOxygenNiche } from "../simulation/oxygen.js";
 import { climateIce } from "../simulation/ice.js";
 import { climateUpwell } from "../simulation/flow.js";
 import { CONFIG } from "../config.js";
 
-const HERRING_HULL = [
-  [-76, 41],
-  [-76, 62],
-  [-44, 70],
-  [-24, 76],
-  [8, 78],
-  [30, 72],
-  [30, 54],
-  [22, 53],
-  [12, 50],
-  [2, 48],
-  [-8, 43],
-  [-20, 42],
-  [-50, 40],
-  [-70, 41],
+const HERRING_RESIDENT = [
+  [
+    [-12, 48],
+    [-12, 62],
+    [14, 62],
+    [30, 60],
+    [30, 53],
+    [12, 50],
+    [2, 48],
+    [-8, 48],
+  ],
+  [
+    [-76, 40],
+    [-76, 46],
+    [-64, 46],
+    [-64, 40],
+  ],
+];
+
+const HERRING_FEED = [
+  [
+    [-44, 60],
+    [-44, 72],
+    [-20, 76],
+    [8, 78],
+    [40, 76],
+    [40, 68],
+    [20, 66],
+    [0, 64],
+    [-12, 62],
+    [-28, 62],
+  ],
+];
+
+const HERRING_WINTER = [
+  [
+    [10, 66],
+    [20, 67],
+    [20, 71],
+    [12, 71],
+    [8, 69],
+  ],
 ];
 
 const CAPELIN_HULLS = [
@@ -46,6 +73,27 @@ const CAPELIN_HULLS = [
     [-64, 52],
     [-72, 56],
     [-168, 54],
+  ],
+];
+
+const CAPELIN_SPAWN = [
+  [
+    [-60, 46],
+    [-52, 46],
+    [-52, 52],
+    [-60, 52],
+  ],
+  [
+    [18, 69],
+    [32, 69],
+    [32, 72],
+    [18, 72],
+  ],
+  [
+    [-24, 63],
+    [-13, 63],
+    [-13, 66],
+    [-24, 66],
   ],
 ];
 
@@ -485,7 +533,6 @@ const HUMPBACK_BREED = [
 ];
 
 const GREATWHITE_CORE = [
-  GREATWHITE_HULLS[0],
   GREATWHITE_HULLS[2],
   GREATWHITE_HULLS[3],
   GREATWHITE_HULLS[4],
@@ -494,6 +541,15 @@ const GREATWHITE_CORE = [
 ];
 
 const GREATWHITE_CAPE = [GREATWHITE_HULLS[1]];
+const GREATWHITE_CALIFORNIA = [GREATWHITE_HULLS[0]];
+const GREATWHITE_CAFE = [
+  [
+    [-140, 23],
+    [-125, 23],
+    [-125, 32],
+    [-140, 32],
+  ],
+];
 
 const COD_HULLS = [
   [
@@ -519,26 +575,82 @@ const MINKE_HULLS = [
   ],
 ];
 
-const BLUEFIN_HULLS = [
+const BLUEFIN_FEED = [
   [
-    [-80, 24],
-    [-80, 60],
-    [8, 60],
-    [36, 46],
-    [36, 30],
-    [0, 24],
+    [-70, 40],
+    [-70, 60],
+    [10, 60],
+    [10, 40],
   ],
   [
-    [140, 24],
+    [140, 32],
     [140, 48],
     [180, 48],
-    [180, 24],
+    [180, 32],
   ],
   [
-    [-180, 24],
+    [-180, 32],
     [-180, 48],
     [-120, 48],
-    [-120, 24],
+    [-120, 32],
+  ],
+];
+
+const BLUEFIN_SPAWN = [
+  [
+    [-97, 18],
+    [-81, 18],
+    [-81, 30],
+    [-97, 30],
+  ],
+  [
+    [-6, 30],
+    [36, 30],
+    [36, 42],
+    [8, 44],
+    [-6, 38],
+  ],
+  [
+    [120, 18],
+    [145, 18],
+    [145, 32],
+    [120, 32],
+  ],
+];
+
+const WHALESHARK_TROPICS = [
+  [
+    [-180, -32],
+    [180, -32],
+    [180, 32],
+    [-180, 32],
+  ],
+];
+
+const WHALESHARK_NINGALOO = [
+  [
+    [112, -24],
+    [118, -24],
+    [118, -20],
+    [112, -20],
+  ],
+];
+
+const WHALESHARK_YUCATAN = [
+  [
+    [-92, 18],
+    [-86, 18],
+    [-86, 24],
+    [-92, 24],
+  ],
+];
+
+const WHALESHARK_MOZ = [
+  [
+    [32, -26],
+    [38, -26],
+    [38, -20],
+    [32, -20],
   ],
 ];
 
@@ -639,8 +751,11 @@ function wrapLon(lon) {
 }
 
 const RANGES = [
-  { id: "herring", hulls: [HERRING_HULL] },
-  { id: "capelin", hulls: CAPELIN_HULLS },
+  { id: "herring", hulls: HERRING_RESIDENT },
+  { id: "herring", hulls: HERRING_FEED, season: { peak: 210, width: 95 } },
+  { id: "herring", hulls: HERRING_WINTER, season: { peak: 15, width: 70 } },
+  { id: "capelin", hulls: CAPELIN_HULLS, occupancy: 0.5 },
+  { id: "capelin", hulls: CAPELIN_SPAWN, season: { peak: 150, width: 50 } },
   { id: "menhaden", hulls: MENHADEN_HULLS },
   { id: "sardine", hulls: SARDINE_HULLS },
   { id: "pilchard", hulls: PILCHARD_HULLS },
@@ -660,11 +775,18 @@ const RANGES = [
   { id: "cod", hulls: COD_HULLS },
   { id: "greatwhite", hulls: GREATWHITE_CORE },
   { id: "greatwhite", hulls: GREATWHITE_CAPE, season: { peak: 210, width: 80 } },
+  { id: "greatwhite", hulls: GREATWHITE_CALIFORNIA, season: { peak: 300, width: 90 } },
+  { id: "greatwhite", hulls: GREATWHITE_CAFE, season: { peak: 60, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_FEED, season: { peak: 210, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_BREED, season: { peak: 30, width: 70 } },
   { id: "humboldtsquid", hulls: HUMBOLDT_HULLS },
   { id: "minke", hulls: MINKE_HULLS, season: { peak: 210, width: 100 } },
-  { id: "bluefin", hulls: BLUEFIN_HULLS, season: { peak: 210, width: 110 } },
+  { id: "bluefin", hulls: BLUEFIN_FEED, season: { peak: 210, width: 110 } },
+  { id: "bluefin", hulls: BLUEFIN_SPAWN, season: { peak: 120, width: 55, absolute: true } },
+  { id: "whaleshark", hulls: WHALESHARK_TROPICS, occupancy: 0.32 },
+  { id: "whaleshark", hulls: WHALESHARK_NINGALOO, season: { peak: 105, width: 55, absolute: true } },
+  { id: "whaleshark", hulls: WHALESHARK_YUCATAN, season: { peak: 210, width: 50, absolute: true } },
+  { id: "whaleshark", hulls: WHALESHARK_MOZ, season: { peak: 15, width: 55, absolute: true } },
 ];
 
 /** Cosmopolitan / lat-band taxa: geographic prior is 1, then catalog niches. */
@@ -676,7 +798,6 @@ const OPEN_RANGE = [
   "tuna",
   "tigershark",
   "hammerhead",
-  "whaleshark",
   "spermwhale",
   "orca",
   "commondolphin",
@@ -686,42 +807,83 @@ const OPEN_RANGE = [
   "sailfish",
 ];
 
-export function seasonWeight(doy, peak, width, lat = 0) {
+export function seasonWeight(doy, peak, width, lat = 0, absolute = false) {
   if (peak == null || width == null || width <= 0) return 1;
   const day = ((Number(doy) % 365) + 365) % 365;
-  const p = lat < 0 ? (peak + 182) % 365 : peak % 365;
+  const raw = ((Number(peak) % 365) + 365) % 365;
+  const p = !absolute && lat < 0 ? (raw + 182) % 365 : raw;
   let d = Math.abs(day - p);
   if (d > 182.5) d = 365 - d;
   if (d >= width) return 0;
   return 0.5 + 0.5 * Math.cos((d / width) * Math.PI);
 }
 
+function occupancyOf(spec, lat, dayOfYear) {
+  const prior = spec.occupancy ?? 1;
+  if (!spec.season) return prior;
+  return prior * seasonWeight(
+    dayOfYear,
+    spec.season.peak,
+    spec.season.width,
+    lat,
+    spec.season.absolute === true
+  );
+}
+
+function taper(value, inner, outer) {
+  if (inner === outer) return value === inner ? 1 : 0;
+  if (inner > outer) {
+    if (value >= inner) return 1;
+    if (value <= outer) return 0;
+    return (value - outer) / (inner - outer);
+  }
+  if (value <= inner) return 1;
+  if (value >= outer) return 0;
+  return (outer - value) / (outer - inner);
+}
+
 export function realmWeight(floorY, realm) {
   if (floorY == null || !realm || realm === "any") return 1;
-  if (realm === "shelf") {
-    if (floorY < -650) return 0;
-    return 1;
-  }
+  if (realm === "shelf") return taper(floorY, -220, -650);
   if (realm === "oceanic") {
-    if (floorY > -180) return 0;
-    if (floorY > -350) return 0.4;
-    return 1;
+    if (floorY <= -350) return 1;
+    if (floorY > -90) return 0;
+    if (floorY > -180) return 0.45 * taper(floorY, -180, -90);
+    return 0.45 + 0.55 * taper(floorY, -350, -180);
   }
   if (realm === "slope") {
-    if (floorY > -250 || floorY < -2500) return 0;
-    return 1;
+    return Math.min(taper(floorY, -250, -80), taper(floorY, -2500, -2800));
   }
   return 1;
 }
 
 export function floorWeight(floorY, spec) {
   if (floorY == null || !spec) return 1;
+  const pad = 70;
+  let w = 1;
   const floor = spec.floor;
-  if (floor?.min != null && floorY < floor.min) return 0;
-  if (floor?.max != null && floorY > floor.max) return 0;
-  if (spec.minFloorY != null && floorY > spec.minFloorY) return 0;
-  if (spec.guild === "demersal" && floorY < -650) return 0;
-  return 1;
+  if (floor?.min != null) w *= taper(floorY, floor.min, floor.min - pad);
+  if (floor?.max != null) w *= taper(floorY, floor.max, floor.max + pad);
+  if (spec.minFloorY != null) w *= taper(floorY, spec.minFloorY, spec.minFloorY + pad);
+  if (spec.guild === "demersal") w *= taper(floorY, -220, -650);
+  return w;
+}
+
+const TEMP_PAD = 1.6;
+
+export function tempWeight(sst, niche) {
+  if (!niche) return 1;
+  const t = sst;
+  let w = 1;
+  if (niche.min != null) {
+    if (t < niche.min - TEMP_PAD) return 0;
+    if (t < niche.min) w *= (t - (niche.min - TEMP_PAD)) / TEMP_PAD;
+  }
+  if (niche.max != null) {
+    if (t > niche.max + TEMP_PAD) return 0;
+    if (t > niche.max) w *= (niche.max + TEMP_PAD - t) / TEMP_PAD;
+  }
+  return Math.max(0, Math.min(1, w));
 }
 
 function iceWeight(ice, spec) {
@@ -735,8 +897,12 @@ function iceWeight(ice, spec) {
 
 function upwellWeight(upwell, spec) {
   if (spec?.upwellMin == null) return 1;
-  if (upwell < spec.upwellMin) return 0;
-  return Math.min(1, 0.45 + upwell);
+  const min = spec.upwellMin;
+  const pad = 0.08;
+  if (upwell < min - pad) return 0;
+  const core = Math.min(1, 0.45 + upwell);
+  if (upwell < min) return core * ((upwell - (min - pad)) / pad);
+  return core;
 }
 
 export function habitatWeight(spec, env) {
@@ -744,9 +910,10 @@ export function habitatWeight(spec, env) {
   const sst = env.sst;
   const ice = env.ice ?? 0;
   const upwell = env.upwell ?? 0;
-  if (!inTempNiche(sst, spec.temp)) return 0;
+  const t = tempWeight(sst, spec.temp);
+  if (t <= 0.05) return 0;
   if (!inOxygenNiche(env.lat, env.lon, spec.o2)) return 0;
-  let w = 1;
+  let w = t;
   w *= realmWeight(env.floorY, spec.realm);
   w *= floorWeight(env.floorY, spec);
   w *= iceWeight(ice, spec);
@@ -795,9 +962,7 @@ export function presenceAt(lat, lon, env = {}) {
 
   for (const spec of RANGES) {
     if (!inAny(x, lat, spec.hulls)) continue;
-    const occ = spec.season
-      ? seasonWeight(climate.dayOfYear, spec.season.peak, spec.season.width, lat)
-      : 1;
+    const occ = occupancyOf(spec, lat, climate.dayOfYear);
     if (occ <= 0.05) continue;
     p[spec.id] = Math.max(p[spec.id] ?? 0, occ);
   }
@@ -842,3 +1007,63 @@ export function presentLabel(presence) {
   const who = presentNames(presence);
   return who.length ? who.join(", ") : "no implemented fauna";
 }
+
+export const OVERLAY_IDS = PRESENCE_IDS.filter((id) => id !== "benthos");
+
+const GOLD = 137.508;
+
+export function habitatTint(id) {
+  const i = Math.max(0, OVERLAY_IDS.indexOf(id));
+  return { h: (i * GOLD) % 360, s: 62, l: 56 };
+}
+
+export function rasterHabitat({ cols = 160, rows = 76, dayOfYear, floorAt } = {}) {
+  const south = -85;
+  const north = 85;
+  const doy = dayOfYear ?? 180;
+  const grid = {};
+  for (const id of OVERLAY_IDS) grid[id] = new Float32Array(cols * rows);
+  const latOf = (j) => north - ((j + 0.5) / rows) * (north - south);
+  const lonOf = (i) => -180 + ((i + 0.5) / cols) * 360;
+
+  for (const spec of RANGES) {
+    for (let j = 0; j < rows; j++) {
+      const lat = latOf(j);
+      const occ = occupancyOf(spec, lat, doy);
+      if (occ <= 0.05) continue;
+      for (let i = 0; i < cols; i++) {
+        if (!inAny(lonOf(i), lat, spec.hulls)) continue;
+        const idx = j * cols + i;
+        grid[spec.id][idx] = Math.max(grid[spec.id][idx], occ);
+      }
+    }
+  }
+  for (const id of OPEN_RANGE) {
+    const g = grid[id];
+    if (!g) continue;
+    for (let k = 0; k < g.length; k++) if (g[k] <= 0.05) g[k] = 1;
+  }
+
+  const p = emptyPresence();
+  for (let j = 0; j < rows; j++) {
+    const lat = latOf(j);
+    for (let i = 0; i < cols; i++) {
+      const lon = lonOf(i);
+      const idx = j * cols + i;
+      const climate = climateEnv(lat, lon, { dayOfYear: doy, floorY: floorAt?.(lat, lon) });
+      for (const id of OVERLAY_IDS) p[id] = grid[id][idx];
+      for (const id of OVERLAY_IDS) {
+        if (p[id] <= 0.05) continue;
+        const w = habitatWeight(SPECIES[id], climate);
+        p[id] = w > 0.05 ? Math.min(1, p[id] * w) : 0;
+      }
+      for (const id of OVERLAY_IDS) {
+        if (p[id] <= 0.05) continue;
+        if (!preySatisfied(SPECIES[id], p)) p[id] = 0;
+      }
+      for (const id of OVERLAY_IDS) grid[id][idx] = p[id];
+    }
+  }
+  return { cols, rows, south, north, grid };
+}
+

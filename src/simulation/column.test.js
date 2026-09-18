@@ -19,7 +19,7 @@ import { faunaPresent } from "../config.js";
 import { School } from "./school.js";
 import { spawnPredators } from "./shark.js";
 import { seafloorHeight, findWaterAtDepth } from "./obstacles.js";
-import { vehicleCfg, knobsFor, SPECIES, allocateMixedSchoolCounts, schoolDiet } from "../world/fauna.js";
+import { vehicleCfg, knobsFor, SPECIES, allocateMixedSchoolCounts, schoolDiet, vehicleCountFor } from "../world/fauna.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -266,6 +266,36 @@ function assert(cond, msg) {
 
   const iceEdge = presenceAt(72, 20, { floorY: -200, dayOfYear: 180 });
   assert(iceEdge.polarcod > 0, "high Arctic summer should hold polar cod");
+
+  const norwayJun = presenceAt(68, 5, { floorY: -300, dayOfYear: 180 });
+  const norwayJan = presenceAt(68, 5, { floorY: -300, dayOfYear: 15 });
+  assert(norwayJun.herring > 0, "Norwegian Sea summer is herring feeding water");
+  assert(!(norwayJan.herring > 0), "Norwegian Sea winter should drop feeding occupancy");
+  const lofotenJan = presenceAt(68.5, 15, { floorY: -200, dayOfYear: 15 });
+  assert(lofotenJan.herring > 0, "Vestfjorden winter should hold overwintering herring");
+
+  const nfldMay = presenceAt(70.5, 25, { floorY: -80, dayOfYear: 150 });
+  const nfldJan = presenceAt(70.5, 25, { floorY: -80, dayOfYear: 15 });
+  assert(nfldMay.capelin > 0.8, "Barents spring should boost spawning capelin");
+  assert(nfldJan.capelin > 0 && nfldJan.capelin < nfldMay.capelin, "Barents winter capelin should sit on the feeding prior");
+
+  const gulfApr = presenceAt(26, -90, { floorY: -40, dayOfYear: 120 });
+  const gulfJan = presenceAt(26, -90, { floorY: -40, dayOfYear: 15 });
+  assert(gulfApr.bluefin > 0, "Gulf of Mexico in April is bluefin spawning water");
+  assert(!(gulfJan.bluefin > 0), "Gulf of Mexico in January should drop spawn occupancy");
+
+  const ningalooApr = presenceAt(-22, 114, { floorY: -80, dayOfYear: 105 });
+  const ningalooOct = presenceAt(-22, 114, { floorY: -80, dayOfYear: 288 });
+  assert(ningalooApr.whaleshark > 0.6, "Ningaloo in April is a whale-shark aggregation");
+  assert(ningalooOct.whaleshark > 0 && ningalooOct.whaleshark < ningalooApr.whaleshark, "Ningaloo October should fall back to the tropical prior");
+
+  const cafeMar = presenceAt(28, -132, { floorY: -4000, dayOfYear: 60 });
+  const cafeJun = presenceAt(28, -132, { floorY: -4000, dayOfYear: 180 });
+  assert(cafeMar.greatwhite > 0, "White Shark Café in March should hold great whites");
+  assert(!(cafeJun.greatwhite > 0), "White Shark Café in June should empty");
+
+  assert(vehicleCountFor("commondolphin", 0.3) < vehicleCountFor("commondolphin", 1), "vehicle count should scale with presence weight");
+  assert(vehicleCountFor("spermwhale", 0.4) === 1, "a scarce vehicle should still seed one when present");
 }
 
 {

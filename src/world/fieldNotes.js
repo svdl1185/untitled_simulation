@@ -18,7 +18,7 @@ export const FAUNA = {
     missing: [
       "Seals and gannets are not agents; the day dive is the refuge those visual hunters would create.",
       "Temperature is a mixed-layer field with Q10 on graze and metabolism; spawning grounds are still not a place.",
-      "Seasonal feeding–spawning migration (Norwegian Sea, Georges Bank, Baltic) is year-round hull occupancy here; they still do not swim between cells.",
+      "Seasonal feeding–spawning occupancy is split: North Sea / Georges Bank year-round, Norwegian Sea summer feeding, Vestfjorden winter. They still do not swim between cells.",
       "Gravel-bank spawning, egg beds, and larval drift are not a season — recruits appear when the bloom can carry the mixed forage budget.",
       "Natal homing and stock structure are not states.",
       "The lateral line and vision are neighbour forces, not separate senses.",
@@ -37,7 +37,8 @@ export const FAUNA = {
     program:
       "Species-pure polarized shoal on the shared grid. Type II graze on z. Competes with herring for the bloom cap where ranges overlap (Iceland, Barents, Labrador, Bering).",
     missing: [
-      "Beach spawning and bird predation are not agents.",
+      "Beach spawning is a coastal spring occupancy window (Newfoundland, Iceland, North Norway), not a roll onto the strand.",
+      "Bird predation is not an agent.",
       "Ice is a field; capelin are not ice-associated — polar cod shoal under pack.",
       "Semelparity (many stocks spawn once and die) is not a life-history — they recruit and starve like any other school fish.",
       "Males do not grow spawning ridges or a hooked lower jaw; sex is a size tint.",
@@ -446,13 +447,13 @@ export const FAUNA = {
     about:
       "Temperate coastal lamnid, typically 4–6 m. California, northeast US, Chile, southern Australia, Japan, Mediterranean, South Africa. Often 0–250 m; recorded to about 1200 m on offshore dives. Adults eat mammals; juveniles eat fish.",
     program:
-      "Burst-and-glide vehicle. Bites school fish. Larger fear radius than the blue shark. Temperate coastal hulls; the northeast US box is a local-summer occupancy window.",
+      "Burst-and-glide vehicle. Bites school fish. Larger fear radius than the blue shark. Temperate coastal hulls; northeast US is local summer, California/Guadalupe is autumn–winter, the White Shark Café is late winter–spring.",
     missing: [
       "Seals, sea lions, and whale carcasses are not agents — this build is the fish-eating programme.",
       "Endothermy / regional warm muscle is not a temperature field.",
       "Breaching on pinnipeds is not a behaviour.",
       "The juvenile-to-adult diet shift (fish, then mammals) is not ontogeny.",
-      "The offshore white-shark-café commute is a hull, not a swim.",
+      "The offshore white-shark-café commute is occupancy on a hull, not a swim.",
       "Spyhopping is not a state.",
       "Colony-adjacent hunting landmarks are not objects.",
     ],
@@ -511,7 +512,7 @@ export const FAUNA = {
       "Ram-filter versus suction-filter (vertical feeding, yo-yo dives) is graze-while-cruising, not a feeding-mode switch.",
       "Aggregations at fish-spawn slicks are not a cue.",
       "Remoras are not agents.",
-      "Seasonal coastal aggregations (Ningaloo, Yucatán) are hull presence, not a commute.",
+      "Seasonal coastal aggregations (Ningaloo, Yucatán, Mozambique) are occupancy windows on the tropical prior, not a commute.",
     ],
   },
   minke: {
@@ -714,10 +715,10 @@ export const FAUNA = {
     about:
       "Temperate giant tuna. Atlantic, Pacific, and southern bluefin share this id (latin follows hemisphere). Typically 1.5–3 m. Endothermic; hunts from the surface to about 1000 m. Needs named temperate forage, not a flying-fish-only cell.",
     program:
-      "Ram gait. Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel). Uses the column down to min(1000 m, this cell's floor). Temperate hull occupancy peaks in local summer.",
+      "Ram gait. Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel, menhaden). Uses the column down to min(1000 m, this cell's floor). Feeding occupancy peaks in local summer; Gulf of Mexico / Mediterranean / West Pacific spawn is a spring window.",
     missing: [
       "Regional endothermy is not a temperature field.",
-      "Spawning in the Gulf of Mexico / Mediterranean is not a migration.",
+      "Spawning in the Gulf of Mexico / Mediterranean is occupancy on a hull, not a migration.",
       "Transoceanic feeding–spawning commutes are occupancy on a hull, not a swim between cells.",
       "Giant versus school-size bluefin are one vehicle scale.",
       "Purse-seine and ranching mortality are not in the budget.",

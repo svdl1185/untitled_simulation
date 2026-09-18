@@ -1,6 +1,7 @@
 import { formatLatLon } from "./patch.js";
 import { gebcoMapUrl, fetchCurrentField } from "./atlas.js";
-import { presenceAt, presentNames } from "./ranges.js";
+import { presenceAt, presentNames, rasterHabitat, habitatTint } from "./ranges.js";
+import { speciesLabel } from "./fauna.js";
 import { topoPolygons } from "./topo.js";
 import { CONFIG } from "../config.js";
 import { formatDayOfYear } from "../simulation/day.js";
@@ -22,6 +23,7 @@ export function createOceanMap({ onEnter }) {
       <div class="ocean-map-top">
         <p class="ocean-map-readout" id="ocean-map-readout">Hover water for coordinates and fauna in range</p>
         <p class="ocean-map-fauna" id="ocean-map-fauna"></p>
+        <div class="ocean-map-swatches" id="ocean-map-swatches" hidden></div>
       </div>
       <div class="ocean-map-bottom">
         <p class="ocean-map-status" id="ocean-map-status"></p>
@@ -38,12 +40,15 @@ export function createOceanMap({ onEnter }) {
   const canvas = root.querySelector("#ocean-map-canvas");
   const readout = root.querySelector("#ocean-map-readout");
   const faunaList = root.querySelector("#ocean-map-fauna");
+  const swatches = root.querySelector("#ocean-map-swatches");
   const status = root.querySelector("#ocean-map-status");
   const ctx = canvas.getContext("2d", { alpha: false });
   const sheet = document.createElement("canvas");
   const sheetCtx = sheet.getContext("2d", { alpha: false, willReadFrequently: true });
   const restyle = document.createElement("canvas");
   const restyleCtx = restyle.getContext("2d", { willReadFrequently: true });
+  const overlay = document.createElement("canvas");
+  const overlayCtx = overlay.getContext("2d", { willReadFrequently: true });
 
   let open = false;
   let currents = false;
@@ -55,6 +60,9 @@ export function createOceanMap({ onEnter }) {
   let loading = false;
   let here = { lat: 56, lon: 3.2 };
   let dirty = true;
+  let overlayIds = [];
+  let overlayGrid = null;
+  let overlayKey = "";
 
   function lonToX(L, w = canvas.width) {
     return ((wrapLon(L) + 180) / 360) * w;
@@ -212,6 +220,11 @@ export function createOceanMap({ onEnter }) {
   function draw() {
     bake();
     ctx.drawImage(sheet, 0, 0);
+    if (overlayIds.length) {
+      paintOverlay(ensureOverlay());
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      drawLand(ctx, canvas.width, canvas.height, LAND, COAST, 1.2 * dpr);
+    }
     if (hover) {
       const x = lonToX(hover.lon);
       const y = latToY(hover.lat);
@@ -229,6 +242,89 @@ export function createOceanMap({ onEnter }) {
       ctx.fillStyle = "rgba(5, 6, 8, 0.45)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
+  }
+
+  function overlayCacheKey() {
+    return [
+      CONFIG.time?.dayIndex ?? 180,
+      CONFIG.water?.sstAnomaly ?? 0,
+      CONFIG.water?.iceAnomaly ?? 0,
+      bathyRaw ? 1 : 0,
+    ].join("|");
+  }
+
+  function ensureOverlay() {
+    if (!overlayIds.length) return null;
+    const key = overlayCacheKey();
+    if (overlayGrid && overlayKey === key) return overlayGrid;
+    overlayKey = key;
+    overlayGrid = rasterHabitat({
+      cols: 160,
+      rows: 76,
+      dayOfYear: CONFIG.time?.dayIndex ?? 180,
+      floorAt: bathyRaw ? (lat, lon) => floorYAt(lat, lon) : undefined,
+    });
+    return overlayGrid;
+  }
+
+  function paintOverlay(pack) {
+    if (!pack) return;
+    const { cols, rows, grid } = pack;
+    if (overlay.width !== cols || overlay.height !== rows) {
+      overlay.width = cols;
+      overlay.height = rows;
+    }
+    const img = overlayCtx.createImageData(cols, rows);
+    const d = img.data;
+    for (let k = 0; k < cols * rows; k++) {
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let a = 0;
+      for (const id of overlayIds) {
+        const w = grid[id]?.[k] ?? 0;
+        if (w <= 0.05) continue;
+        const tint = habitatTint(id);
+        const rgb = hslToRgb(tint.h, tint.s, tint.l);
+        const alpha = 0.48 * w;
+        r += rgb[0] * alpha;
+        g += rgb[1] * alpha;
+        b += rgb[2] * alpha;
+        a = Math.min(0.78, a + alpha);
+      }
+      if (a <= 0.02) continue;
+      const i = k * 4;
+      d[i] = Math.min(255, r / Math.max(a, 0.001));
+      d[i + 1] = Math.min(255, g / Math.max(a, 0.001));
+      d[i + 2] = Math.min(255, b / Math.max(a, 0.001));
+      d[i + 3] = Math.min(255, a * 255);
+    }
+    overlayCtx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+  }
+
+  function renderSwatches() {
+    if (!swatches) return;
+    swatches.replaceChildren();
+    if (!overlayIds.length) {
+      swatches.hidden = true;
+      return;
+    }
+    swatches.hidden = false;
+    for (const id of overlayIds) {
+      const tint = habitatTint(id);
+      const chip = document.createElement("span");
+      chip.className = "ocean-map-chip";
+      chip.innerHTML = `<i style="background:hsl(${tint.h} ${tint.s}% ${tint.l}%)"></i>${speciesLabel(id)}`;
+      swatches.append(chip);
+    }
+  }
+
+  function setOverlay(ids) {
+    overlayIds = (ids || []).filter(Boolean);
+    renderSwatches();
+    if (open) draw();
   }
 
   function sampleLand(px, py) {
@@ -273,10 +369,18 @@ export function createOceanMap({ onEnter }) {
     }
     hover = geo;
     canvas.style.cursor = "crosshair";
-    const who = presentNames(faunaAt(geo.lat, geo.lon));
+    const fauna = faunaAt(geo.lat, geo.lon);
     const date = formatDayOfYear(CONFIG.time?.dayIndex ?? 180);
     readout.textContent = `${formatLatLon(geo.lat, geo.lon)} · ${date}`;
-    faunaList.textContent = who.length ? who.join(", ") : "no implemented fauna";
+    if (overlayIds.length) {
+      const hits = overlayIds
+        .filter((id) => (fauna[id] ?? 0) > 0.05)
+        .map((id) => `${speciesLabel(id)} ${(fauna[id] * 100) | 0}%`);
+      faunaList.textContent = hits.length ? hits.join(" · ") : "none of the filtered taxa in this cell";
+    } else {
+      const who = presentNames(fauna);
+      faunaList.textContent = who.length ? who.join(", ") : "no implemented fauna";
+    }
     draw();
   }
 
@@ -371,17 +475,37 @@ export function createOceanMap({ onEnter }) {
       status.textContent = text || "";
     },
     refresh() {
+      overlayGrid = null;
+      overlayKey = "";
+      if (open) draw();
       if (hover) setHover(hover, false);
     },
+    setOverlay,
+    overlayIds: () => overlayIds.slice(),
   };
 }
 
 function floorYFromGebcoRgb(r, g, b) {
   const t = (0.2 * r + 0.45 * g + 0.35 * b) / 255;
-  if (t < 0.22) return -4000;
-  if (t < 0.38) return -2000;
-  if (t < 0.52) return -800;
-  return -90;
+  if (t < 0.16) return -5500;
+  if (t < 0.26) return -3500;
+  if (t < 0.36) return -2000;
+  if (t < 0.46) return -1000;
+  if (t < 0.56) return -400;
+  if (t < 0.66) return -150;
+  if (t < 0.76) return -60;
+  return -25;
+}
+
+function hslToRgb(h, s, l) {
+  const sat = s / 100;
+  const lit = l / 100;
+  const a = sat * Math.min(lit, 1 - lit);
+  const f = (n) => {
+    const k = (n + h / 30) % 12;
+    return Math.round(255 * (lit - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+  };
+  return [f(0), f(8), f(4)];
 }
 
 function restyleGebco(image, canvas, ctx) {

@@ -177,7 +177,8 @@ h3 {
 #hud-census[hidden],
 #hud-subject[hidden],
 #hud-station[hidden],
-#hud-demos[hidden] {
+#hud-demos[hidden],
+#hud-filter[hidden] {
   display: none;
 }
 
@@ -676,7 +677,8 @@ h3 {
 #btn-notes,
 #btn-station,
 #btn-map,
-#btn-cells {
+#btn-cells,
+#btn-filter {
   appearance: none;
   background: var(--panel);
   color: var(--ink);
@@ -738,6 +740,7 @@ kbd {
 #about[hidden],
 #hud-station[hidden],
 #hud-demos[hidden],
+#hud-filter[hidden],
 #ocean-map[hidden] {
   display: none;
 }
@@ -1093,6 +1096,75 @@ kbd {
   color: var(--accent);
 }
 
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.filter-clear {
+  appearance: none;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.filter-clear:hover {
+  color: var(--ink);
+  border-color: rgba(160, 230, 220, 0.4);
+}
+
+.filter-list {
+  display: grid;
+  gap: 2px;
+}
+
+.filter-kicker {
+  margin: 10px 0 4px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.filter-row {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.filter-row:hover,
+.filter-row.on {
+  background: rgba(90, 200, 190, 0.12);
+  border-color: rgba(160, 230, 220, 0.28);
+}
+
+.filter-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 1px rgba(231, 244, 242, 0.22);
+}
+
 #ocean-map-canvas {
   position: absolute;
   inset: 0;
@@ -1152,6 +1224,30 @@ kbd {
 .ocean-map-fauna {
   line-height: 1.45;
   color: var(--muted);
+}
+
+.ocean-map-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 8px;
+  max-width: 36rem;
+}
+
+.ocean-map-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.ocean-map-chip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(231, 244, 242, 0.25);
 }
 
 .ocean-map-status {

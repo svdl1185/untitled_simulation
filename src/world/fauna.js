@@ -230,7 +230,7 @@ export const SPECIES = {
     label: "herring",
     guild: "forage",
     agent: "school",
-    temp: { min: 0, max: 20 },
+    temp: { min: -1.8, max: 20 },
     social: "polarized",
     share: 1,
     fish: {},
@@ -1630,7 +1630,7 @@ export const SPECIES = {
     guild: "pelagic-predator",
     agent: "vehicle",
     temp: { min: 6, max: 24 },
-    prey: ["herring", "mackerel", "sardine", "saury", "anchovy", "pilchard", "jackmackerel"],
+    prey: ["herring", "mackerel", "sardine", "saury", "anchovy", "pilchard", "jackmackerel", "menhaden"],
     vehicle: {
       count: 3,
       max: 6,
@@ -1741,6 +1741,13 @@ export function knobsFor(id) {
 export function vehicleCfg(id) {
   const spec = SPECIES[id];
   return { ...VEHICLE_DEFAULTS, ...(spec?.vehicle || {}) };
+}
+
+export function vehicleCountFor(id, weight = 1) {
+  const cfg = vehicleCfg(id);
+  if (weight <= 0.05) return 0;
+  const n = Math.round((cfg.count || 1) * weight);
+  return Math.max(1, Math.min(cfg.max ?? n, n));
 }
 
 export function speciesLabel(id) {

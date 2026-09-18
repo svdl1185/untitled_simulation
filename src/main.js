@@ -516,6 +516,7 @@ hud.on("oceanMap", (on) => {
   }
   oceanMap.setOpen(on);
 });
+hud.on("mapFilter", (ids) => oceanMap.setOverlay(ids));
 hud.on("demo", ({ id, presence } = {}) => {
   enterDemo(id, presence);
   oceanMap.setOpen(false);
@@ -539,6 +540,7 @@ hud.on("sstAnomaly", (n) => {
   CONFIG.water.sstAnomaly = Number(n);
   bindCellTemperature(day.storm);
   bindCellOxygen();
+  oceanMap.refresh?.();
 });
 hud.on("o2Anomaly", (n) => {
   CONFIG.water.o2Anomaly = Number(n);
@@ -547,6 +549,7 @@ hud.on("o2Anomaly", (n) => {
 hud.on("iceAnomaly", (n) => {
   CONFIG.water.iceAnomaly = Number(n);
   bindCellIce();
+  oceanMap.refresh?.();
 });
 
 function syncDepthZones() {

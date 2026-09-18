@@ -1,5 +1,5 @@
 import { CONFIG, breathTargetY, clampHabitatY, dvmY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
-import { SPECIES, VEHICLE_IDS, vehicleCfg, tickBreathHold } from "../world/fauna.js";
+import { SPECIES, VEHICLE_IDS, vehicleCfg, vehicleCountFor, tickBreathHold } from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, placeInColumn } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { columnQ10 } from "./temperature.js";
@@ -1256,7 +1256,8 @@ export function spawnPredators(school, counts = {}) {
   for (const kind of VEHICLE_IDS) {
     if (!faunaPresent(kind)) continue;
     const cfg = vehicleCfg(kind);
-    const raw = counts[kind] !== undefined ? counts[kind] : cfg.count;
+    const weight = CONFIG.presence?.[kind] ?? 1;
+    const raw = counts[kind] !== undefined ? counts[kind] : vehicleCountFor(kind, weight);
     const want = CONFIG.world?.lab ? Math.max(2, raw | 0) : raw | 0;
     const count = Math.max(0, Math.min(cfg.max ?? want, want));
     for (let i = 0; i < count; i++) pack.push(createShark(i, count, school, kind));
