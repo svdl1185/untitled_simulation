@@ -22,8 +22,8 @@
         <button type="button" id="btn-cells" aria-expanded="false" aria-controls="hud-demos" title="Named kilometres: catalog tank and biomes">
           Cells
         </button>
-        <button type="button" id="btn-filter" aria-expanded="false" aria-controls="hud-filter" title="Overlay current habitat on the map">
-          Filter
+        <button type="button" id="btn-filter" aria-expanded="false" aria-controls="hud-filter" title="Paint current habitat on the map">
+          Overlay
         </button>
         <button type="button" id="btn-station" hidden aria-expanded="false" aria-controls="hud-station">
           Station
@@ -78,7 +78,7 @@
         <div class="about-body" id="hud-demos-body"></div>
       </section>
       <section class="hud-panel" id="hud-filter" hidden>
-        <h3>Filter</h3>
+        <h3>Overlay</h3>
         <div class="about-body" id="hud-filter-body"></div>
       </section>
       <section class="hud-panel" id="about" hidden>
@@ -249,7 +249,7 @@
               <strong>Cell and atlas.</strong> World map is home. Click water for a 1 km cell (GEBCO
               tint, GMRT floor, HYCOM mean current when it answers). Land is not a cell. <strong>Cells</strong>
               is a picker of named kilometres: the 10 km catalog tank (every species, stepped shelves, 2000 m)
-              plus biomes from the coupling figure. <strong>Filter</strong> overlays current habitat for any catalog
+              plus biomes from the coupling figure. <strong>Overlay</strong> paints current habitat for any catalog
               taxon — several at once — on this day of year (range vs spawn, search, a day-of-year scrubber). Gap tiles still open the pelagic water at that site — they
               do not invent coral or a vent. Polar ice and a living bed are coupled. Neighbour chunks cache; animals do not swim between cells.
               Clock: 8 min ≈ 1 day, twelve sim days per year. Polar night follows the sun. Storms mix deeper, shoal the nutricline,
@@ -295,7 +295,7 @@
             <li>
               <strong>Window.</strong> Water, fog, and fish follow the same <em>K</em><sub>d</sub>.
               Depth layers, station briefing for this kilometre, census, field-notes cards, physical knobs
-              (turbidity, SST anomaly, oxygen anomaly, ice anomaly, day of year, storm). Map Filter paints live habitat (range vs spawn). Camera lamp is fill, not habitat.
+              (turbidity, SST anomaly, oxygen anomaly, ice anomaly, day of year, storm). Map Overlay paints live habitat (range vs spawn). Camera lamp is fill, not habitat.
             </li>
           </ul>
           <p class="about-label">School (hashed grid)</p>

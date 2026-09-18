@@ -204,7 +204,7 @@ const KEY_HELP = [
   ["M / Tab", "Open or close controls"],
   ["O", "World map (home)"],
   ["Cells", "Named kilometres: catalog tank and biomes"],
-  ["Filter", "Overlay current habitat of any catalog taxon"],
+  ["Overlay", "Paint current habitat of any catalog taxon on the map"],
   ["Station", "This kilometre: what the water is doing"],
   ["I", "Census, when a cell is open"],
   ["Click census", "Jump to that animal"],
@@ -407,19 +407,21 @@ export function createHUD() {
       if (dock === "subject") emit("dismissSubject", true);
       dock = null;
     }
-    if (!mapOn && dock === "filter") dock = null;
+    if (cell && (dock === "filter" || dock === "demos")) dock = null;
     if (btnMap) {
       btnMap.classList.toggle("on", mapOn);
       btnMap.setAttribute("aria-pressed", mapOn ? "true" : "false");
     }
     if (btnCells) {
-      btnCells.classList.toggle("on", dock === "demos");
-      btnCells.setAttribute("aria-expanded", dock === "demos" ? "true" : "false");
+      btnCells.hidden = cell;
+      btnCells.classList.toggle("on", !cell && dock === "demos");
+      btnCells.setAttribute("aria-expanded", !cell && dock === "demos" ? "true" : "false");
     }
     if (btnFilter) {
-      const filterOn = dock === "filter" || filterView.hasSelection();
+      const filterOn = !cell && (dock === "filter" || filterView.hasSelection());
+      btnFilter.hidden = cell;
       btnFilter.classList.toggle("on", filterOn);
-      btnFilter.setAttribute("aria-expanded", dock === "filter" ? "true" : "false");
+      btnFilter.setAttribute("aria-expanded", !cell && dock === "filter" ? "true" : "false");
     }
     if (btnStation) {
       btnStation.hidden = !cell;
@@ -666,8 +668,7 @@ export function createHUD() {
     setCameraLive,
     setEntered(on) {
       entered = !!on;
-      if (entered && !values.oceanMap && !CELL_DOCKS.has(dock) && dock !== "demos") setDock("station");
-      else syncNav();
+      syncNav();
     },
     setSelectOptions(id, options, value) {
       const item = findItem(id);
@@ -1400,7 +1401,9 @@ function bindDemos(root, emit) {
   });
   const grid = el("div", { class: "demo-grid" });
   const detail = el("div", { class: "demo-detail" });
-  root.replaceChildren(lead, grid, detail);
+  const scroll = el("div", { class: "demo-scroll" }, [lead, grid, detail]);
+  const actions = el("div", { class: "demo-actions" });
+  root.replaceChildren(scroll, actions);
 
   const cards = new Map();
   for (const demo of DEMO_CELLS) {
@@ -1449,6 +1452,7 @@ function bindDemos(root, emit) {
     }
     if (!demo) {
       detail.replaceChildren();
+      actions.replaceChildren();
       return;
     }
     const live = activeId === demo.id;
@@ -1490,25 +1494,24 @@ function bindDemos(root, emit) {
       }
       fauna.append(row);
     }
-    const actions = el("div", { class: "demo-actions" }, [
-      el("button", {
-        type: "button",
-        class: "demo-enter",
-        disabled: loading ? "" : false,
-        text: loading ? "Loading…" : live ? "Reload this cell" : "Enter this cell",
-      }),
-      el("button", {
-        type: "button",
-        class: "demo-reset",
-        text: "Reset fauna",
-      }),
-    ]);
-    actions.firstChild.addEventListener("click", enter);
-    actions.lastChild.addEventListener("click", () => {
+    const enterBtn = el("button", {
+      type: "button",
+      class: "demo-enter",
+      disabled: loading ? "" : false,
+      text: loading ? "Loading…" : live ? "Reload this cell" : "Enter this cell",
+    });
+    const resetBtn = el("button", {
+      type: "button",
+      class: "demo-reset",
+      text: "Reset fauna",
+    });
+    enterBtn.addEventListener("click", enter);
+    resetBtn.addEventListener("click", () => {
       toggles = defaultToggles(demo);
       render();
       if (activeId === selected && !loading) emit("demoFauna", { id: selected, presence: presence() });
     });
+    actions.replaceChildren(enterBtn, resetBtn);
     const note = status
       ? el("p", { class: "demo-status", text: status })
       : live
@@ -1522,7 +1525,6 @@ function bindDemos(root, emit) {
         observe,
         missing,
         fauna,
-        actions,
         note,
       ].filter(Boolean)
     );
