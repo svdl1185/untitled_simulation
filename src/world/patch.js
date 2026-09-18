@@ -1,5 +1,6 @@
 import { CONFIG, bindCellFauna, bindColumnHabitat } from "../config.js";
 import { emptyPresence, fullPresence, SPECIES } from "./fauna.js";
+import { floorWeight, realmWeight } from "./ranges.js";
 import { bindCellTemperature } from "../simulation/temperature.js";
 import { bindCellOxygen } from "../simulation/oxygen.js";
 import { bindCellUpwell } from "../simulation/flow.js";
@@ -369,9 +370,10 @@ function copyPresence(src, patch, { honorFloor = true, forceBenthos = false } = 
   for (const id of Object.keys(next)) next[id] = src?.[id] ?? 0;
   if (honorFloor && patch && !patch.lab) {
     for (const id of Object.keys(next)) {
+      if (!next[id]) continue;
       const spec = SPECIES[id];
-      if (next[id] && spec?.guild === "demersal" && patch.floorY < -650) next[id] = 0;
-      if (next[id] && spec?.minFloorY != null && patch.floorY > spec.minFloorY) next[id] = 0;
+      if (floorWeight(patch.floorY, spec) <= 0.05) next[id] = 0;
+      else if (realmWeight(patch.floorY, spec?.realm) <= 0.05) next[id] = 0;
     }
   }
   if (forceBenthos) next.benthos = 1;

@@ -1,9 +1,28 @@
 import * as THREE from "three";
 import { CONFIG, herringDvmY } from "../config.js";
 import { bindCellTemperature, climatologySST } from "./temperature.js";
-import { bindCellOxygen } from "./oxygen.js";
-import { bindCellIce, iceTransmit } from "./ice.js";
+import { iceTransmit } from "./ice.js";
 import { surfacePAR } from "./light.js";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+export function wrapDayOfYear(day) {
+  const n = Number(day);
+  if (!Number.isFinite(n)) return 180;
+  const d = Math.round(n);
+  return ((d - 1) % 365 + 365) % 365 + 1;
+}
+
+/** Calendar label for the season slider (`15 Jun`). Non-leap. */
+export function formatDayOfYear(day) {
+  let d = wrapDayOfYear(day);
+  for (let i = 0; i < MONTH_DAYS.length; i++) {
+    if (d <= MONTH_DAYS[i]) return `${d} ${MONTHS[i]}`;
+    d -= MONTH_DAYS[i];
+  }
+  return `31 Dec`;
+}
 
 /** Sine of solar elevation. Polar night is negative at noon; midnight sun stays positive at hour 0. */
 export function solarSinElev(lat, hour, dayOfYear = 180) {
@@ -318,12 +337,6 @@ export class DayCycle {
     if (this.auto) {
       this.dayLength = CONFIG.time.dayLength;
       const next = this.hour + (24 / this.dayLength) * dt;
-      if (next >= 24) {
-        this.dayIndex += Math.floor(next / 24);
-        CONFIG.time.dayIndex = this.dayIndex;
-        bindCellOxygen();
-        bindCellIce();
-      }
       this.hour = ((next % 24) + 24) % 24;
     }
     this.storm += (this.stormTarget - this.storm) * Math.min(1, dt * 0.55);
@@ -335,6 +348,14 @@ export class DayCycle {
     this.hour = ((h % 24) + 24) % 24;
     this.auto = false;
     this.sample();
+  }
+
+  setDayIndex(day) {
+    const doy = wrapDayOfYear(day);
+    this.dayIndex = doy;
+    CONFIG.time.dayIndex = doy;
+    this.sample();
+    return doy;
   }
 
   sample() {

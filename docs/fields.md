@@ -22,7 +22,7 @@ Sibling of `sampleFlow`.
 - The mixed layer is well-mixed; below it temperature falls toward a deep value. `CONFIG.thermoY` is that mixed-layer depth. Winter mixes deeper; storms mix deeper still.
 - `sampleTemp(x, y, z)` returns °C.
 - `q10Factor` / `columnQ10` scale NPZD rates, school metabolism/graze, and vehicle drain.
-- Some catalog rows have `temp: { min, max }` and drop out of `presenceAt` when mean SST is outside the niche.
+- Catalog `temp.min` / `temp.max` gates presence on **seasonal** SST (`climatologySST`), not the annual mean.
 
 ## Dissolved oxygen — `src/simulation/oxygen.js`
 

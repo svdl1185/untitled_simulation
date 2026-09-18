@@ -7,7 +7,7 @@ import {
   schoolHunts,
 } from "../world/fauna.js";
 import { UniformGrid3D } from "./grid.js";
-import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore, clampLocalY, placeInColumn } from "./obstacles.js";
+import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore, clampLocalY, placeInColumn, pickHabitatXZ } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { TROPHIC } from "./plankton.js";
 import { columnQ10 } from "./temperature.js";
@@ -156,7 +156,7 @@ export class School {
     this._harvestDebt = 0;
     this._hungryN = 0;
     this.meanEnergy = 0.6;
-    this._plankton = null;
+    this._plankton = opts.plankton || null;
     this._hour = opts.hour ?? 12;
     this._tmax = 48;
     this._tn = new Uint32Array(this._tmax);
@@ -252,39 +252,36 @@ export class School {
   }
 
   _home(s) {
-    const n = Math.max(1, this.initialSchools);
-    const a = (s / n) * Math.PI * 2 + 0.31;
     const cfg = this.shoalCfg(s);
     const bandY =
       cfg.habitat === "benthic"
         ? cfg.dayDepth ?? -70
         : dvmY(this._hour ?? 12, cfg);
     const wantY = bandY + (s % 2 === 0 ? -2 : 2.5);
-    let x;
-    let z;
-    if (CONFIG.world?.lab) {
-      const rx = CONFIG.halfX * 0.4;
-      x = Math.cos(a) * rx;
-      let zn;
-      if (wantY > -22) zn = 0.22;
-      else if (wantY > -70) zn = 0.16;
-      else if (wantY > -160) zn = 0.1;
-      else if (wantY > -300) zn = -0.1;
-      else if (wantY > -600) zn = -0.3;
-      else zn = -0.62;
-      z = zn * CONFIG.halfZ + Math.sin(a) * CONFIG.halfZ * 0.08;
-    } else {
-      const rx = CONFIG.halfX * 0.49;
-      const rz = CONFIG.halfZ * 0.31;
-      const zOff = hasBeach() ? -CONFIG.halfZ * 0.32 : 0;
-      x = Math.cos(a) * rx;
-      z = Math.sin(a) * rz + zOff;
+    const diet = schoolDiet(cfg);
+    let foodPeak = null;
+    const bloom = this._plankton;
+    if (bloom) {
+      if (cfg.habitat === "benthic") foodPeak = bloom.peakLayer("infauna");
+      else if (diet !== "bite") {
+        foodPeak = bloom.peakLayer(cfg.grazeOn === "p" || diet === "p" ? TROPHIC.P : TROPHIC.Z);
+      }
     }
+    let kind = "pelagic";
+    if (cfg.habitat === "benthic") kind = "benthic";
+    else if ((cfg.dayDepth ?? -40) > -22 || cfg.anchorTop) kind = "surface";
+    else if ((cfg.dayDepth ?? 0) < -200 || (cfg.maxDepth ?? 0) < -600) kind = "deep";
+    const xz = pickHabitatXZ(s, {
+      wantY,
+      kind,
+      foodPeak,
+      ringCount: Math.max(1, this.initialSchools),
+    });
     const yTarget =
       cfg.habitat === "benthic"
-        ? seafloorHeight(x, z) + (cfg.floorClearance ?? 2.4) + 2
+        ? seafloorHeight(xz.x, xz.z) + (cfg.floorClearance ?? 2.4) + 2
         : wantY;
-    const placed = placeInColumn(x, z, yTarget, {
+    const placed = placeInColumn(xz.x, xz.z, yTarget, {
       maxDepth: oxygenLimitY(cfg),
       clearance: cfg.floorClearance,
       minWater: cfg.minWater,
@@ -293,7 +290,7 @@ export class School {
       x: placed.x,
       y: placed.y,
       z: placed.z,
-      heading: a + Math.PI * 0.5,
+      heading: ((s / Math.max(1, this.initialSchools)) * Math.PI * 2 + 0.31) + Math.PI * 0.5,
     };
   }
 
@@ -448,6 +445,7 @@ export class School {
 
   clipToBloom(plankton) {
     if (!plankton) return;
+    this._plankton = plankton;
     const foodCap = plankton.carryingCapacity(this.cap);
     const alloc = allocateMixedSchoolCounts(
       this.cap,

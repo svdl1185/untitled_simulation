@@ -149,6 +149,72 @@ export function placeInColumn(x, z, wantY, opts = {}) {
 }
 
 /**
+ * Pick a seed (x, z) from habitat cues that actually exist in the cell:
+ * bloom patch, infauna, beach axis, deepest water. Falls back to the
+ * old ellipse. `placeInColumn` still clamps the column.
+ */
+export function pickHabitatXZ(seed = 0, opts = {}) {
+  const n = Math.max(1, opts.ringCount ?? 8);
+  const a = (seed / n) * Math.PI * 2 + 0.31;
+  const wantY = opts.wantY ?? -40;
+  const kind = opts.kind || "pelagic";
+  const cands = [];
+
+  const ring = (rx, rz, zOff) => {
+    cands.push({ x: Math.cos(a) * rx, z: Math.sin(a) * rz + zOff, w: 0.35 });
+  };
+
+  if (CONFIG.world?.lab) {
+    const rx = CONFIG.halfX * 0.4;
+    let zn;
+    if (wantY > -22) zn = 0.22;
+    else if (wantY > -70) zn = 0.16;
+    else if (wantY > -160) zn = 0.1;
+    else if (wantY > -300) zn = -0.1;
+    else if (wantY > -600) zn = -0.3;
+    else zn = -0.62;
+    ring(rx, CONFIG.halfZ * 0.08, zn * CONFIG.halfZ);
+  } else {
+    const zOff = hasBeach() ? -CONFIG.halfZ * 0.32 : 0;
+    ring(CONFIG.halfX * 0.49, CONFIG.halfZ * 0.31, zOff);
+  }
+
+  if (kind === "surface" && hasBeach()) {
+    cands.push({ x: Math.cos(a) * CONFIG.halfX * 0.28, z: CONFIG.beach.startZ - 40 - (seed % 5) * 12, w: 0.7 });
+  }
+  if (kind === "deep" && hasBeach()) {
+    cands.push({ x: Math.cos(a) * CONFIG.halfX * 0.22, z: -CONFIG.halfZ * 0.62 + Math.sin(a) * CONFIG.halfZ * 0.12, w: 0.7 });
+  }
+
+  const food = opts.foodPeak;
+  if (food && Number.isFinite(food.x) && Number.isFinite(food.z)) {
+    const jitter = 18 + (seed % 7) * 4;
+    cands.push({
+      x: food.x + Math.cos(a) * jitter,
+      z: food.z + Math.sin(a) * jitter,
+      w: 1.4 + (food.v ?? 0),
+    });
+  }
+
+  let best = cands[0];
+  let bestS = -1e9;
+  for (const c of cands) {
+    const ground = seafloorHeight(c.x, c.z);
+    if (ground > -1.2) continue;
+    const depth = -ground;
+    let s = c.w;
+    if (kind === "deep") s += Math.min(1.2, depth / 800);
+    if (kind === "surface") s += Math.max(0, 1 - depth / 80);
+    if (kind === "benthic") s += 0.2;
+    if (s > bestS) {
+      bestS = s;
+      best = c;
+    }
+  }
+  return { x: best?.x ?? 0, z: best?.z ?? 0 };
+}
+
+/**
  * Camera (or any visitor) that wants depth `wantY`. If this (x, z) is
  * too shallow, pick the nearest wet sample that actually has that
  * column. Empty elevation falls back to `placeInColumn`.

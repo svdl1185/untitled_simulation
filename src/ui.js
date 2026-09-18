@@ -1,5 +1,6 @@
 import { CONFIG } from "./config.js";
 import { CAMERA_MODES } from "./camera.js";
+import { formatDayOfYear } from "./simulation/day.js";
 import { DEMO_CELLS, defaultToggles, demoById, presenceFromToggles, sandboxIds } from "./world/demos.js";
 import { SPECIES } from "./world/fauna.js";
 import { FAUNA } from "./world/fieldNotes.js";
@@ -35,6 +36,17 @@ export const MENU = [
         step: 0.05,
         value: 10.4,
         format: formatClock,
+      },
+      {
+        id: "dayOfYear",
+        kind: "slider",
+        label: "Day of year",
+        hint: "Season for SST, ice, polar night, and who is in range. Occupancy is a window on a hull, not a swim between cells.",
+        min: 1,
+        max: 365,
+        step: 1,
+        value: CONFIG.time.dayIndex ?? 180,
+        format: formatDayOfYear,
       },
     ],
   },

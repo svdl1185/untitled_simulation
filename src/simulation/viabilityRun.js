@@ -33,8 +33,8 @@ export function runViability(opts = {}) {
   day.latitude = CONFIG.world.lat;
   day.sample();
   const fishN = anySchoolPresent() ? Number(opts.fish ?? CONFIG.initialFish) : 0;
-  const school = new School(fishN, { hour: day.look.hour });
   const plankton = new Plankton();
+  const school = new School(fishN, { hour: day.look.hour, plankton });
   school.clipToBloom(plankton);
   const predCounts = {};
   if (CONFIG.world.lab) {

@@ -7,9 +7,11 @@
  * Predators still need prey in the cell (trophic gate), not a lat split.
  */
 
-import { emptyPresence, SCHOOL_IDS, SPECIES, speciesLabel } from "./fauna.js";
-import { inTempNiche, meanSST } from "../simulation/temperature.js";
+import { emptyPresence, SCHOOL_IDS, SPECIES, speciesLabel, isForagePrey } from "./fauna.js";
+import { inTempNiche, climatologySST } from "../simulation/temperature.js";
 import { inOxygenNiche } from "../simulation/oxygen.js";
+import { climateIce } from "../simulation/ice.js";
+import { climateUpwell } from "../simulation/flow.js";
 import { CONFIG } from "../config.js";
 
 const HERRING_HULL = [
@@ -381,7 +383,7 @@ const GREATWHITE_HULLS = [
   ],
 ];
 
-const HUMPBACK_HULLS = [
+const HUMPBACK_FEED = [
   [
     [-170, 50],
     [-140, 62],
@@ -400,22 +402,16 @@ const HUMPBACK_HULLS = [
     [-20, 38],
   ],
   [
-    [-84, -2],
-    [-84, -48],
-    [-70, -48],
-    [-70, -2],
-  ],
-  [
-    [140, -16],
+    [140, -32],
     [140, -64],
     [180, -64],
-    [180, -16],
+    [180, -32],
   ],
   [
-    [-180, -16],
+    [-180, -32],
     [-180, -64],
     [-160, -64],
-    [-160, -16],
+    [-160, -32],
   ],
   [
     [-180, -52],
@@ -434,6 +430,115 @@ const HUMPBACK_HULLS = [
     [18, -42],
     [32, -42],
     [32, -30],
+  ],
+  [
+    [-84, -32],
+    [-84, -48],
+    [-70, -48],
+    [-70, -32],
+  ],
+];
+
+const HUMPBACK_BREED = [
+  [
+    [-178, 18],
+    [-178, 28],
+    [-154, 28],
+    [-154, 18],
+  ],
+  [
+    [-116, 20],
+    [-116, 32],
+    [-105, 32],
+    [-105, 20],
+  ],
+  [
+    [-85, 10],
+    [-85, 22],
+    [-60, 22],
+    [-60, 10],
+  ],
+  [
+    [-82, -4],
+    [-82, 12],
+    [-75, 12],
+    [-75, -4],
+  ],
+  [
+    [-176, -24],
+    [-176, -15],
+    [-170, -15],
+    [-170, -24],
+  ],
+  [
+    [174, -24],
+    [174, -15],
+    [180, -15],
+    [180, -24],
+  ],
+  [
+    [-84, -2],
+    [-84, -18],
+    [-70, -18],
+    [-70, -2],
+  ],
+];
+
+const GREATWHITE_CORE = [
+  GREATWHITE_HULLS[0],
+  GREATWHITE_HULLS[2],
+  GREATWHITE_HULLS[3],
+  GREATWHITE_HULLS[4],
+  GREATWHITE_HULLS[5],
+  GREATWHITE_HULLS[6],
+];
+
+const GREATWHITE_CAPE = [GREATWHITE_HULLS[1]];
+
+const COD_HULLS = [
+  [
+    [-76, 42],
+    [-76, 78],
+    [52, 78],
+    [52, 42],
+  ],
+];
+
+const MINKE_HULLS = [
+  [
+    [-180, 32],
+    [-180, 78],
+    [180, 78],
+    [180, 32],
+  ],
+  [
+    [-180, -78],
+    [-180, -32],
+    [180, -32],
+    [180, -78],
+  ],
+];
+
+const BLUEFIN_HULLS = [
+  [
+    [-80, 24],
+    [-80, 60],
+    [8, 60],
+    [36, 46],
+    [36, 30],
+    [0, 24],
+  ],
+  [
+    [140, 24],
+    [140, 48],
+    [180, 48],
+    [180, 24],
+  ],
+  [
+    [-180, 24],
+    [-180, 48],
+    [-120, 48],
+    [-120, 24],
   ],
 ];
 
@@ -552,14 +657,108 @@ const RANGES = [
   { id: "illex", hulls: ILLEX_HULLS },
   { id: "krill", hulls: [...SILVERFISH_HULLS, ...KRILL_NA_HULLS] },
   { id: "toothfish", hulls: SILVERFISH_HULLS },
-  { id: "greatwhite", hulls: GREATWHITE_HULLS },
-  { id: "humpback", hulls: HUMPBACK_HULLS },
+  { id: "cod", hulls: COD_HULLS },
+  { id: "greatwhite", hulls: GREATWHITE_CORE },
+  { id: "greatwhite", hulls: GREATWHITE_CAPE, season: { peak: 210, width: 80 } },
+  { id: "humpback", hulls: HUMPBACK_FEED, season: { peak: 210, width: 80 } },
+  { id: "humpback", hulls: HUMPBACK_BREED, season: { peak: 30, width: 70 } },
   { id: "humboldtsquid", hulls: HUMBOLDT_HULLS },
+  { id: "minke", hulls: MINKE_HULLS, season: { peak: 210, width: 100 } },
+  { id: "bluefin", hulls: BLUEFIN_HULLS, season: { peak: 210, width: 110 } },
 ];
+
+/** Cosmopolitan / lat-band taxa: geographic prior is 1, then catalog niches. */
+const OPEN_RANGE = [
+  "flyingfish",
+  "lanternfish",
+  "giantsquid",
+  "shark",
+  "tuna",
+  "tigershark",
+  "hammerhead",
+  "whaleshark",
+  "spermwhale",
+  "orca",
+  "commondolphin",
+  "mahi",
+  "barracuda",
+  "yellowfin",
+  "sailfish",
+];
+
+export function seasonWeight(doy, peak, width, lat = 0) {
+  if (peak == null || width == null || width <= 0) return 1;
+  const day = ((Number(doy) % 365) + 365) % 365;
+  const p = lat < 0 ? (peak + 182) % 365 : peak % 365;
+  let d = Math.abs(day - p);
+  if (d > 182.5) d = 365 - d;
+  if (d >= width) return 0;
+  return 0.5 + 0.5 * Math.cos((d / width) * Math.PI);
+}
+
+export function realmWeight(floorY, realm) {
+  if (floorY == null || !realm || realm === "any") return 1;
+  if (realm === "shelf") {
+    if (floorY < -650) return 0;
+    return 1;
+  }
+  if (realm === "oceanic") {
+    if (floorY > -180) return 0;
+    if (floorY > -350) return 0.4;
+    return 1;
+  }
+  if (realm === "slope") {
+    if (floorY > -250 || floorY < -2500) return 0;
+    return 1;
+  }
+  return 1;
+}
+
+export function floorWeight(floorY, spec) {
+  if (floorY == null || !spec) return 1;
+  const floor = spec.floor;
+  if (floor?.min != null && floorY < floor.min) return 0;
+  if (floor?.max != null && floorY > floor.max) return 0;
+  if (spec.minFloorY != null && floorY > spec.minFloorY) return 0;
+  if (spec.guild === "demersal" && floorY < -650) return 0;
+  return 1;
+}
+
+function iceWeight(ice, spec) {
+  const assoc = spec?.ice === "associated" || spec?.fish?.iceAssociated;
+  const avoid = spec?.ice === "avoid" || (spec?.temp?.min != null && spec.temp.min >= 16);
+  if (avoid && ice > 0.15) return 0;
+  if (assoc) return ice > 0.08 ? 0.55 + 0.45 * Math.min(1, ice) : 0.45;
+  if (spec?.realm === "oceanic" && ice > 0.55) return 0;
+  return 1;
+}
+
+function upwellWeight(upwell, spec) {
+  if (spec?.upwellMin == null) return 1;
+  if (upwell < spec.upwellMin) return 0;
+  return Math.min(1, 0.45 + upwell);
+}
+
+export function habitatWeight(spec, env) {
+  if (!spec) return 0;
+  const sst = env.sst;
+  const ice = env.ice ?? 0;
+  const upwell = env.upwell ?? 0;
+  if (!inTempNiche(sst, spec.temp)) return 0;
+  if (!inOxygenNiche(env.lat, env.lon, spec.o2)) return 0;
+  let w = 1;
+  w *= realmWeight(env.floorY, spec.realm);
+  w *= floorWeight(env.floorY, spec);
+  w *= iceWeight(ice, spec);
+  w *= upwellWeight(upwell, spec);
+  return w;
+}
 
 function schoolPreyCount(p) {
   let n = 0;
-  for (const id of SCHOOL_IDS) if (p[id] > 0.05) n += 1;
+  for (const id of SCHOOL_IDS) {
+    if ((p[id] ?? 0) > 0.05 && isForagePrey(id)) n += 1;
+  }
   return n;
 }
 
@@ -572,56 +771,58 @@ function preySatisfied(spec, p) {
   return false;
 }
 
-export function herringSuitability(lat, lon) {
-  return pointInPolygon(wrapLon(lon), lat, HERRING_HULL) ? 1 : 0;
+export function herringSuitability(lat, lon, env) {
+  return presenceAt(lat, lon, env).herring ?? 0;
 }
 
-export function presenceAt(lat, lon) {
+function climateEnv(lat, lon, env = {}) {
+  const dayOfYear = env.dayOfYear ?? CONFIG.time?.dayIndex ?? 180;
+  return {
+    lat,
+    lon,
+    dayOfYear,
+    floorY: env.floorY,
+    sst: env.sst ?? climatologySST(lat, dayOfYear) + (CONFIG.water?.sstAnomaly ?? 0),
+    ice: env.ice ?? climateIce(lat, lon, dayOfYear) + (CONFIG.water?.iceAnomaly ?? 0),
+    upwell: env.upwell ?? climateUpwell(lat, lon),
+  };
+}
+
+export function presenceAt(lat, lon, env = {}) {
   const p = emptyPresence();
   const x = wrapLon(lon);
-  for (const spec of RANGES) {
-    if (inAny(x, lat, spec.hulls)) p[spec.id] = 1;
-  }
-  if (Math.abs(lat) < 32.5) p.flyingfish = 1;
-  if (Math.abs(lat) < 52) p.lanternfish = 1;
-  p.benthos = 1;
-  if (Math.abs(lat) < 55) p.giantsquid = 1;
+  const climate = climateEnv(lat, lon, env);
 
-  const prey = schoolPreyCount(p);
-  if (prey && lat < 58 && lat > -48) p.shark = 1;
-  if (prey && Math.abs(lat) < 40) p.tuna = 1;
-  if ((p.herring || p.capelin || p.sandlance) && lat > 42 && lat < 78 && lon > -76 && lon < 52) {
-    p.cod = 1;
+  for (const spec of RANGES) {
+    if (!inAny(x, lat, spec.hulls)) continue;
+    const occ = spec.season
+      ? seasonWeight(climate.dayOfYear, spec.season.peak, spec.season.width, lat)
+      : 1;
+    if (occ <= 0.05) continue;
+    p[spec.id] = Math.max(p[spec.id] ?? 0, occ);
   }
-  if (prey && Math.abs(lat) < 28) p.tigershark = 1;
-  if (prey && Math.abs(lat) < 32) p.hammerhead = 1;
-  if (Math.abs(lat) < 30) p.whaleshark = 1;
-  if (Math.abs(lat) > 32) p.minke = 1;
-  if (Math.abs(lat) < 55) p.spermwhale = 1;
-  if (prey) p.orca = 1;
-  if (prey && Math.abs(lat) < 32) p.mahi = 1;
-  if (prey && Math.abs(lat) < 28) p.barracuda = 1;
-  if (prey && Math.abs(lat) < 32) p.yellowfin = 1;
-  if (prey && Math.abs(lat) >= 24 && Math.abs(lat) <= 60) p.bluefin = 1;
-  if (prey && Math.abs(lat) < 32) p.sailfish = 1;
-  if (prey && Math.abs(lat) < 40) p.commondolphin = 1;
+
+  for (const id of OPEN_RANGE) {
+    if ((p[id] ?? 0) > 0.05) continue;
+    p[id] = 1;
+  }
+  p.benthos = 1;
+
+  for (const id of Object.keys(p)) {
+    if ((p[id] ?? 0) <= 0.05) continue;
+    const w = habitatWeight(SPECIES[id], climate);
+    p[id] = w > 0.05 ? Math.min(1, p[id] * w) : 0;
+  }
 
   for (const id of Object.keys(p)) {
     if ((p[id] ?? 0) <= 0.05) continue;
     if (!preySatisfied(SPECIES[id], p)) p[id] = 0;
   }
-
-  const sst = meanSST(lat) + (CONFIG.water?.sstAnomaly ?? 0);
-  for (const id of Object.keys(p)) {
-    if ((p[id] ?? 0) <= 0.05) continue;
-    if (!inTempNiche(sst, SPECIES[id]?.temp)) p[id] = 0;
-    if (!inOxygenNiche(lat, lon, SPECIES[id]?.o2)) p[id] = 0;
-  }
   return p;
 }
 
-export function faunaIdsPresent(lat, lon) {
-  const p = presenceAt(lat, lon);
+export function faunaIdsPresent(lat, lon, env) {
+  const p = presenceAt(lat, lon, env);
   const ids = [];
   for (const id of Object.keys(p)) {
     if (p[id] > 0.05) ids.push(id);

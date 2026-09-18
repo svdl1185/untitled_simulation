@@ -8,6 +8,7 @@ import {
   makeElevationPatch,
 } from "./patch.js";
 import { presenceAt } from "./ranges.js";
+import { CONFIG } from "../config.js";
 
 export class AtlasError extends Error {
   constructor(code, message) {
@@ -230,7 +231,6 @@ export async function fetchCurrentField(west, south, east, north) {
 export async function loadPatchById(id) {
   const { lat, lon } = chunkCenter(id);
   const bbox = patchBBox(lat, lon, PATCH_SIZE_M);
-  const presence = presenceAt(lat, lon);
   const [elevPack, current] = await Promise.all([
     fetchElevationGrid(bbox.west, bbox.south, bbox.east, bbox.north),
     fetchCurrentPoint(lat, lon),
@@ -238,11 +238,14 @@ export async function loadPatchById(id) {
   const elevation = resampleElevation(elevPack.elevation, elevPack.nx, elevPack.nz, ELEV_NX, ELEV_NZ);
   const patch = makeElevationPatch(id, lat, lon, elevation, ELEV_NX, ELEV_NZ, {
     current: { u: current.u, v: current.v },
-    presence,
     note: current.ok ? "" : "HYCOM current unavailable; local tide/eddies only.",
   });
   if (patch.centerY >= -0.4 || patch.wetFrac < 0.18) {
     throw new AtlasError("land", "That cell is mostly land.");
   }
+  patch.presence = presenceAt(lat, lon, {
+    floorY: patch.floorY,
+    dayOfYear: CONFIG.time?.dayIndex ?? 180,
+  });
   return patch;
 }

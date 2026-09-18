@@ -276,6 +276,7 @@ export const SPECIES = {
     label: "menhaden",
     guild: "forage",
     agent: "school",
+    realm: "shelf",
     social: "polarized",
     share: 0.9,
     fish: {
@@ -486,6 +487,7 @@ export const SPECIES = {
     label: "flying fish",
     guild: "surface",
     agent: "school",
+    realm: "oceanic",
     temp: { min: 16, max: 31 },
     social: "loose",
     share: 0.16,
@@ -559,6 +561,7 @@ export const SPECIES = {
     label: "sand lance",
     guild: "forage",
     agent: "school",
+    realm: "shelf",
     social: "polarized",
     share: 0.4,
     fish: {
@@ -741,6 +744,8 @@ export const SPECIES = {
     label: "lanternfish",
     guild: "forage",
     agent: "school",
+    realm: "oceanic",
+    temp: { min: 3, max: 30 },
     social: "scatter",
     share: 0.14,
     fish: {
@@ -891,6 +896,7 @@ export const SPECIES = {
     label: "blue shark",
     guild: "pelagic-predator",
     agent: "vehicle",
+    temp: { min: 8, max: 28 },
     prey: ["school"],
     vehicle: {
       mesh: "shark",
@@ -909,6 +915,7 @@ export const SPECIES = {
     label: "skipjack",
     guild: "pelagic-predator",
     agent: "school",
+    realm: "oceanic",
     social: "polarized",
     share: 0.9,
     prey: ["school"],
@@ -953,6 +960,8 @@ export const SPECIES = {
     label: "cod",
     guild: "demersal",
     agent: "school",
+    realm: "shelf",
+    floor: { min: -650 },
     social: "scatter",
     share: 1,
     prey: ["herring", "capelin", "sandlance"],
@@ -1001,6 +1010,7 @@ export const SPECIES = {
     label: "Antarctic toothfish",
     guild: "slope-predator",
     agent: "school",
+    realm: "slope",
     social: "scatter",
     share: 0.4,
     prey: ["silverfish"],
@@ -1080,6 +1090,7 @@ export const SPECIES = {
     label: "tiger shark",
     guild: "pelagic-predator",
     agent: "vehicle",
+    temp: { min: 18, max: 31 },
     prey: ["school"],
     vehicle: {
       count: 2,
@@ -1111,6 +1122,7 @@ export const SPECIES = {
     label: "hammerhead",
     guild: "pelagic-predator",
     agent: "vehicle",
+    temp: { min: 16, max: 31 },
     prey: ["school"],
     vehicle: {
       count: 8,
@@ -1184,6 +1196,7 @@ export const SPECIES = {
     label: "minke whale",
     guild: "mysticete",
     agent: "vehicle",
+    temp: { min: -1.8, max: 18 },
     prey: ["bloom"],
     vehicle: {
       count: 2,
@@ -1268,6 +1281,9 @@ export const SPECIES = {
     label: "sperm whale",
     guild: "odontocete",
     agent: "vehicle",
+    realm: "oceanic",
+    floor: { max: -400 },
+    ice: "avoid",
     vehicle: {
       count: 1,
       max: 2,
@@ -1357,6 +1373,7 @@ export const SPECIES = {
     share: 0.72,
     prey: ["anchovy", "sardine", "mackerel", "lanternfish", "jackmackerel"],
     o2: { needOmz: true },
+    upwellMin: 0.12,
     fish: {
       diet: "bite",
       length: 1.6,
@@ -1400,6 +1417,8 @@ export const SPECIES = {
     label: "giant squid",
     guild: "cephalopod-predator",
     agent: "vehicle",
+    realm: "oceanic",
+    floor: { max: -350 },
     minFloorY: -350,
     prey: ["lanternfish", "marketsquid", "illex"],
     vehicle: {
@@ -1440,6 +1459,7 @@ export const SPECIES = {
     label: "common dolphin",
     guild: "odontocete",
     agent: "vehicle",
+    temp: { min: 14, max: 31 },
     prey: ["flyingfish", "sardinella", "anchovy", "sardine"],
     vehicle: {
       count: 18,
@@ -1487,6 +1507,7 @@ export const SPECIES = {
     social: "loose",
     share: 0.38,
     prey: ["school"],
+    temp: { min: 16, max: 31 },
     fish: {
       diet: "bite",
       length: 1.15,
@@ -1526,6 +1547,7 @@ export const SPECIES = {
     social: "scatter",
     share: 0.28,
     prey: ["school"],
+    temp: { min: 18, max: 31 },
     fish: {
       diet: "bite",
       length: 1.35,
@@ -1566,6 +1588,7 @@ export const SPECIES = {
     social: "polarized",
     share: 0.48,
     prey: ["school"],
+    temp: { min: 16, max: 31 },
     fish: {
       diet: "bite",
       restSpacing: 2.8,
@@ -1606,6 +1629,7 @@ export const SPECIES = {
     label: "bluefin",
     guild: "pelagic-predator",
     agent: "vehicle",
+    temp: { min: 6, max: 24 },
     prey: ["herring", "mackerel", "sardine", "saury", "anchovy", "pilchard", "jackmackerel"],
     vehicle: {
       count: 3,
@@ -1646,6 +1670,7 @@ export const SPECIES = {
     social: "loose",
     share: 0.16,
     prey: ["school"],
+    temp: { min: 16, max: 31 },
     fish: {
       diet: "bite",
       length: 2.7,

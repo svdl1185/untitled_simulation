@@ -13,11 +13,11 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints. The **world map** is home. Click water to load that kilometre (GEBCO floor, a mean current, every catalogued animal whose range and thermal niche cover the cell). Land is not a cell. **Cells** picks a named kilometre: the 10 km catalog tank (whole catalog, stepped shelves, 2000 m) plus biomes from the coupling figure. Gap tiles still open the pelagic water at that site — they do not invent coral or a vent. Polar ice is coupled. Each named cell starts with the fauna that range would put there; names in the picker add or remove that biome’s usual cast.
+Open the URL Vite prints. The **world map** is home. Click water to load that kilometre (GEBCO floor, a mean current, every catalogued animal whose range, thermal niche, and season cover the cell). Land is not a cell. **Cells** picks a named kilometre: the 10 km catalog tank (whole catalog, stepped shelves, 2000 m) plus biomes from the coupling figure. Gap tiles still open the pelagic water at that site — they do not invent coral or a vent. Polar ice is coupled. Each named cell starts with the fauna that range would put there; names in the picker add or remove that biome’s usual cast.
 
 The public host is a Cloudflare Worker with the Vite `dist`. Atlas paths `/gebco`, `/gmrt`, `/hycom` are the same in `npm run dev` and in production (Vite proxy locally, Worker fetch on the edge). Attach a domain: [`docs/deploy.md`](docs/deploy.md).
 
-Controls: `M` / `Tab`. Toggles start off. Prefer a physical control (turbidity, SST anomaly, oxygen anomaly, ice anomaly) over a cosmetic one.
+Controls: `M` / `Tab`. Toggles start off. Prefer a physical control (turbidity, SST anomaly, oxygen anomaly, ice anomaly, day of year) over a cosmetic one.
 
 ## Mission
 
@@ -43,6 +43,7 @@ The jargon the model actually uses. Same list lives in the in-app **About** pane
 | **DSL** | Deep scattering layer. The mesopelagic sound and biomass layer. Lanternfish in this catalog. |
 | **Q10** | How much a rate changes per 10 °C. Metabolism, graze, and NPZD all scale with column temperature. |
 | **SST** | Sea-surface temperature. Latitude climatology plus season plus the anomaly knob. |
+| **Occupancy** | Seasonal presence on a hull. The day-of-year slider. Not a swim between cells. |
 | **Mixed layer** | Well-mixed surface water. Winter mixes it deeper; storms mix it deeper still. |
 | **Nutricline** | The depth where nutrients increase. Climate upwell and storms shoal it so N sits in the light. |
 | **Photic** | The sunlit layer, down to ~1% light. Photosynthesis lives here. |
@@ -77,9 +78,9 @@ Agents never get a private sun, current, temperature, or oxygen. They sample the
 | **Seafloor** | Local height at (x, z) from the elevation grid. `CONFIG.floorY` is the cell minimum, not the slope under the animal. A dropoff or seamount is a wall. Beach, dunes, and wet mask from the same grid. |
 | **Flow** `sampleFlow` | Tide, longshore, thermocline shear, synthetic eddies, optional atlas mean (east → X, north → Z). Storm multiplies speed. Climate upwell and storms add a mean **upward** lift around the mixed layer (Ekman-ish, not a HYCOM `w`). The only current — school advection, plankton, and vehicles all read it. |
 | **Light** `samplePAR` | Beer–Lambert. \(I_0\) from sun elevation, night, storm, then **ice transmission** (leads plus the floe). \(K_d\) so the 1% depth matches `openPhoticY()` (turbidity). Fog, caustics, phytoplankton growth, and **visual hunt** share that envelope. `visualRange` scales detect and fear for sighted hunters; photophore prey restore a fraction in the dark. Sperm whale / orca `sense: "echo"` skip PAR. A shelf floor shallower than 1% light stays sunlit — `photicLimitY()` clips the HUD/zone, not Kd. Pack ice is an \(I_0\) skin, not Kd. Open cells clear the water (`bindColumnHabitat`). |
-| **Temperature** `sampleTemp` | SST = latitude climatology + seasonal cycle + `sstAnomaly`. Mixed layer well-mixed; below it a fall toward deep water. Winter mixes deeper; **storms mix deeper still** (`thermoY`). Q10 (`columnQ10`, `productionQ10`) scales NPZD, school metabolism/graze, and vehicle drain. Catalog `temp.min` / `temp.max` gates presence. |
+| **Temperature** `sampleTemp` | SST = latitude climatology + seasonal cycle + `sstAnomaly`. Mixed layer well-mixed; below it a fall toward deep water. Winter mixes deeper; **storms mix deeper still** (`thermoY`). Q10 (`columnQ10`, `productionQ10`) scales NPZD, school metabolism/graze, and vehicle drain. Catalog `temp.min` / `temp.max` gates presence on that seasonal SST. |
 | **Oxygen** `sampleO2` | ml L⁻¹. Mixed layer near saturation (SST). Eastern-boundary and tropical cells get an OMZ; deep water recovers. Catalog tank forces a refuge. Detritus remineralisation is `setOxygenDemand`. `oxygenLimitY` is the hypoxia floor unless `omzRefuge`. Humboldt `o2: { needOmz }` gates presence; day DVM follows `omzCoreY`. `o2Anomaly` is a control. Tunas and sharks stay above their `o2Min`; lanternfish `o2Min` 0.08 can occupy the hole. Hypoxia raises drain (`o2MetabolicFactor`). |
-| **Ice** `climateIce` | Concentration 0–1 from latitude, longitude, and season. Thickness follows concentration. `iceTransmit` is leads plus Beer–Lambert through the floe — PAR, caustics, and visual hunt all read it. Ice algae is extra P in the top ~10 m. Polar cod, krill, and silverfish `iceAssociated`: DVM shoals toward the ice–water film. Polar night / midnight sun follow solar elevation (`solarSinElev`), not a 24 h clock. `iceAnomaly` is a control. Catalog tank is ice-free. Drift, ice age, and mapped polynyas are still gaps. |
+| **Ice** `climateIce` | Concentration 0–1 from latitude, longitude, and season. Thickness follows concentration. `iceTransmit` is leads plus Beer–Lambert through the floe — PAR, caustics, and visual hunt all read it. Ice algae is extra P in the top ~10 m. Polar cod, krill, and silverfish `iceAssociated`: DVM shoals toward the ice–water film, and presence is boosted under pack. Tropical taxa drop when ice > 0.15. Polar night / midnight sun follow solar elevation (`solarSinElev`), not a 24 h clock. `iceAnomaly` is a control. Catalog tank is ice-free. Drift, ice age, and mapped polynyas are still gaps. |
 | **Upwelling** `climateUpwell` | 0–1 climate lift from eastern-boundary currents (Humboldt, California, Canary, Benguela) and the equatorial cold tongue. Gyres and the North Sea are near zero. Shoals the NPZD nutricline so N sits in the light; storms add a further lift. Catalog tank forces a visible lift. HUD reads mixed-layer and nutricline depth. |
 | **NPZD** `plankton.js` | Separable 3D: \(C(x,y,z)=\mathrm{Patch}(x,z)\times\mathrm{Column}(y)\). 128×128 typed arrays `n`, `p`, `z`, `d` — not a 128³ grid. Column shape: P in the photic / DCM, Z on a DVM, N a nutricline that **shoals under climate upwell and storms**, D sinks. **Ice algae** adds P in the top ~10 m when the cell holds ice. `sampleAt` / `grazeAt` return 0 below the local seafloor. Production uses PAR × P profile; Z grazing uses P–Z column coincidence. Type II half-saturation. Carcasses and excretion return mass to `n` and `d`. |
 | **Benthos** | Two boxes on the 2D seafloor patch: organic carbon from sinking detritus plus **microphytobenthos** on photic floors, and living **infauna** that Type-II-grazes that carbon. Cod `grazeBenthos` bites the living store. Remineralises to N. Present in every wet cell. HUD reads carbon and infauna. Named worms and crabs are still gaps. |
@@ -110,12 +111,13 @@ Near the camera only. One hashed-grid school (cap 20k, `UniformGrid3D`, 32768 bu
 
 ### Range and presence
 
-Hulls in `src/world/ranges.js`. `presenceAt` ORs every covering hull, then trophic gates, thermal niches, OMZ gates, shelf-depth gates. Overlap is habitat. Empty is honest. `CONFIG.presence[id]` on `applyPatch`; spawn gated with `faunaPresent(id)`.
+Hulls and catalog niches in `src/world/ranges.js`. `presenceAt` scores every covering hull (or an oceanic prior) by seasonal occupancy, SST, ice, OMZ, upwell, and shelf-vs-oceanic floor, then trophic gates. Weights 0–1; overlap is habitat. Empty is honest. The **Day of year** slider is the calendar (`CONFIG.time.dayIndex`); live clock advances hour only. Map hover uses the same function plus a coarse GEBCO floor. `CONFIG.presence[id]` on `applyPatch`; spawn gated with `faunaPresent(id)`.
 
-- Most bite-predators need some school prey in the cell. Bluefin needs *named* temperate forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel), not a flying-fish-only cell. Cod need herring, capelin, or sand lance, and a shelf (dropped if floor deeper than ~650 m). Humboldt needs named East-Pacific forage or lanternfish, and an OMZ. Toothfish need silverfish. Common dolphin need surface forage. Giant squid need lanternfish / market squid / Illex, and a floor deeper than ~350 m (`minFloorY`).
-- Whale shark and minke eat the bloom — they can occupy a cell with no school fish.
-- Sperm whales are oceanic (`|lat| < 55`). They still dive if squid are missing; they do not get free calories.
-- Lanternfish: oceanic `|lat| < 52`, not a hull. Flying fish: `|lat| < 32.5`. Benthos: every wet cell.
+- Most bite-predators need some *forage* school prey in the cell, not another piscivore. Bluefin needs *named* temperate forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel), not a flying-fish-only cell. Cod need herring, capelin, or sand lance, and a shelf (dropped if floor deeper than ~650 m). Humboldt needs named East-Pacific forage or lanternfish, an OMZ, and climate upwell. Toothfish need silverfish. Common dolphin need surface forage. Giant squid need lanternfish / market squid / Illex, and a floor deeper than ~350 m (`floor.max`).
+- Whale shark and minke eat the bloom — they can occupy a cell with no school fish. Minke feeding occupancy is a local-summer window.
+- Sperm whales are oceanic (`realm: "oceanic"`, floor deeper than ~400 m). Ice-avoid. They still dive if squid are missing; they do not get free calories.
+- Lanternfish and flying fish: oceanic prior, then SST / ice / floor, not a lat band. Benthos: every wet cell.
+- Humpback feeding hulls peak in local summer; tropical wintering hulls peak in local winter. Occupancy is a window, not a swim between cells.
 - Latin names follow the cell where stocks share an id (anchovy, mackerel, sardinella, sand lance, jack mackerel, Illex, krill, minke, toothfish).
 
 ### Catalog
@@ -128,28 +130,28 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 | --- | --- | --- | --- | --- |
 | herring | forage · polarized | `z` | −20 / −110 · 400 m | Temp 0–20 °C. Default pancake. |
 | capelin | forage · polarized | `z` | −8 / −52 · 300 m | Temp −1.8–12 °C. |
-| menhaden | forage · polarized | `p` (higher graze) | −6 / −32 · 48 m | Inner-shelf. Filter on phytoplankton. |
+| menhaden | forage · polarized | `p` (higher graze) | −6 / −32 · 48 m | Inner-shelf realm. Filter on phytoplankton. |
 | sardine | forage · polarized | `z` | −12 / −58 · 200 m | |
 | pilchard | forage · polarized | `z` | −14 / −68 · 150 m | |
 | anchovy | forage · polarized | `z` | −8 / −38 · 150 m | Latin follows the cell. |
 | sardinella | forage · polarized | `z` | −10 / −48 · 200 m | Temp 16–31 °C. |
 | mackerel | forage · polarized | `z` + named forage | −12 / −48 · 400 m | `diet: "both"`. Stays on the bloom cap. |
-| flyingfish | surface · loose | `z` | top ~20 m · 20 m | Temp 16–31 °C. Fear steers up. Glide not simulated. |
+| flyingfish | surface · loose | `z` | top ~20 m · 20 m | Temp 16–31 °C. Oceanic realm. Fear steers up. Glide not simulated. |
 | sprat | forage · polarized | `z` | −8 / −38 · 150 m | |
 | sandlance | forage · polarized (thin) | `z` | −6 / −42 · 120 m | Fear steers down. Burying is not a state. |
 | polarcod | forage · polarized | `z` | −12 / −48 · 700 m | Temp −1.8–6 °C. `iceAssociated`. |
 | silverfish | forage · polarized | `z` | −18 / −82 · 700 m | Temp −1.8–6 °C. Toothfish prey. `iceAssociated`. |
 | saury | surface · loose | `z` | top ~50 m · 50 m | Fear steers up. |
 | marketsquid | cephalopod · scatter | `z` | −16 / −200 · 400 m | Jet pulse–coast. Sperm `huntTaxa`. |
-| lanternfish | forage · scatter | `z` | −40 / −280 · 450 m | `o2Min` 0.08. Photophores restore visual detect. Enlarges `gridMinY` when present. |
+| lanternfish | forage · scatter | `z` | −40 / −280 · 450 m | `o2Min` 0.08. Photophores restore visual detect. Oceanic realm. Enlarges `gridMinY` when present. |
 | krill | forage · scatter | `p` | −6 / −90 · 220 m | Paddle; mysticetes bite this taxon. `iceAssociated`. |
 | jackmackerel | forage · polarized | `z` | −14 / −95 · 300 m | Humboldt `huntTaxa`. |
 | illex | cephalopod · scatter | `z` | −20 / −240 · 600 m | Atlantic squid. Sperm `huntTaxa`. |
-| tuna (skipjack) | pelagic predator · polarized | school fish | −8 / −48 · 260 m | `diet: "bite"`. Prey-capped share. `o2Min` 2.4. `|lat| < 40`, temp 16–31 °C. |
-| yellowfin | pelagic predator · polarized | school fish | −12 / −90 · 500 m | Deeper than skipjack. `|lat| < 32`. |
-| mahi | surface predator · loose | school fish | −3 / −18 · 85 m | Surface band. `|lat| < 32`. |
-| barracuda | coastal predator · scatter | school fish | −6 / −28 · 110 m | Sit-and-dash spacing. `|lat| < 28`. |
-| sailfish | surface predator · loose | school fish | −6 / −42 · 200 m | Billfish mesh. `|lat| < 32`. |
+| tuna (skipjack) | pelagic predator · polarized | school fish | −8 / −48 · 260 m | `diet: "bite"`. Prey-capped share. `o2Min` 2.4. Oceanic, temp 16–31 °C. |
+| yellowfin | pelagic predator · polarized | school fish | −12 / −90 · 500 m | Deeper than skipjack. Temp 16–31 °C. |
+| mahi | surface predator · loose | school fish | −3 / −18 · 85 m | Surface band. Temp 16–31 °C. |
+| barracuda | coastal predator · scatter | school fish | −6 / −28 · 110 m | Sit-and-dash spacing. Temp 18–31 °C. |
+| sailfish | surface predator · loose | school fish | −6 / −42 · 200 m | Billfish mesh. Temp 16–31 °C. |
 | cod | demersal · scatter | named shelf forage + benthos | bed · 600 m | `habitat: "benthic"`. Shelf only (dropped if floor ≲ −650 m). |
 | toothfish | slope · scatter | silverfish | bed · 2000 m | Antarctic slope. Not the 650 m gate. |
 | humboldtsquid | cephalopod predator · scatter | anchovy, sardine, mackerel, lanternfish, jack mackerel | −80 / OMZ core · 1200 m | Jet on the grid. `needOmz`. Enlarges `gridMinY`. Sperm `huntTaxa`. |
@@ -158,18 +160,18 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 
 | Id | Gait · swim | Eats | Max · typical forage | Gates |
 | --- | --- | --- | --- | --- |
-| shark (blue) | burst · tail | any school | 1000 m | School prey; lat −48–58°. `o2Min` 1.4. |
-| bluefin | ram · thunniform | named temperate forage | 1000 m | `|lat|` 24–60°. `o2Min` 2.2. Count 3. |
-| greatwhite | burst · tail | school | 1200 m | Temperate coastal hulls. |
-| tigershark | burst · tail | school | 350 m | `|lat| < 28`. |
-| hammerhead | burst · tail | school | 500 m | `|lat| < 32`. |
-| whaleshark | ram · tail | filter `z` | 1920 m | Temp 18–31 °C, `|lat| < 30`. Bloom prey — no school required. |
-| minke | ram · fluke | filter `z` **and** bite (incl. krill) | 400 m · ~50 m | Air-breather. `|lat| > 32`. Bloom prey. |
-| humpback | burst · fluke | school + krill | 500 m · ~60 m | Air-breather. School prey. Two-column blow. |
-| spermwhale | burst · fluke | `huntTaxa` market squid, Illex, lanternfish, Humboldt; `huntKinds` giant squid | 2000 m · ~700 m | Air-breather. `sense: echo`. `|lat| < 55`. Left spout. No free calories. |
+| shark (blue) | burst · tail | any school | 1000 m | School forage prey; temp 8–28 °C. `o2Min` 1.4. |
+| bluefin | ram · thunniform | named temperate forage | 1000 m | Summer occupancy on temperate hulls. `o2Min` 2.2. Count 3. |
+| greatwhite | burst · tail | school | 1200 m | Coastal hulls; Cape Cod box is a summer window. |
+| tigershark | burst · tail | school | 350 m | Temp 18–31 °C. |
+| hammerhead | burst · tail | school | 500 m | Temp 16–31 °C. |
+| whaleshark | ram · tail | filter `z` | 1920 m | Temp 18–31 °C. Bloom prey — no school required. |
+| minke | ram · fluke | filter `z` **and** bite (incl. krill) | 400 m · ~50 m | Air-breather. High-lat hull, local-summer occupancy. Bloom prey. |
+| humpback | burst · fluke | school + krill | 500 m · ~60 m | Air-breather. Feeding hulls local summer; tropical hulls local winter. Two-column blow. |
+| spermwhale | burst · fluke | `huntTaxa` market squid, Illex, lanternfish, Humboldt; `huntKinds` giant squid | 2000 m · ~700 m | Air-breather. `sense: echo`. Oceanic realm, ice-avoid. Left spout. No free calories. |
 | orca | ram · fluke | school | 800 m · ~90 m | Air-breather. `sense: echo`. Fish-eating programme. Authored glTF (male/female dorsal). |
-| commondolphin | ram · fluke | flying fish, sardinella, anchovy, sardine | 300 m · ~18 m | Air-breather. `|lat| < 40`. Count 18. |
-| giantsquid | jet | lanternfish, market squid, Illex | 1200 m · night −420 / day −850 | Floor deeper than ~350 m. `|lat| < 55`. Lanternfish glow restores detect. |
+| commondolphin | ram · fluke | flying fish, sardinella, anchovy, sardine | 300 m · ~18 m | Air-breather. Temp 14–31 °C. Count 18. |
+| giantsquid | jet | lanternfish, market squid, Illex | 1200 m · night −420 / day −850 | Oceanic; floor deeper than ~350 m. Lanternfish glow restores detect. |
 
 **Field guild** — benthos: seafloor carbon plus living infauna. Photic floors grow microphytobenthos. Cod graze the living store. Not named crabs or worms.
 
@@ -179,7 +181,7 @@ Water, caustics, fog, and sky follow the photic envelope and the day look (`src/
 
 HUD (real state only): **Station** (`src/world/station.js`) is the live note for this kilometre — phase, DVM and hunt programmes, bloom cap, column depths, OMZ if the cell has one, sea ice, bed carbon and infauna. Census lists hashed-grid and vehicle counts. Field-notes card from `FAUNA`: **In nature**, **Not in the model** (only if `missing` is non-empty), live diet in this cell (click a name) or **None in cell** with the natural diet under it, breath-hold meter for air-breathers. The left column is still the depth ruler.
 
-**Controls** (`M` / `Tab`) starts most toggles off. Physical knobs: turbidity, SST anomaly, oxygen anomaly, ice anomaly, storm (mixed layer + nutricline + current). Map: current overlay.
+**Controls** (`M` / `Tab`) starts most toggles off. Physical knobs: turbidity, SST anomaly, oxygen anomaly, ice anomaly, storm (mixed layer + nutricline + current), **day of year** (season for SST, ice, polar night, and occupancy). Map: current overlay.
 
 Knobs live in `src/config.js` / `SPECIES[id].fish` / `SPECIES[id].vehicle`. Wire new rows with `hud.on` in `src/main.js`.
 
@@ -209,10 +211,10 @@ Physics, chemistry, scale, and senses that every biome would read.
 | Climate modes (ENSO, IOD, NAO, PDO) | Humboldt collapse, sardine–anchovy regimes |
 | Basin streaming of agents | Neighbour chunks cache patches; animals do not swim between cells |
 | Density / super-individuals beyond the camera | Far field is empty water, not biomass |
-| AquaMaps / OBIS / acoustic DSL | Hulls are coarse polygons |
+| AquaMaps / OBIS / acoustic DSL | Hulls are still coarse polygons; occupancy is habitat-scored |
 | Fishing mortality | Not a budget |
 | Age, stage, larval drift | Recruits are bloom × year-timer |
-| Spawn as a swim | Seasonal occupancy is not a commute between cells |
+| Spawn as a swim | Occupancy windows are coupled; animals still do not commute between cells |
 | Senses as fields | Echolocation, olfaction, electroreception, lateral line, magnetoreception, soundscape |
 | Moon, lunar DVM | Night is night; lunar inhibition of DVM is not a clock |
 | Marine snow / migratory carbon pump | Detritus is a column shape, not sinking aggregates or DVM flux |

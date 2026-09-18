@@ -17,7 +17,7 @@ The camera is a window. A new animal must change a budget, a habitat, or a senso
 
 - **Common name, Latin name, guild.** Guild is the job (pelagic forage, surface, pelagic predator, demersal, mysticete, odontocete, cephalopod, later: benthos, gelatinous, mammal, reef).
 - **Catalog row** in `src/world/fauna.js` (`SPECIES`): `agent` (`school` | `vehicle`, later `density` / `field`). School: `share`, `diet` (`z` | `p` | `bite` | `both`), fish knobs, look. Vehicle: `count` / `max`. Field-note prose in `src/world/fieldNotes.js` (`FAUNA`). Cards in `src/species.js`.
-- **Why this cell.** Range hulls in `src/world/ranges.js`. `presenceAt` ORs every covering hull. `CONFIG.presence[id]` on `applyPatch`. Spawn is gated with `faunaPresent(id)`. Empty is honest.
+- **Why this cell.** Range hulls and catalog niches in `src/world/ranges.js`. `presenceAt` scores hull (or oceanic prior) × season × SST × ice × OMZ × upwell × realm/floor, then trophic gates. `CONFIG.presence[id]` on `applyPatch`. Spawn is gated with `faunaPresent(id)`. Empty is honest.
 
 ## 2. Food (even if the prey is not simulated yet)
 
@@ -60,15 +60,16 @@ Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 
 - **Light.** `samplePAR(y, look)` — Beer–Lambert, shared with fog, shading, and visual hunt. Ice multiplies \(I_0\) (`iceTransmit`). Phytoplankton grow in the photic envelope; ice algae adds P in the top metres. Sighted hunters scale detect / fear / bite with `visualRange`; `look.photophores` (lanternfish) restores a fraction in the dark. `sense: "echo"` (sperm whale, orca) and filter-only diets skip PAR. Camera lamp does not feed hunt.
 - **Temperature.** `sampleTemp` / `columnQ10`. Optional `temp: { min, max }` on the catalog row gates `presenceAt`.
 - **Oxygen.** `sampleO2` / `oxygenLimitY`. Optional `o2: { needOmz }` gates presence. `o2Min` is the hypoxia floor; `omzRefuge` (Humboldt) follows `omzCoreY` by day instead. Tunas and sharks stay above their oxycline; lanternfish occupy the OMZ. Detritus remineralisation is `setOxygenDemand`.
-- **Ice.** `climateIce` / `iceTransmit`. Optional `iceAssociated` shoals DVM toward the ice–water film. Polar night follows `solarSinElev`.
+- **Ice.** `climateIce` / `iceTransmit`. Optional `iceAssociated` shoals DVM toward the ice–water film **and boosts presence** under pack. Tropical `temp.min >= 16` (and `ice: "avoid"`) drop when ice > 0.15. Polar night follows `solarSinElev`.
 - **Upwelling.** `climateUpwell` / `sampleFlow.y`. Eastern-boundary climate and storms shoal the NPZD nutricline and deepen the mixed layer. Production reads the live N column. Not a live wind vector or HYCOM `w`.
 - **Later fields** (add here when they exist): salinity, pycnocline crossing cost.
 
 ## 6. Range and presence
 
-- Hull or grid in `src/world/ranges.js`. Independent flags, not a single winner.
+- Hull or catalog niche in `src/world/ranges.js`. Independent weights, not a single winner. Optional `season: { peak, width }` on a range row is occupancy (local summer/winter via the query latitude), not a commute.
+- Catalog `realm` (`shelf` / `oceanic` / `slope`), `floor: { min, max }`, `temp`, `o2`, `ice`, `upwellMin` score the cell when `floorY` and `dayOfYear` are known.
 - `CONFIG.presence[id]` on `applyPatch` (every catalog id). Spawn gated with `faunaPresent(id)`.
-- Trophic dependents: if no school prey is in the cell, most bite-predators are absent. Cod also need herring, capelin, or sand lance, and a shelf. Humboldt squid need named East-Pacific forage or lanternfish, and an OMZ. Toothfish need silverfish. Common dolphin need surface forage. Whale sharks and minke eat the bloom, so they can occupy a cell with no school fish. Sperm whales are oceanic (`|lat| < 55`); they still dive if squid are missing, and they do not get free calories.
+- Trophic dependents: if no *forage* school prey is in the cell, most bite-predators are absent. Cod also need herring, capelin, or sand lance, and a shelf. Humboldt squid need named East-Pacific forage or lanternfish, an OMZ, and climate upwell. Toothfish need silverfish. Common dolphin need surface forage. Whale sharks and minke eat the bloom, so they can occupy a cell with no school fish. Sperm whales are oceanic (floor deeper than ~400 m); they still dive if squid are missing, and they do not get free calories.
 
 ## 7. Behaviour (the actual program)
 
@@ -106,7 +107,7 @@ One cell may eventually list hundreds of sharks, squid, kelp, coral, whales. Tha
 | Temperature | Q10 on graze / metabolism; niche 0–20 °C | Q10 on metabolism; tropic SST gate on skipjack | Q10 on drain; oceanic, not SST-gated |
 | Light | Overlap with the photic / DVM column; day depth is a visual refuge | `visualRange` scales detect / fear / bite | `sense: echo` — PAR does not shrink detect; still dives in the dark |
 | Oxygen | `o2Min` 1.4 ml/L | `o2Min` 2.4 ml/L — will not follow the OMZ | Air-breather; no dissolved-O₂ clamp |
-| Range | North Atlantic hull | \|lat\| < 40° and prey present | \|lat\| < 55° |
+| Range | North Atlantic hull, year-round | Oceanic + temp 16–31 °C and forage present | Oceanic realm, ice-avoid; still dives if squid are missing |
 | Budget | Type II graze, shared bloom cap | Bite on the prey-capped school slice, starve recycles | Bite on squid if present; starve if not (no fake fullness) |
 | Grid | Shared school grid; `gridMinY` from deepest present taxon | Shared school grid; `diet: "bite"`; does not take herring's NPZD budget | Vehicle, not boids — does not enlarge the herring grid |
 

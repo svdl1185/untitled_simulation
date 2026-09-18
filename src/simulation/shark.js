@@ -1082,16 +1082,25 @@ function seedVehiclePose(shark, i, count, school) {
   const ang = (i / n) * Math.PI * 2 + seed * 0.01;
   const world = Math.max(46, Math.min(CONFIG.halfX, CONFIG.halfZ) * 0.38);
   const r = (kindCfg.gait === "benthic" ? world * 0.35 : world * 0.55) * (0.45 + (i + 1) / (n + 1));
-  shark.x = Math.cos(ang) * r;
+  const prey = school?.count ? school.targetFor(shark) : null;
   if (kindCfg.gait === "benthic") {
+    shark.x = Math.cos(ang) * r;
     shark.z = (hasBeach() ? CONFIG.beach.startZ : 0) - 120 - (i % 3) * 80;
-  } else if (kindCfg.breathes) {
-    shark.z = Math.sin(ang) * world * 0.4 - world * 0.15;
-  } else if ((kindCfg.maxDepth ?? -400) < -800) {
-    shark.z = -Math.abs(world) * 0.7 + Math.sin(ang) * world * 0.22;
+  } else if (prey && Number.isFinite(prey.x)) {
+    shark.x = prey.x + Math.cos(ang) * r * 0.45;
+    shark.z = prey.z + Math.sin(ang) * r * 0.45;
+    if (kindCfg.breathes) shark.z = prey.z + Math.sin(ang) * world * 0.22;
+    if ((kindCfg.maxDepth ?? -400) < -800) shark.z = Math.min(shark.z, -Math.abs(world) * 0.45);
   } else {
-    shark.z = (school.centroid?.z || 0) + Math.sin(ang) * r * 0.85;
-    shark.x = (school.centroid?.x || 0) + Math.cos(ang) * r;
+    shark.x = Math.cos(ang) * r;
+    if (kindCfg.breathes) {
+      shark.z = Math.sin(ang) * world * 0.4 - world * 0.15;
+    } else if ((kindCfg.maxDepth ?? -400) < -800) {
+      shark.z = -Math.abs(world) * 0.7 + Math.sin(ang) * world * 0.22;
+    } else {
+      shark.z = (school.centroid?.z || 0) + Math.sin(ang) * r * 0.85;
+      shark.x = (school.centroid?.x || 0) + Math.cos(ang) * r;
+    }
   }
   shark.x = Math.max(-CONFIG.halfX + 24, Math.min(CONFIG.halfX - 24, shark.x));
   shark.z = Math.max(-CONFIG.halfZ + 24, Math.min(waterMaxZ() - 24, shark.z));

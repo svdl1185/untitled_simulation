@@ -14,7 +14,7 @@ import { DayCycle, solarSinElev } from "./day.js";
 import { CONFIG, breathTargetY, photicLimitY, openPhoticY, columnZones, dvmY } from "../config.js";
 import { Plankton, TROPHIC, bedAlgaeWant } from "./plankton.js";
 import { presenceAt } from "../world/ranges.js";
-import { applyPatch, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
+import { applyPatch, applyPresence, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
 import { faunaPresent } from "../config.js";
 import { School } from "./school.js";
 import { spawnPredators } from "./shark.js";
@@ -231,12 +231,50 @@ function assert(cond, msg) {
 }
 
 {
-  const mid = presenceAt(12, -30);
+  const mid = presenceAt(12, -30, { floorY: -4000, dayOfYear: 180 });
   assert(mid.lanternfish > 0, "tropical Atlantic should have lanternfish");
-  assert(mid.giantsquid > 0, "deep-capable oceanic cell flags giant squid before the floor gate");
-  const north = presenceAt(56, 3.2);
+  assert(mid.giantsquid > 0, "abyssal tropical cell should hold giant squid");
+  assert(mid.flyingfish > 0, "tropical gyre should hold flying fish");
+  assert(!(mid.menhaden > 0), "menhaden is an inner-shelf fish");
+  assert(!(mid.cod > 0), "cod should not occupy a tropical gyre");
+
+  const north = presenceAt(56, 3.2, { floorY: -71, dayOfYear: 180 });
   assert(north.herring > 0, "North Sea lat/lon is herring water");
   assert(!(north.sardinella > 0), "sardinella thermal niche should drop the North Sea");
+  assert(!(north.giantsquid > 0), "North Sea shelf is too shallow for giant squid");
+  assert(!(north.spermwhale > 0), "sperm whales are oceanic, not a 71 m shelf");
+  assert(!(north.lanternfish > 0), "lanternfish should drop on the inner shelf");
+  assert(!(north.flyingfish > 0), "flying fish should drop in the North Sea");
+  assert(!(north.humboldtsquid > 0), "North Sea should not hold Humboldt squid");
+  assert(north.cod > 0, "June North Sea shelf should hold cod");
+  assert(north.minke > 0, "June North Sea is minke feeding water");
+
+  const northJan = presenceAt(56, 3.2, { floorY: -71, dayOfYear: 15 });
+  assert(northJan.herring > 0, "herring occupancy is year-round in the hull");
+  assert(!(northJan.minke > 0), "January North Sea should drop minke feeding occupancy");
+  assert(!(northJan.humpback > 0), "January North Sea should drop humpback feeding occupancy");
+
+  const hawaiiJan = presenceAt(21.2, -157.8, { floorY: -2000, dayOfYear: 15 });
+  assert(hawaiiJan.humpback > 0, "Hawaii in January is humpback wintering water");
+  const hawaiiJun = presenceAt(21.2, -157.8, { floorY: -2000, dayOfYear: 180 });
+  assert(!(hawaiiJun.humpback > 0), "Hawaii in June should empty the breeding hull");
+
+  const chesapeake = presenceAt(36.2, -75.0, { floorY: -18, dayOfYear: 180 });
+  assert(chesapeake.menhaden > 0, "Chesapeake inner shelf should hold menhaden");
+  assert(!(chesapeake.spermwhale > 0), "inner shelf should drop sperm whales");
+  assert(!(chesapeake.lanternfish > 0), "inner shelf should drop lanternfish");
+
+  const iceEdge = presenceAt(72, 20, { floorY: -200, dayOfYear: 180 });
+  assert(iceEdge.polarcod > 0, "high Arctic summer should hold polar cod");
+}
+
+{
+  const day = new DayCycle();
+  const start = day.dayIndex;
+  day.auto = true;
+  day.hour = 10.4;
+  day.update(CONFIG.time.dayLength);
+  assert(day.dayIndex === start, "live clock should not tick the calendar");
 }
 
 {
@@ -527,6 +565,45 @@ function assert(cond, msg) {
   day.dayIndex = 180;
   day.setHour(12);
   assert(day.look.night < 0.15, "North Sea noon is still day");
+}
+
+{
+  applyPatch(makeSyntheticPatch());
+  applyPresence({ herring: 1, benthos: 1 });
+  const bloom = new Plankton();
+  let planted = null;
+  for (let iz = 0; iz < bloom.nz; iz += 4) {
+    for (let ix = 0; ix < bloom.nx; ix += 4) {
+      const i = iz * bloom.nx + ix;
+      if (!bloom.wet[i]) continue;
+      const x = bloom.minX + (ix + 0.5) * bloom.cellX;
+      const z = bloom.minZ + (iz + 0.5) * bloom.cellZ;
+      if (z > -30 || Math.hypot(x, z) < 100) continue;
+      bloom.z[i] = 2;
+      planted = { x, z };
+      break;
+    }
+    if (planted) break;
+  }
+  assert(planted, "should find a wet offshore cell to plant a bloom");
+  const peak = bloom.peakLayer(TROPHIC.Z);
+  assert(peak && Math.hypot(peak.x - planted.x, peak.z - planted.z) < 8, "peakLayer should see the planted cell");
+  const school = new School(400, { hour: 12, plankton: bloom });
+  let hx = 0;
+  let hz = 0;
+  let n = 0;
+  for (let s = 0; s < school.maxSchools; s++) {
+    if (!school.schoolN[s]) continue;
+    hx += school.anchors[s].x;
+    hz += school.anchors[s].z;
+    n += 1;
+  }
+  assert(n > 0, "herring shoals should spawn");
+  hx /= n;
+  hz /= n;
+  const toPeak = Math.hypot(hx - peak.x, hz - peak.z);
+  const toOrigin = Math.hypot(hx, hz);
+  assert(toPeak < toOrigin, `grazer home should sit nearer the bloom peak than the origin (peak ${toPeak.toFixed(0)} origin ${toOrigin.toFixed(0)})`);
 }
 
 console.log("column physics: 24 checks ok");

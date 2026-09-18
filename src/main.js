@@ -17,6 +17,7 @@ import { samplePAR, visualClarity } from "./simulation/light.js";
 import { bindCellTemperature, sampleTemp } from "./simulation/temperature.js";
 import { bindCellOxygen, sampleO2 } from "./simulation/oxygen.js";
 import { bindCellIce } from "./simulation/ice.js";
+import { presenceAt } from "./world/ranges.js";
 import { createInput } from "./input.js";
 import { CAM, cameraHint, createCameraRig, CAMERA_MODES, FOLLOW_CAMERAS, followCameraIndex } from "./camera.js";
 import { createHUD } from "./ui.js";
@@ -168,10 +169,10 @@ function rebuildPlace() {
 function rebuildLife() {
   while (sharks.length) removeLastShark();
   const fishN = anySchoolPresent() ? CONFIG.initialFish : 0;
-  school = new School(fishN, { hour: day.look?.hour ?? 12 });
+  plankton = new Plankton();
+  school = new School(fishN, { hour: day.look?.hour ?? 12, plankton });
   school.colliders = outcrops.colliders;
   school.colliderCount = outcrops.colliderCount;
-  plankton = new Plankton();
   school.clipToBloom(plankton);
   disposeTree(bloom?.mesh);
   bloom = createPlanktonMesh(plankton, uniforms);
@@ -207,12 +208,40 @@ function bindWorld() {
   rebuildPlace();
   rebuildLife();
   hud.set("turbidity", CONFIG.water.turbidity);
+  hud.set("dayOfYear", day.dayIndex);
   rig?.setExtents?.();
   syncDepthZones();
   inspect = null;
   tracking = null;
   if (typeof applyCamera === "function") applyCamera(CAM.FREE);
   placeCamera();
+}
+
+function applySeason(n) {
+  const doy = day.setDayIndex(n);
+  bindCellTemperature(day.storm);
+  bindCellIce();
+  bindCellOxygen();
+  oceanMap.refresh?.();
+  const patch = getActivePatch();
+  if (!cellEntered) {
+    syncWorldUniforms(uniforms, day.look);
+    return doy;
+  }
+  if (patch?.lab || CONFIG.world.lab || CONFIG.world.demoId) {
+    syncWorldUniforms(uniforms, day.look);
+    return doy;
+  }
+  applyPresence(
+    presenceAt(CONFIG.world.lat, CONFIG.world.lon, {
+      floorY: CONFIG.floorY,
+      dayOfYear: doy,
+    })
+  );
+  rebuildLife();
+  syncWorldUniforms(uniforms, day.look);
+  syncDepthZones();
+  return doy;
 }
 
 function addSharkMesh(s) {
@@ -451,6 +480,7 @@ hud.on("hour", (h) => {
   day.setHour(h);
   hud.set("liveClock", false);
 });
+hud.on("dayOfYear", (n) => applySeason(n));
 hud.on("liveClock", (on) => {
   day.auto = on;
 });
@@ -466,7 +496,6 @@ hud.on("reset", () => {
   plankton.seed();
   school.clipToBloom(plankton);
   resetSharks(sharks, school);
-  day.dayIndex = 0;
 });
 hud.on("pilot", (on) => {
   if (shark && on !== shark.controlled) togglePilot(on);

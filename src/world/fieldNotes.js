@@ -18,7 +18,7 @@ export const FAUNA = {
     missing: [
       "Seals and gannets are not agents; the day dive is the refuge those visual hunters would create.",
       "Temperature is a mixed-layer field with Q10 on graze and metabolism; spawning grounds are still not a place.",
-      "Seasonal feeding–spawning migration (Norwegian Sea, Georges Bank, Baltic) is a range hull, not a swim between cells.",
+      "Seasonal feeding–spawning migration (Norwegian Sea, Georges Bank, Baltic) is year-round hull occupancy here; they still do not swim between cells.",
       "Gravel-bank spawning, egg beds, and larval drift are not a season — recruits appear when the bloom can carry the mixed forage budget.",
       "Natal homing and stock structure are not states.",
       "The lateral line and vision are neighbour forces, not separate senses.",
@@ -145,7 +145,7 @@ export const FAUNA = {
     missing: [
       "Pacific chub mackerel is this id with a localized name, not a second species loop.",
       "Ram-filter feeding through copepod patches is Type II graze, not a ram-filter gait.",
-      "Summer feeding migrations into the North Sea and Norwegian Sea are a hull, not a commute.",
+      "Summer feeding migrations into the North Sea and Norwegian Sea are a hull, not a commute between cells.",
       "Overwintering in deep water off the shelf edge is not a seasonal state.",
     ],
   },
@@ -446,7 +446,7 @@ export const FAUNA = {
     about:
       "Temperate coastal lamnid, typically 4–6 m. California, northeast US, Chile, southern Australia, Japan, Mediterranean, South Africa. Often 0–250 m; recorded to about 1200 m on offshore dives. Adults eat mammals; juveniles eat fish.",
     program:
-      "Burst-and-glide vehicle. Bites school fish. Larger fear radius than the blue shark. Temperate coastal hulls only.",
+      "Burst-and-glide vehicle. Bites school fish. Larger fear radius than the blue shark. Temperate coastal hulls; the northeast US box is a local-summer occupancy window.",
     missing: [
       "Seals, sea lions, and whale carcasses are not agents — this build is the fish-eating programme.",
       "Endothermy / regional warm muscle is not a temperature field.",
@@ -524,7 +524,7 @@ export const FAUNA = {
     about:
       "Small rorqual, typically 7–10 m. Northern (acutorostrata) and Antarctic (bonaerensis) minke share this id. Usually feeds in the upper 100 m; recorded to about 400 m. Must surface to breathe. Lunge-feeds on krill and forage fish.",
     program:
-      "Ram vehicle, authored minke glTF (slender rorqual, not a humpback clone). Diet both: filter-graze z and bite school fish, including krill swarms when that taxon is present. Air-breather: hangs level at the surface and blows, then a foraging dive toward prey or typical forage ~50 m, clamped by min(400 m, this cell's floor). Typical 6 min dive / 1.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air.",
+      "Ram vehicle, authored minke glTF (slender rorqual, not a humpback clone). Diet both: filter-graze z and bite school fish, including krill swarms when that taxon is present. Air-breather: hangs level at the surface and blows, then a foraging dive toward prey or typical forage ~50 m, clamped by min(400 m, this cell's floor). Typical 6 min dive / 1.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. High-latitude hull; occupancy peaks in local summer.",
     missing: [
       "Lunge-feeding bubble nets are not a hydrodynamics model.",
       "Ice-edge krill super-swarms are still a school patch, not a basin field.",
@@ -544,16 +544,16 @@ export const FAUNA = {
     about:
       "Coastal migratory rorqual, typically 12–16 m. Feeds in high-latitude summers, winters in tropics. Lunge-feeds; recorded to about 500 m, usually much shallower. Must surface to breathe.",
     program:
-      "Burst vehicle, fluke swim, huge bite radius, long pecs, ventral grooves on the throat. Slow turn, little bank; pecs beat. Hunts school fish and krill. Air-breather: hangs level at the surface and blows two columns, then a foraging dive toward prey or typical forage ~60 m, clamped by min(500 m, this cell's floor). Typical 10 min dive / 2.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. Coastal migratory hulls. Needs school prey in the cell.",
+      "Burst vehicle, fluke swim, huge bite radius, long pecs, ventral grooves on the throat. Slow turn, little bank; pecs beat. Hunts school fish and krill. Air-breather: hangs level at the surface and blows two columns, then a foraging dive toward prey or typical forage ~60 m, clamped by min(500 m, this cell's floor). Typical 10 min dive / 2.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. Feeding hulls occupy local summer; tropical hulls occupy local winter. Needs school prey in the cell.",
     missing: [
       "Song and breeding lagoons are not a season.",
       "Bubble-net hydrodynamics are not a field.",
       "Cooperative bubble-net feeding (a ring of bubbles, trap the bait) is not a behaviour.",
       "Breach, pec-slap, and lobtail are not states.",
-      "Fasting on the tropical wintering grounds is not a budget — they hunt wherever the hull says.",
+      "Fasting on the tropical wintering grounds is not a budget — they hunt wherever occupancy says.",
       "Male escorting and competition are not a courtship.",
       "Calf nursing is not an energy transfer.",
-      "North–south migration is a hull, not a swim between cells.",
+      "North–south migration is occupancy on two hull sets, not a swim between cells.",
     ],
   },
   spermwhale: {
@@ -714,11 +714,11 @@ export const FAUNA = {
     about:
       "Temperate giant tuna. Atlantic, Pacific, and southern bluefin share this id (latin follows hemisphere). Typically 1.5–3 m. Endothermic; hunts from the surface to about 1000 m. Needs named temperate forage, not a flying-fish-only cell.",
     program:
-      "Ram gait. Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel). Uses the column down to min(1000 m, this cell's floor).",
+      "Ram gait. Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel). Uses the column down to min(1000 m, this cell's floor). Temperate hull occupancy peaks in local summer.",
     missing: [
       "Regional endothermy is not a temperature field.",
       "Spawning in the Gulf of Mexico / Mediterranean is not a migration.",
-      "Transoceanic feeding–spawning commutes are a hull, not a swim.",
+      "Transoceanic feeding–spawning commutes are occupancy on a hull, not a swim between cells.",
       "Giant versus school-size bluefin are one vehicle scale.",
       "Purse-seine and ranching mortality are not in the budget.",
       "The thermal niche that lets them hunt in subpolar water is not a field.",

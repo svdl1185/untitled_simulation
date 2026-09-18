@@ -241,16 +241,20 @@ export function demoById(id) {
   return BY_ID.get(id) || null;
 }
 
+function demoEnv(demo) {
+  return { floorY: demo?.fallback?.floorY };
+}
+
 export function naturalPresence(demo) {
   if (!demo) return emptyPresence();
   if (demo.kind === "lab") return fullPresence(1);
-  return presenceAt(demo.lat, demo.lon);
+  return presenceAt(demo.lat, demo.lon, demoEnv(demo));
 }
 
 export function sandboxIds(demo) {
   if (!demo) return [];
   if (demo.kind === "lab") return PRESENCE_IDS.slice();
-  const ids = new Set(faunaIdsPresent(demo.lat, demo.lon));
+  const ids = new Set(faunaIdsPresent(demo.lat, demo.lon, demoEnv(demo)));
   for (const id of demo.extras || []) {
     if (SPECIES[id]) ids.add(id);
   }

@@ -2,6 +2,8 @@ import { formatLatLon } from "./patch.js";
 import { gebcoMapUrl, fetchCurrentField } from "./atlas.js";
 import { presenceAt, presentNames } from "./ranges.js";
 import { topoPolygons } from "./topo.js";
+import { CONFIG } from "../config.js";
+import { formatDayOfYear } from "../simulation/day.js";
 
 const INK = "#e7f4f2";
 const LAND = "#050608";
@@ -47,6 +49,7 @@ export function createOceanMap({ onEnter }) {
   let currents = false;
   let land = null;
   let bathy = null;
+  let bathyRaw = null;
   let arrows = [];
   let hover = null;
   let loading = false;
@@ -99,6 +102,12 @@ export function createOceanMap({ onEnter }) {
       image.src = url;
     });
     if (!open) return;
+    const raw = document.createElement("canvas");
+    raw.width = image.width;
+    raw.height = image.height;
+    const rawCtx = raw.getContext("2d", { willReadFrequently: true });
+    rawCtx.drawImage(image, 0, 0);
+    bathyRaw = rawCtx.getImageData(0, 0, raw.width, raw.height);
     bathy = restyleGebco(image, restyle, restyleCtx);
     dirty = true;
     bake();
@@ -233,6 +242,24 @@ export function createOceanMap({ onEnter }) {
     return p[0] <= 6 && p[1] <= 8 && p[2] <= 12;
   }
 
+  function floorYAt(lat, lon) {
+    if (!bathyRaw) return undefined;
+    const x = ((wrapLon(lon) + 180) / 360) * bathyRaw.width;
+    const y = ((NORTH - lat) / (NORTH - SOUTH)) * bathyRaw.height;
+    const ix = Math.max(0, Math.min(bathyRaw.width - 1, x | 0));
+    const iy = Math.max(0, Math.min(bathyRaw.height - 1, y | 0));
+    const i = (iy * bathyRaw.width + ix) * 4;
+    const p = bathyRaw.data;
+    return floorYFromGebcoRgb(p[i], p[i + 1], p[i + 2]);
+  }
+
+  function faunaAt(lat, lon) {
+    return presenceAt(lat, lon, {
+      floorY: floorYAt(lat, lon),
+      dayOfYear: CONFIG.time?.dayIndex ?? 180,
+    });
+  }
+
   function setHover(geo, landHit) {
     if (!geo || landHit) {
       hover = null;
@@ -246,8 +273,9 @@ export function createOceanMap({ onEnter }) {
     }
     hover = geo;
     canvas.style.cursor = "crosshair";
-    const who = presentNames(presenceAt(geo.lat, geo.lon));
-    readout.textContent = formatLatLon(geo.lat, geo.lon);
+    const who = presentNames(faunaAt(geo.lat, geo.lon));
+    const date = formatDayOfYear(CONFIG.time?.dayIndex ?? 180);
+    readout.textContent = `${formatLatLon(geo.lat, geo.lon)} · ${date}`;
     faunaList.textContent = who.length ? who.join(", ") : "no implemented fauna";
     draw();
   }
@@ -342,7 +370,18 @@ export function createOceanMap({ onEnter }) {
     setStatus(text) {
       status.textContent = text || "";
     },
+    refresh() {
+      if (hover) setHover(hover, false);
+    },
   };
+}
+
+function floorYFromGebcoRgb(r, g, b) {
+  const t = (0.2 * r + 0.45 * g + 0.35 * b) / 255;
+  if (t < 0.22) return -4000;
+  if (t < 0.38) return -2000;
+  if (t < 0.52) return -800;
+  return -90;
 }
 
 function restyleGebco(image, canvas, ctx) {

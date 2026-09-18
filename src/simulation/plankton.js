@@ -227,6 +227,29 @@ export class Plankton {
     this._refreshMean();
   }
 
+  peakLayer(layer) {
+    const dens = layer === "infauna" ? this.infauna : layer === "benthos" ? this.benthos : this._field(layer);
+    if (!dens) return null;
+    const { nx, nz, wet, minX, minZ, cellX, cellZ } = this;
+    let best = 0;
+    let bx = 0;
+    let bz = 0;
+    const step = 4;
+    for (let iz = 0; iz < nz; iz += step) {
+      for (let ix = 0; ix < nx; ix += step) {
+        const i = iz * nx + ix;
+        if (!wet[i]) continue;
+        const v = dens[i];
+        if (v > best) {
+          best = v;
+          bx = minX + (ix + 0.5) * cellX;
+          bz = minZ + (iz + 0.5) * cellZ;
+        }
+      }
+    }
+    return best > 0.02 ? { x: bx, z: bz, v: best } : null;
+  }
+
   _indexWorld(x, z) {
     const fx = (x - this.minX) / this.cellX - 0.5;
     const fz = (z - this.minZ) / this.cellZ - 0.5;
