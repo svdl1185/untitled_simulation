@@ -10,8 +10,8 @@
  *   piscivores (`diet: "bite"`) share a prey-capped budget on the same grid.
  *   Abundance is `share`, not the integrator. Skipjack and cod live here.
  * `agent: "vehicle"` — rare Reynolds loops (sharks, whales, giant squid,
- *   air-breathers). A handful by design; raise `count` for a pod, do not
- *   put a shelf gadid here.
+ *   air-breathers). A handful by design. `pods` / `podSize` keep social
+ *   taxa traveling as a unit; do not put a shelf gadid here.
  * `agent: "field"`   — Eulerian guild (benthos carbon + infauna). Later: `"density"` for super-individuals.
  */
 
@@ -120,6 +120,8 @@ export const VEHICLE_DEFAULTS = {
   filterGraze: 0,
   filterGain: 0.4,
   sense: "sight",
+  pods: 0,
+  podSize: 0,
 };
 
 /**
@@ -1127,7 +1129,8 @@ export const SPECIES = {
     vehicle: {
       count: 8,
       max: 14,
-      spacing: 28,
+      pods: 1,
+      spacing: 18,
       length: 2.6,
       cruiseSpeed: 9.2,
       boostSpeed: 16,
@@ -1287,7 +1290,8 @@ export const SPECIES = {
     vehicle: {
       count: 1,
       max: 2,
-      spacing: 80,
+      pods: 1,
+      spacing: 48,
       length: 14.5,
       cruiseSpeed: 5.8,
       boostSpeed: 10,
@@ -1327,9 +1331,10 @@ export const SPECIES = {
     agent: "vehicle",
     prey: ["school"],
     vehicle: {
-      count: 2,
-      max: 5,
-      spacing: 22,
+      count: 5,
+      max: 8,
+      pods: 1,
+      spacing: 14,
       length: 6.8,
       cruiseSpeed: 10.5,
       boostSpeed: 18,
@@ -1464,7 +1469,8 @@ export const SPECIES = {
     vehicle: {
       count: 18,
       max: 28,
-      spacing: 12,
+      podSize: 10,
+      spacing: 8,
       length: 2.15,
       cruiseSpeed: 11.2,
       boostSpeed: 18,
@@ -1634,7 +1640,8 @@ export const SPECIES = {
     vehicle: {
       count: 3,
       max: 6,
-      spacing: 32,
+      pods: 1,
+      spacing: 18,
       length: 2.4,
       cruiseSpeed: 11.8,
       boostSpeed: 19,
@@ -1748,6 +1755,38 @@ export function vehicleCountFor(id, weight = 1) {
   if (weight <= 0.05) return 0;
   const n = Math.round((cfg.count || 1) * weight);
   return Math.max(1, Math.min(cfg.max ?? n, n));
+}
+
+/** Whether this vehicle cfg travels as one or more social units. */
+export function vehicleIsPod(cfg) {
+  return (cfg?.pods | 0) > 0 || (cfg?.podSize | 0) > 0;
+}
+
+/**
+ * How many social units to split `n` animals into. `podSize` wins when set
+ * (dolphins: ~10 per pod → 1–3 pods as count scales). `pods` is a fixed
+ * unit count (orca: one matriline). 0 means independent roam.
+ */
+export function vehiclePodsFor(cfg, n) {
+  n = Math.max(0, n | 0);
+  if (n === 0) return 0;
+  const size = cfg?.podSize | 0;
+  if (size > 0) return Math.max(1, Math.min(n, Math.round(n / size) || 1));
+  const want = cfg?.pods | 0;
+  if (want <= 0) return 0;
+  return Math.max(1, Math.min(want, n));
+}
+
+export function vehiclePodId(i, n, nPods) {
+  if (nPods <= 1) return 0;
+  const size = Math.ceil(n / nPods);
+  return Math.min(nPods - 1, Math.floor(i / size));
+}
+
+export function vehiclePodSlot(i, n, nPods) {
+  if (nPods <= 1) return i;
+  const size = Math.ceil(n / nPods);
+  return i - vehiclePodId(i, n, nPods) * size;
 }
 
 export function speciesLabel(id) {

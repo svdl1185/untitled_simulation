@@ -486,11 +486,11 @@ export const FAUNA = {
     sex: "Female / male.",
     about:
       "Tropical and subtropical sphyrnid, typically 1.5–3 m. Schools by day at seamounts; hunts at night. Usually 0–275 m; recorded to about 500 m.",
-    program: "Burst-and-glide, tighter pack spacing than tiger sharks. Bites school fish. Geographic occupancy is the Wikipedia distribution raster (tropical–subtropical coasts, including Gibraltar).",
+    program: "Burst-and-glide. One daytime school (`pods: 1`, count 8–14): spawn clustered, travel in formation. Bites school fish. Geographic occupancy is the Wikipedia distribution raster (tropical–subtropical coasts, including Gibraltar).",
     missing: [
       "Rays and seamount schooling landmarks are not in the cell.",
       "Electroreception is not a sense.",
-      "Daytime seamount schooling then night hunting is not a schedule — they use the generic patrol/stalk loop.",
+      "Daytime seamount schooling then night hunting is not a schedule — they travel as one school on the generic patrol/stalk loop.",
       "The cephalofoil is the mesh, not a sensory array or hydrofoil.",
       "Natal homing to coastal pupping lagoons is not a migration.",
       "Scalloped, great, and smooth hammerheads are one id.",
@@ -568,7 +568,7 @@ export const FAUNA = {
     about:
       "The deep-diving toothed whale. Females ~11 m, males ~16 m. Cosmopolitan in ice-free oceans. Range follows the Wikipedia Cypron map, then oceanic floor and ice. Typical foraging dives 400–1200 m for 40–50 minutes; recorded beyond 2000 m. Hunts squid by echolocation. Must return to the surface to breathe.",
     program:
-      "Burst vehicle, fluke swim, block head (spermaceti organ, underslung jaw, left blowhole, knuckles to the fluke). The head stays stiff; only the tailstock waves. Slow turn, little bank. Air-breather: hangs level at the surface and blows a single forward-left spout, then a foraging dive toward live squid/lanternfish or typical forage ~700 m — not a commute to 2000 m. maxDepth 2000 m is the clamp; in a 1500 m cell the floor wins first. Prefers market squid, Illex, lanternfish, and Humboldt squid (huntTaxa). Bites giant squid when that vehicle is in mouth range (huntKinds). Typical 45 min forage / 8 min blow series, mapped 15× onto wall-clock (~3 min dive) so it still finishes inside the 8 min day; recovery only counts at the air. Does not bite herring. Missing named prey still produces the dive; it does not get free calories. sense is echo: PAR does not shrink this whale's detect or fear.",
+      "Burst vehicle, fluke swim, block head (spermaceti organ, underslung jaw, left blowhole, knuckles to the fluke). The head stays stiff; only the tailstock waves. Slow turn, little bank. When two are in the cell they travel as one unit (`pods: 1`). Air-breather: hangs level at the surface and blows a single forward-left spout, then a foraging dive toward live squid/lanternfish or typical forage ~700 m — not a commute to 2000 m. maxDepth 2000 m is the clamp; in a 1500 m cell the floor wins first. Prefers market squid, Illex, lanternfish, and Humboldt squid (huntTaxa). Bites giant squid when that vehicle is in mouth range (huntKinds). Typical 45 min forage / 8 min blow series, mapped 15× onto wall-clock (~3 min dive) so it still finishes inside the 8 min day; recovery only counts at the air. Does not bite herring. Missing named prey still produces the dive; it does not get free calories. sense is echo: PAR does not shrink this whale's detect or fear.",
     missing: [
       "Glass squid (Histioteuthis) are not agents. The whale still dives; it does not get free calories from empty water.",
       "Echolocation clicks are not a sound field. Detect range does not fall with PAR — darkness is not a starve.",
@@ -591,7 +591,7 @@ export const FAUNA = {
     about:
       "Cosmopolitan dolphin, typically 5–8 m. Range follows the Wikipedia IUCN 2023 map. Fish-eating (resident-type) ecotypes hunt herring, salmon, and other fish, usually in the upper 100–200 m; recorded to about 800 m. Must surface to breathe. Mammal-eating (transient) ecotypes hunt seals and whales.",
     program:
-      "Ram vehicle, authored orca glTF (taller dorsal on males; white eye patch and belly). Tight pack, large fear radius. Bites school fish. Air-breather: hangs level at the surface and blows a short puff, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). Typical 6 min dive / ~1.2 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. This is the fish-eating programme. Banks in the turn like a dolphin, not a rorqual. sense is echo: PAR does not shrink detect or fear.",
+      "Ram vehicle, authored orca glTF (taller dorsal on males; white eye patch and belly). One matriline (`pods: 1`, count 5–8): spawn as a unit, travel in formation, dive and blow on the leader's breath clock. Large fear radius. Bites school fish. Air-breather: hangs level at the surface and blows a short puff, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). Typical 6 min dive / ~1.2 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. This is the fish-eating programme. Banks in the turn like a dolphin, not a rorqual. sense is echo: PAR does not shrink detect or fear.",
     missing: [
       "Mammal-eating ecotypes are not wired — seals and other whales are not prey.",
       "Salmon are not a school taxon.",
@@ -599,7 +599,7 @@ export const FAUNA = {
       "Carousel feeding (herring ball plus tail-slap) is a generic bite, not a cooperative hunt.",
       "Wave-washing seals off ice and beach-hunting at Punta Norte are not behaviours.",
       "Spyhop, breach, and play (kelp, waves, tossing prey) are not states.",
-      "Matrilineal pods that stay together for life are pack spacing, not kinship.",
+      "Matrilineal kinship and dialect are not a state — the pod is one social unit that travels and dives together.",
       "Food-sharing and teaching calves are not a transfer.",
       "Transient, resident, and offshore ecotypes are one fish-eating programme.",
     ],
@@ -614,13 +614,13 @@ export const FAUNA = {
     about:
       "Small oceanic dolphin, typically 1.7–2.4 m. Tropical and warm-temperate. Hunts surface forage, often with tunas. Usually the upper 200 m; recorded near 300 m. Must surface to breathe.",
     program:
-      "Ram vehicle, authored dolphin glTF, smaller than orca. Banks in the turn. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather: hangs level at the surface and blows a small puff, then a foraging dive toward that prey or typical forage ~18 m, clamped by min(300 m, this cell's floor). Typical 2.5 min dive / ~40 s blow series, mapped 5× onto wall-clock; recovery only counts at the air. Geographic occupancy is the Wikipedia IUCN 2021 raster (warm-temperate bands, not a filled tropical gyre).",
+      "Ram vehicle, authored dolphin glTF, smaller than orca. Banks in the turn. Split into 1–3 pods (`podSize` ~10) as count scales (18–28); each pod travels, hunts, and blows together, and pods keep a gap so they do not merge. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather: hangs level at the surface and blows a small puff, then a foraging dive toward that prey or typical forage ~18 m, clamped by min(300 m, this cell's floor). Typical 2.5 min dive / ~40 s blow series, mapped 5× onto wall-clock; recovery only counts at the air. Geographic occupancy is the Wikipedia IUCN 2021 raster (warm-temperate bands, not a filled tropical gyre).",
     missing: [
       "Tuna-dolphin associations are not a cue.",
       "Long-beaked D. capensis is not a second id.",
       "Bow-riding and wake-riding are not behaviours.",
       "Aerial play, spinning, and surfing internal waves are not states.",
-      "Super-pods of hundreds to thousands are a raised vehicle count (18–28), not the hashed grid — they breathe.",
+      "Super-pods of hundreds to thousands are still a handful of vehicles in 1–3 pods, not the hashed grid — they breathe.",
       "Night feeding on the DSL / lanternfish in some stocks is not wired — huntTaxa is surface forage only.",
       "Whistles and echolocation are not a sense.",
       "Cooperative herding of anchovy into a bait ball is not hydrodynamics.",
@@ -716,7 +716,7 @@ export const FAUNA = {
     about:
       "Temperate giant tuna. Atlantic, Pacific, and southern bluefin share this id (latin follows hemisphere). Typically 1.5–3 m. Endothermic; hunts from the surface to about 1000 m. Needs named temperate forage, not a flying-fish-only cell.",
     program:
-      "Ram gait. Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel, menhaden). Uses the column down to min(1000 m, this cell's floor). Feeding occupancy peaks in local summer from the northwest Atlantic to Norway and in the West Pacific; Gulf of Mexico / Mediterranean / West Pacific spawn is a spring window.",
+      "Ram gait. Travels as one small school (`pods: 1`). Trophic gate is named forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel, menhaden). Uses the column down to min(1000 m, this cell's floor). Feeding occupancy peaks in local summer from the northwest Atlantic to Norway and in the West Pacific; Gulf of Mexico / Mediterranean / West Pacific spawn is a spring window.",
     missing: [
       "Regional endothermy is not a temperature field.",
       "Spawning in the Gulf of Mexico / Mediterranean is occupancy on a hull, not a migration.",

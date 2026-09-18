@@ -1,5 +1,15 @@
 import { CONFIG, breathTargetY, clampHabitatY, dvmY, faunaPresent, hasBeach, waterMaxZ, yearSeconds } from "../config.js";
-import { SPECIES, VEHICLE_IDS, vehicleCfg, vehicleCountFor, tickBreathHold } from "../world/fauna.js";
+import {
+  SPECIES,
+  VEHICLE_IDS,
+  vehicleCfg,
+  vehicleCountFor,
+  vehicleIsPod,
+  vehiclePodsFor,
+  vehiclePodId,
+  vehiclePodSlot,
+  tickBreathHold,
+} from "../world/fauna.js";
 import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, placeInColumn } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { columnQ10 } from "./temperature.js";
@@ -21,8 +31,9 @@ const KINDS = [
  *
  * Locomotion follows `cfg.gait` and `cfg.swim`: burst-and-glide or ram
  * for most fishes and sharks, pulse–coast jet for squid, vertical fluke
- * for cetaceans. AI sharks split schools, strike from below, and keep a
- * body-length of water between each other.
+ * for cetaceans. Podded taxa (orca, dolphin, hammerhead, bluefin, sperm
+ * whale) follow a leader; others keep a body-length of water between
+ * each other.
  */
 export class Shark {
   constructor(opts = {}) {
@@ -107,6 +118,10 @@ export class Shark {
     this.roamX = 0;
     this.roamY = CONFIG.fish.preferredDepth;
     this.roamZ = 0;
+    this.podId = opts.podId ?? 0;
+    this.podSlot = opts.podSlot ?? 0;
+    this._awaitFlip = 0;
+    this._podFollow = false;
     this._pickRoam();
     this.onEat = (x, y, z) => {
       this.eaten++;
@@ -189,7 +204,10 @@ export class Shark {
     this.vy += rock.ay * dt;
     this.vz += rock.az * dt;
 
-    if (pack) this._avoidPack(pack, dt);
+    if (pack) {
+      this._avoidPack(pack, dt);
+      this._coherePod(pack, dt);
+    }
 
     const swim = cfg.swim || "tail";
     const gliding = !this.bursting && !this.lunging;
@@ -250,7 +268,7 @@ export class Shark {
     this._filterFeed(dt, school, look, cfg);
     this._benthosFeed(dt, school, cfg);
     this.mateT = Math.max(0, this.mateT - dt);
-    this._tickBreath(dt, cfg);
+    this._tickBreath(dt, cfg, pack);
     if (this.energy < cfg.starveAt) this.starveT += dt;
     else this.starveT = Math.max(0, this.starveT - dt * 1.8);
     if (this.starveT >= cfg.starveDays * CONFIG.time.dayLength) {
@@ -391,8 +409,24 @@ export class Shark {
     }
   }
 
-  _tickBreath(dt, cfg) {
+  _tickBreath(dt, cfg, pack) {
     if (!cfg.breathes) return;
+    const lead = podLeader(this, pack);
+    if (lead && lead !== this) {
+      const lag = 0.22 + (this.podSlot || 0) * 0.18;
+      if (lead.surfacing !== this.surfacing) {
+        this._awaitFlip = (this._awaitFlip || 0) + dt;
+        if (this._awaitFlip >= lag) {
+          this.surfacing = lead.surfacing;
+          this.breathT = lead.breathT;
+          this._awaitFlip = 0;
+        }
+      } else {
+        this._awaitFlip = 0;
+        this.breathT = lead.breathT;
+      }
+      return;
+    }
     const atAir = this.y > (cfg.minDepth ?? -2) - 2.4;
     const next = tickBreathHold(this.surfacing, this.breathT, dt, cfg, atAir);
     this.surfacing = next.surfacing;
@@ -455,14 +489,17 @@ export class Shark {
   }
 
   _avoidPack(pack, dt) {
+    const podded = vehicleIsPod(this.cfg);
     for (let i = 0; i < pack.length; i++) {
       const o = pack[i];
-      if (o === this) continue;
+      if (o === this || o.dead) continue;
       const dx = this.x - o.x;
       const dy = this.y - o.y;
       const dz = this.z - o.z;
       const d = Math.hypot(dx, dy, dz);
-      const minD = (this.cfg.spacing ?? CONFIG.shark.spacing) * (0.55 + 0.28 * (this.scale + o.scale));
+      let gap = this.cfg.spacing ?? CONFIG.shark.spacing;
+      if (podded && o.kind === this.kind && o.podId !== this.podId) gap *= 3.2;
+      const minD = gap * (0.55 + 0.28 * (this.scale + o.scale));
       if (d < 0.4 || d > minD) continue;
       const w = ((minD - d) / minD) ** 2;
       const push = (18 + (this.huntIndex === o.huntIndex ? 10 : 0)) * w;
@@ -473,6 +510,54 @@ export class Shark {
         this.flankSign = -o.flankSign;
       }
     }
+  }
+
+  _coherePod(pack, dt) {
+    if (!vehicleIsPod(this.cfg) || this.controlled) return;
+    let n = 0;
+    let cx = 0;
+    let cy = 0;
+    let cz = 0;
+    let cvx = 0;
+    let cvy = 0;
+    let cvz = 0;
+    for (let i = 0; i < pack.length; i++) {
+      const o = pack[i];
+      if (o.dead || o.kind !== this.kind || o.podId !== this.podId) continue;
+      n++;
+      cx += o.x;
+      cy += o.y;
+      cz += o.z;
+      cvx += o.vx;
+      cvy += o.vy;
+      cvz += o.vz;
+    }
+    if (n < 2) return;
+    const inv = 1 / n;
+    cx *= inv;
+    cy *= inv;
+    cz *= inv;
+    cvx *= inv;
+    cvy *= inv;
+    cvz *= inv;
+    const dx = cx - this.x;
+    const dy = cy - this.y;
+    const dz = cz - this.z;
+    const d = Math.hypot(dx, dy, dz) || 1;
+    const spacing = this.cfg.spacing ?? 16;
+    const striking = this.aiMode === "strike" || this.lunging;
+    if (d > spacing * 0.7) {
+      const w = Math.min(1, (d - spacing * 0.7) / (spacing * 5));
+      const k = striking ? 7 : 16;
+      this.vx += (dx / d) * k * w * dt;
+      this.vy += (dy / d) * k * w * dt * 0.55;
+      this.vz += (dz / d) * k * w * dt;
+    }
+    const ali = striking ? 2.2 : 7.5;
+    const blend = Math.min(1, ali * dt);
+    this.vx += (cvx - this.vx) * blend;
+    this.vy += (cvy - this.vy) * blend * 0.7;
+    this.vz += (cvz - this.vz) * blend;
   }
 
   _keepInWater(cfg, dt, steer = true) {
@@ -624,7 +709,19 @@ export class Shark {
     const dist = Math.hypot(cx - this.x, cy - this.y, cz - this.z);
     const holdR = CONFIG.fish.schoolRadius;
 
-    if (this.aiT <= 0) this._nextMode(school, dist, holdR, pack);
+    const lead = podLeader(this, pack);
+    this._podFollow = !!(lead && lead !== this);
+    if (this._podFollow) {
+      this.huntIndex = lead.huntIndex;
+      this.roamX = lead.roamX;
+      this.roamY = lead.roamY;
+      this.roamZ = lead.roamZ;
+      if (lead.aiMode !== this.aiMode) {
+        if (lead.aiMode === "strike") this.startLunge();
+        this.aiMode = lead.aiMode;
+      }
+      this.aiT = lead.aiT;
+    } else if (this.aiT <= 0) this._nextMode(school, dist, holdR, pack);
 
     const hungry = this.energy < cfg.hungry / this.aggression;
     const satiated = this.energy > cfg.satiated;
@@ -758,7 +855,7 @@ export class Shark {
 
     if (cfg.breathes) {
       const followPrey = this.aiMode === "strike" || (hasHuntPrey(this, school, pack, cfg) && !satiated);
-      if (!followPrey) {
+      if (!followPrey && !this._podFollow) {
         const rdx = this.roamX - this.x;
         const rdz = this.roamZ - this.z;
         if (rdx * rdx + rdz * rdz < 22 * 22) this._pickRoam();
@@ -766,8 +863,16 @@ export class Shark {
         ty = this.roamY;
         tz = this.roamZ;
       }
-      ty = this._breathTargetY(tx, tz, ty, cfg);
     }
+
+    if (this._podFollow && this.aiMode !== "strike") {
+      const form = formationOff(this, lead);
+      tx = form.x;
+      tz = form.z;
+      if (!cfg.breathes) ty = form.y;
+    }
+
+    if (cfg.breathes) ty = this._breathTargetY(tx, tz, ty, cfg);
 
     const tGround = seafloorHeight(tx, tz);
     ty = Math.min(ty, cfg.minDepth - 0.4);
@@ -847,6 +952,7 @@ export class Shark {
   }
 
   _pickRoam() {
+    if (this._podFollow) return;
     const a = Math.random() * Math.PI * 2;
     const r = 36 + Math.random() * 96;
     this.roamX = Math.cos(a) * r;
@@ -1058,6 +1164,9 @@ export function createShark(i, count, school, kind = "shark") {
   const kindTint = tints && tints.length ? tints : KINDS;
   const variant = kindTint[i % kindTint.length];
   const n = Math.max(1, count | 0);
+  const nPods = vehiclePodsFor(kindCfg, n);
+  const podId = vehiclePodId(i, n, nPods);
+  const podSlot = vehiclePodSlot(i, n, nPods);
   const sex = i === 0 ? 0 : i === 1 ? 1 : Math.random() < 0.5 ? 0 : 1;
   const dimorph = sex === 0 ? 1.08 : 0.94;
   const shark = new Shark({
@@ -1067,10 +1176,13 @@ export function createShark(i, count, school, kind = "shark") {
     scale: variant.scale * dimorph * (0.97 + Math.random() * 0.06),
     aggression: variant.aggression * (sex === 0 ? 0.96 : 1.05),
     tint: variant.tint,
+    podId,
+    podSlot,
   });
   seedVehiclePose(shark, i, n, school);
-  shark.huntIndex = i % Math.max(1, school.initialSchools || 1);
-  shark.flankSign = i % 2 === 0 ? 1 : -1;
+  const schools = Math.max(1, school.initialSchools || 1);
+  shark.huntIndex = vehicleIsPod(kindCfg) ? podId % schools : i % schools;
+  shark.flankSign = podSlot % 2 === 0 ? 1 : -1;
   return shark;
 }
 
@@ -1078,28 +1190,74 @@ function seedVehiclePose(shark, i, count, school) {
   const kind = shark.kind;
   const kindCfg = shark.cfg || vehicleCfg(kind);
   const n = Math.max(1, count | 0);
-  const seed = (kind.charCodeAt(0) * 17 + kind.length * 13 + i * 29) % 628;
-  const ang = (i / n) * Math.PI * 2 + seed * 0.01;
+  const nPods = vehiclePodsFor(kindCfg, n);
+  const podId = shark.podId ?? vehiclePodId(i, n, nPods);
+  const podSlot = shark.podSlot ?? vehiclePodSlot(i, n, nPods);
+  shark.podId = podId;
+  shark.podSlot = podSlot;
+  const seed = (kind.charCodeAt(0) * 17 + kind.length * 13 + podId * 47) % 628;
   const world = Math.max(46, Math.min(CONFIG.halfX, CONFIG.halfZ) * 0.38);
-  const r = (kindCfg.gait === "benthic" ? world * 0.35 : world * 0.55) * (0.45 + (i + 1) / (n + 1));
   const prey = school?.count ? school.targetFor(shark) : null;
-  if (kindCfg.gait === "benthic") {
-    shark.x = Math.cos(ang) * r;
-    shark.z = (hasBeach() ? CONFIG.beach.startZ : 0) - 120 - (i % 3) * 80;
-  } else if (prey && Number.isFinite(prey.x)) {
-    shark.x = prey.x + Math.cos(ang) * r * 0.45;
-    shark.z = prey.z + Math.sin(ang) * r * 0.45;
-    if (kindCfg.breathes) shark.z = prey.z + Math.sin(ang) * world * 0.22;
-    if ((kindCfg.maxDepth ?? -400) < -800) shark.z = Math.min(shark.z, -Math.abs(world) * 0.45);
-  } else {
-    shark.x = Math.cos(ang) * r;
-    if (kindCfg.breathes) {
-      shark.z = Math.sin(ang) * world * 0.4 - world * 0.15;
-    } else if ((kindCfg.maxDepth ?? -400) < -800) {
-      shark.z = -Math.abs(world) * 0.7 + Math.sin(ang) * world * 0.22;
+  const podded = vehicleIsPod(kindCfg) && nPods > 0;
+  let ang;
+  if (podded) {
+    const podAng = (podId / Math.max(1, nPods)) * Math.PI * 2 + seed * 0.01;
+    const podR = (kindCfg.gait === "benthic" ? world * 0.35 : world * 0.48) * (nPods === 1 ? 0.55 : 0.85);
+    let pcx;
+    let pcz;
+    if (kindCfg.gait === "benthic") {
+      pcx = Math.cos(podAng) * podR;
+      pcz = (hasBeach() ? CONFIG.beach.startZ : 0) - 120 - podId * 80;
+    } else if (prey && Number.isFinite(prey.x)) {
+      pcx = prey.x + Math.cos(podAng) * podR * (nPods === 1 ? 0.28 : 0.5);
+      pcz = prey.z + Math.sin(podAng) * podR * (nPods === 1 ? 0.28 : 0.5);
+      if (kindCfg.breathes) pcz = prey.z + Math.sin(podAng) * world * 0.18;
+      if ((kindCfg.maxDepth ?? -400) < -800) pcz = Math.min(pcz, -Math.abs(world) * 0.45);
     } else {
-      shark.z = (school.centroid?.z || 0) + Math.sin(ang) * r * 0.85;
-      shark.x = (school.centroid?.x || 0) + Math.cos(ang) * r;
+      pcx = Math.cos(podAng) * podR;
+      if (kindCfg.breathes) pcz = Math.sin(podAng) * world * 0.32 - world * 0.12;
+      else if ((kindCfg.maxDepth ?? -400) < -800) pcz = -Math.abs(world) * 0.7 + Math.sin(podAng) * world * 0.18;
+      else pcz = (school.centroid?.z || 0) + Math.sin(podAng) * podR * 0.7;
+    }
+    const dummy = {
+      x: pcx,
+      y: 0,
+      z: pcz,
+      fwdX: Math.sin(podAng + Math.PI),
+      fwdZ: Math.cos(podAng + Math.PI),
+    };
+    const off = formationOff(shark, dummy);
+    shark.x = off.x;
+    shark.z = off.z;
+    ang = podAng + Math.PI;
+    if (kindCfg.breathes) {
+      const u = ((podId * 17 + kind.charCodeAt(0)) % 100) / 100;
+      shark.surfacing = u < 0.28;
+      shark.breathT = shark.surfacing
+        ? u * (kindCfg.surfaceTime ?? 6)
+        : u * (kindCfg.diveTime ?? 20);
+    }
+  } else {
+    ang = (i / n) * Math.PI * 2 + seed * 0.01;
+    const r = (kindCfg.gait === "benthic" ? world * 0.35 : world * 0.55) * (0.45 + (i + 1) / (n + 1));
+    if (kindCfg.gait === "benthic") {
+      shark.x = Math.cos(ang) * r;
+      shark.z = (hasBeach() ? CONFIG.beach.startZ : 0) - 120 - (i % 3) * 80;
+    } else if (prey && Number.isFinite(prey.x)) {
+      shark.x = prey.x + Math.cos(ang) * r * 0.45;
+      shark.z = prey.z + Math.sin(ang) * r * 0.45;
+      if (kindCfg.breathes) shark.z = prey.z + Math.sin(ang) * world * 0.22;
+      if ((kindCfg.maxDepth ?? -400) < -800) shark.z = Math.min(shark.z, -Math.abs(world) * 0.45);
+    } else {
+      shark.x = Math.cos(ang) * r;
+      if (kindCfg.breathes) {
+        shark.z = Math.sin(ang) * world * 0.4 - world * 0.15;
+      } else if ((kindCfg.maxDepth ?? -400) < -800) {
+        shark.z = -Math.abs(world) * 0.7 + Math.sin(ang) * world * 0.22;
+      } else {
+        shark.z = (school.centroid?.z || 0) + Math.sin(ang) * r * 0.85;
+        shark.x = (school.centroid?.x || 0) + Math.cos(ang) * r;
+      }
     }
   }
   shark.x = Math.max(-CONFIG.halfX + 24, Math.min(CONFIG.halfX - 24, shark.x));
@@ -1109,7 +1267,7 @@ function seedVehiclePose(shark, i, count, school) {
   if (kindCfg.gait === "benthic") {
     wantY = seafloorHeight(shark.x, shark.z) + kindCfg.floorClearance + 2;
   } else if (kindCfg.breathes) {
-    wantY = -4 - i * 1.4;
+    wantY = shark.surfacing ? -2.2 : -4 - podSlot * 0.8;
   } else if (kindCfg.nightDepth != null) {
     wantY = dvmY(hour, kindCfg);
   } else {
@@ -1125,13 +1283,41 @@ function seedVehiclePose(shark, i, count, school) {
   shark.z = placed.z;
   shark.yDeep = shark.y;
   shark.yShallow = shark.y;
-  shark.yaw = ang + Math.PI;
+  shark.yaw = podded ? ang : ang + Math.PI;
   shark.yawLook = shark.yaw;
   shark.fwdX = Math.sin(shark.yaw);
   shark.fwdZ = Math.cos(shark.yaw);
   shark.seekX = shark.x;
   shark.seekY = shark.y;
   shark.seekZ = shark.z;
+}
+
+function podLeader(self, pack) {
+  if (!pack || !vehicleIsPod(self.cfg)) return null;
+  let lead = null;
+  for (let i = 0; i < pack.length; i++) {
+    const o = pack[i];
+    if (o.dead || o.kind !== self.kind || o.podId !== self.podId) continue;
+    if (!lead || (o.podSlot ?? 99) < (lead.podSlot ?? 99)) lead = o;
+  }
+  return lead;
+}
+
+function formationOff(self, lead) {
+  const spacing = self.cfg?.spacing ?? 16;
+  const slot = Math.max(0, self.podSlot | 0);
+  const cols = spacing < 16 ? 3 : 2;
+  const row = Math.floor(slot / cols);
+  const col = slot % cols;
+  const behind = spacing * (0.28 + row * 0.52);
+  const wide = spacing * 0.4 * (col - (cols - 1) / 2);
+  const lx = lead.fwdX ?? Math.sin(lead.yaw || 0);
+  const lz = lead.fwdZ ?? Math.cos(lead.yaw || 0);
+  return {
+    x: lead.x - lx * behind + -lz * wide,
+    y: lead.y + (slot % 2 === 0 ? 0.45 : -0.45),
+    z: lead.z - lz * behind + lx * wide,
+  };
 }
 
 function hasHuntPrey(self, school, pack, cfg) {
@@ -1239,6 +1425,8 @@ export function birthShark(mother, father, id) {
   pup.energy = vehicleCfg(mother.kind).pupEnergy;
   pup.huntIndex = mother.huntIndex;
   pup.flankSign = -side;
+  pup.podId = mother.podId ?? 0;
+  pup.podSlot = (mother.podSlot ?? 0) + 6 + ((id | 0) % 5);
   pup.seekX = pup.x;
   pup.seekY = pup.y;
   pup.seekZ = pup.z;
@@ -1293,14 +1481,20 @@ export function resetSharks(pack, school) {
     s.lungeT = 0;
     s.aiMode = "patrol";
     s.aiT = 4 + Math.random() * 4;
+    const nPods = vehiclePodsFor(s.cfg, n);
+    s.podId = vehiclePodId(k, n, nPods);
+    s.podSlot = vehiclePodSlot(k, n, nPods);
     seedVehiclePose(s, k, n, school);
     s.yDeep = s.y;
     s.yShallow = s.y;
     s.vx = 0;
     s.vy = 0;
     s.vz = -5;
-    s.huntIndex = i % Math.max(1, school.initialSchools || 1);
-    s.flankSign = i % 2 === 0 ? 1 : -1;
+    s.huntIndex = vehicleIsPod(s.cfg)
+      ? s.podId % Math.max(1, school.initialSchools || 1)
+      : k % Math.max(1, school.initialSchools || 1);
+    s.flankSign = s.podSlot % 2 === 0 ? 1 : -1;
+    s._podFollow = false;
     s._pickRoam();
   }
 }

@@ -19,7 +19,7 @@ import { faunaPresent } from "../config.js";
 import { School } from "./school.js";
 import { spawnPredators } from "./shark.js";
 import { seafloorHeight, findWaterAtDepth } from "./obstacles.js";
-import { vehicleCfg, knobsFor, SPECIES, allocateMixedSchoolCounts, schoolDiet, vehicleCountFor } from "../world/fauna.js";
+import { vehicleCfg, knobsFor, SPECIES, allocateMixedSchoolCounts, schoolDiet, vehicleCountFor, vehiclePodsFor, vehiclePodId, vehicleIsPod } from "../world/fauna.js";
 import { readFileSync } from "node:fs";
 import { setCoastPolygons, coastKmAt } from "../world/coast.js";
 import { topoPolygons } from "../world/topo.js";
@@ -231,6 +231,56 @@ function assert(cond, msg) {
     assert(giant.y > ground + 0.3, "giant squid must not seed inside a dropoff");
     assert(giant.y < -500, `giant squid day band should be mesopelagic, got ${giant.y.toFixed(1)}`);
   }
+
+  const orcas = pack.filter((s) => s.kind === "orca" && !s.dead);
+  assert(orcas.length >= 5, `lab orcas should be a pod of 5, got ${orcas.length}`);
+  assert(orcas.every((s) => s.podId === 0), "orcas share one pod id");
+  let orcaSpan = 0;
+  for (let i = 0; i < orcas.length; i++) {
+    for (let j = i + 1; j < orcas.length; j++) {
+      const d = Math.hypot(orcas[i].x - orcas[j].x, orcas[i].z - orcas[j].z);
+      if (d > orcaSpan) orcaSpan = d;
+    }
+  }
+  assert(orcaSpan < 90, `orca pod should seed clustered, span ${orcaSpan.toFixed(1)}`);
+
+  const dolphins = pack.filter((s) => s.kind === "commondolphin" && !s.dead);
+  assert(dolphins.length >= 18, `lab dolphins should be a super-pod count, got ${dolphins.length}`);
+  const dolphinPods = new Set(dolphins.map((s) => s.podId));
+  assert(dolphinPods.size >= 2, `dolphins should split into 1–3 pods, got ${dolphinPods.size}`);
+  const byPod = new Map();
+  for (const s of dolphins) {
+    if (!byPod.has(s.podId)) byPod.set(s.podId, []);
+    byPod.get(s.podId).push(s);
+  }
+  let within = 0;
+  let withinN = 0;
+  for (const mates of byPod.values()) {
+    for (let i = 0; i < mates.length; i++) {
+      for (let j = i + 1; j < mates.length; j++) {
+        within += Math.hypot(mates[i].x - mates[j].x, mates[i].z - mates[j].z);
+        withinN++;
+      }
+    }
+  }
+  let between = 0;
+  let betweenN = 0;
+  const pods = [...byPod.values()];
+  for (let a = 0; a < pods.length; a++) {
+    for (let b = a + 1; b < pods.length; b++) {
+      for (const p of pods[a]) {
+        for (const q of pods[b]) {
+          between += Math.hypot(p.x - q.x, p.z - q.z);
+          betweenN++;
+        }
+      }
+    }
+  }
+  if (withinN && betweenN) {
+    assert(within / withinN < between / betweenN, "dolphin pods should seed closer within a pod than across pods");
+  }
+  const blues = pack.filter((s) => s.kind === "shark");
+  assert(blues.every((s) => !vehicleIsPod(s.cfg)), "blue sharks stay independent");
 }
 
 {
@@ -361,6 +411,17 @@ function assert(cond, msg) {
 
   assert(vehicleCountFor("commondolphin", 0.3) < vehicleCountFor("commondolphin", 1), "vehicle count should scale with presence weight");
   assert(vehicleCountFor("spermwhale", 0.4) === 1, "a scarce vehicle should still seed one when present");
+
+  assert(vehicleIsPod(vehicleCfg("orca")), "orca travels as a pod");
+  assert(vehicleIsPod(vehicleCfg("commondolphin")), "common dolphin travels as pods");
+  assert(vehicleIsPod(vehicleCfg("hammerhead")), "hammerheads school as one vehicle pod");
+  assert(vehicleIsPod(vehicleCfg("bluefin")), "bluefin travels as a small school");
+  assert(!vehicleIsPod(vehicleCfg("shark")), "blue sharks stay independent");
+  assert(!vehicleIsPod(vehicleCfg("greatwhite")), "great whites stay independent");
+  assert(vehiclePodsFor(vehicleCfg("orca"), 5) === 1, "orcas are one matriline");
+  assert(vehiclePodsFor(vehicleCfg("commondolphin"), 18) >= 2, "full dolphin count splits into more than one pod");
+  assert(vehiclePodsFor(vehicleCfg("commondolphin"), 8) === 1, "a small dolphin count is still one pod");
+  assert(vehiclePodId(0, 18, 2) === 0 && vehiclePodId(10, 18, 2) === 1, "pod ids split the count contiguously");
 }
 
 {

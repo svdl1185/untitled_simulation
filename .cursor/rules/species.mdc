@@ -11,12 +11,12 @@ The camera is a window. A new animal must change a budget, a habitat, or a senso
 
 **Coexistence is habitat, not a bug.** If two real ranges cover the same kilometre, both species are present. Humboldt can hold anchoveta and sardine; the North Sea can hold herring, mackerel, sharks, and cod. Do not winner-take-cell forage just to keep the list short. The hashed-grid school is one agent set. Grazers share a bloom-capped budget, split by catalog `share`. Bite-only taxa share a **prey-capped** slice of the same grid. Adding the hundredth fish later must not start a second 20k boid loop.
 
-**Agent type is the integrator, not the guild.** Numerous, similar, not an air-breather, not megafauna → `school` with `diet: "z"|"p"|"bite"|"both"`, `share`, optional `huntTaxa` / `habitat: "benthic"` / `omzRefuge`. Rare or breathing → `vehicle` `count`/`max`. A future jack, hake, or jumbo-squid pack is the same decision. Never put a shelf gadid on a Reynolds loop because the first predator was a shark.
+**Agent type is the integrator, not the guild.** Numerous, similar, not an air-breather, not megafauna → `school` with `diet: "z"|"p"|"bite"|"both"`, `share`, optional `huntTaxa` / `habitat: "benthic"` / `omzRefuge`. Rare or breathing → `vehicle` `count`/`max`, optional `pods`/`podSize`. A future jack, hake, or jumbo-squid pack is the same decision. Never put a shelf gadid on a Reynolds loop because the first predator was a shark.
 
 ## 1. Identity
 
 - **Common name, Latin name, guild.** Guild is the job (pelagic forage, surface, pelagic predator, demersal, mysticete, odontocete, cephalopod, later: benthos, gelatinous, mammal, reef).
-- **Catalog row** in `src/world/fauna.js` (`SPECIES`): `agent` (`school` | `vehicle`, later `density` / `field`). School: `share`, `diet` (`z` | `p` | `bite` | `both`), fish knobs, look. Vehicle: `count` / `max`. Field-note prose in `src/world/fieldNotes.js` (`FAUNA`). Cards in `src/species.js`.
+- **Catalog row** in `src/world/fauna.js` (`SPECIES`): `agent` (`school` | `vehicle`, later `density` / `field`). School: `share`, `diet` (`z` | `p` | `bite` | `both`), fish knobs, look. Vehicle: `count` / `max`, optional `pods` / `podSize`. Field-note prose in `src/world/fieldNotes.js` (`FAUNA`). Cards in `src/species.js`.
 - **Why this cell.** Range hulls, Wikipedia rasters, and catalog niches in `src/world/ranges.js`. When a Wikipedia / IUCN / Cypron world map matches the catalog grain, add a row to `scripts/wiki_ranges.json` and run `python3 scripts/build_wiki_range.py`. Family/genus ids do not steal a single-species map. `presenceAt` scores the raster (or a covering hull, or an oceanic prior) × season × coast distance × SST × ice × OMZ × upwell × realm/floor, then trophic gates. Raster taxa that should match the Wikipedia shape skip the climate punch. School share and vehicle count scale with the weight. `CONFIG.presence[id]` on `applyPatch`. Spawn is gated with `faunaPresent(id)`. Empty is honest. Map **Overlay** paints geographic habitat (raster or hull × coast × climate), not a filled latitude band. Spawn mode adds the trophic gate.
 
 ## 2. Food (even if the prey is not simulated yet)
@@ -77,7 +77,7 @@ Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 
 
 Spell out the loop, not the vibe.
 
-- **Social.** `polarized` (herring pancake), `loose` (aggregation, flying fish), or `scatter` (nearly independent). Only tight-knit schooling fish should be `polarized`. The hashed grid is shared; the program is not.
+- **Social.** School: `polarized` (herring pancake), `loose` (aggregation, flying fish), or `scatter` (nearly independent). Only tight-knit schooling fish should be `polarized`. The hashed grid is shared; the program is not. Vehicle: `pods` (fixed unit count — orca one matriline) or `podSize` (split count into groups of about that size — common dolphin). Independent if both are 0. A pod spawns together, follows a leader, and air-breathers share a dive clock.
 - Hunt / forage / mill / flee / recover / breathe–dive.
 - Reproduction (energy threshold, season, pup cost) and death (starve, eaten, recycle biomass).
 - Sex / size if it changes the loop (female herring larger; female sharks pup; male sperm whales larger).
