@@ -17,8 +17,9 @@ export function createEnvironment(scene, uniforms) {
   fill.position.set(-30, -10, -40);
   scene.add(fill);
 
-  const lamp = new THREE.PointLight(0xc4e6ee, 0, 78, 1.45);
+  const lamp = new THREE.SpotLight(0xd8f3fa, 0, 88, 0.52, 0.48, 1.05);
   scene.add(lamp);
+  scene.add(lamp.target);
   const _lampFwd = new THREE.Vector3();
 
   const particles = _motes();
@@ -69,17 +70,21 @@ export function createEnvironment(scene, uniforms) {
       if (!above) particles.material.color.lerp(this._abyss, optical * 0.88);
 
       camera.getWorldDirection(_lampFwd);
-      lamp.position.copy(camera.position).addScaledVector(_lampFwd, 4.5);
+      lamp.position.copy(camera.position).addScaledVector(_lampFwd, 1.15);
+      lamp.target.position.copy(camera.position).addScaledVector(_lampFwd, 28);
+      lamp.target.updateMatrixWorld();
+      uniforms.uLampPos.value.copy(lamp.position);
+      uniforms.uLampDir.value.copy(_lampFwd);
       if (this.lampOn) {
         const night = look.night ?? 0;
         const dark = above ? night * 0.4 : (1 - inLight) * 0.7 + night * 0.85;
-        lamp.intensity = 1.4 + dark * 3.2;
-        lamp.distance = 48 + dark * 55;
-        scene.fog.density *= 1 - Math.min(0.45, 0.18 + dark * 0.28);
-        hemi.intensity = Math.max(hemi.intensity, 0.28 + dark * 0.42);
-        fill.intensity = Math.max(fill.intensity, 0.22 + dark * 0.3);
-        look.exposure = Math.max(look.exposure, 0.7 + dark * 0.28);
+        uniforms.uLampI.value = 0.62 + dark * 0.7;
+        lamp.intensity = 8 + dark * 18;
+        lamp.distance = 58 + dark * 36;
+        scene.fog.density *= 1 - Math.min(0.68, 0.32 + dark * 0.38);
+        look.exposure = Math.max(look.exposure, 0.78 + dark * 0.22);
       } else {
+        uniforms.uLampI.value = 0;
         lamp.intensity = 0;
       }
     },

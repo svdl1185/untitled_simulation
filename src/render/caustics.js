@@ -25,6 +25,9 @@ export function createWorldUniforms() {
     uPhoticY: { value: -180 },
     uIce: { value: 0 },
     uIceT: { value: 1 },
+    uLampPos: { value: new THREE.Vector3() },
+    uLampDir: { value: new THREE.Vector3(0, 0, -1) },
+    uLampI: { value: 0 },
   };
 }
 
@@ -36,6 +39,9 @@ uniform float uStorm;
 uniform float uPhoticY;
 uniform float uGlow;
 uniform float uIceT;
+uniform vec3 uLampPos;
+uniform vec3 uLampDir;
+uniform float uLampI;
 uniform vec4 uRocks[8];
 
 float worldCaustic(vec3 w) {
@@ -87,6 +93,19 @@ vec3 applyWorldLight(vec3 col, vec3 w) {
   float photic = max(24.0, -uPhoticY);
   float par = uIceT * exp(-(log(100.0) / photic) * depth);
   float clear = clamp(sqrt(par / 0.18), 0.0, 1.0);
+  // Camera lamp is optics, not habitat: a local beam restores clear so
+  // Kd does not eat the fill. Does not feed visualRange.
+  float lamp = 0.0;
+  if (uLampI > 0.001) {
+    vec3 toFrag = w - uLampPos;
+    float dist = length(toFrag);
+    if (dist > 0.02) {
+      float beam = smoothstep(0.38, 0.84, dot(toFrag / dist, uLampDir));
+      lamp = uLampI * beam * exp(-dist * 0.034) * smoothstep(78.0, 5.0, dist);
+      lamp = clamp(lamp, 0.0, 1.0);
+    }
+  }
+  clear = max(clear, lamp);
   vec3 abyss = vec3(0.008, 0.016, 0.035);
   col *= 0.74 + 0.26 * lee;
   col += col * c * 0.62;
@@ -94,6 +113,13 @@ vec3 applyWorldLight(vec3 col, vec3 w) {
   col = mix(col, abyss, (1.0 - clear) * (1.0 - clear) * 0.92);
   col *= 0.08 + 0.92 * clear;
   col += uGlow * vec3(0.55, 0.85, 0.45) * (1.0 - clear);
+  // Post-fog / post-tonemap fill: lift the beam so a nearby animal is readable
+  // even when night sun and Kd have already gone to abyss.
+  if (lamp > 0.001) {
+    vec3 litUp = max(col * (1.0 + lamp * 0.55), vec3(0.18, 0.28, 0.34) * lamp);
+    col = mix(col, litUp, lamp);
+    col += vec3(0.42, 0.66, 0.82) * lamp * 0.14;
+  }
   return col;
 }
 `;
@@ -109,6 +135,9 @@ export function attachWorldShading(material, uniforms) {
     shader.uniforms.uRocks = uniforms.uRocks;
     shader.uniforms.uPhoticY = uniforms.uPhoticY;
     shader.uniforms.uIceT = uniforms.uIceT;
+    shader.uniforms.uLampPos = uniforms.uLampPos;
+    shader.uniforms.uLampDir = uniforms.uLampDir;
+    shader.uniforms.uLampI = uniforms.uLampI;
     shader.uniforms.uGlow = material.userData.uGlow || { value: 0 };
     if (!shader.vertexShader.includes("varying vec3 vCausticWorld")) {
       shader.vertexShader = shader.vertexShader.replace(
@@ -142,7 +171,7 @@ export function attachWorldShading(material, uniforms) {
   };
   const prevKey = material.customProgramCacheKey?.bind(material);
   material.customProgramCacheKey = () =>
-    `${prevKey ? prevKey() : material.uuid}|world-caustic-v9`;
+    `${prevKey ? prevKey() : material.uuid}|world-caustic-v10`;
   material.needsUpdate = true;
   return material;
 }

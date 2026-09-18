@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { CONFIG, anySchoolPresent, columnZones, faunaPresent, openPhoticY } from "./config.js";
 import { SPECIES, VEHICLE_IDS, vehicleCfg } from "./world/fauna.js";
 import { School } from "./simulation/school.js";
-import { spawnPredators, resetSharks, createShark, tryBreed } from "./simulation/shark.js";
+import { spawnPredators, resetSharks, tryBreed } from "./simulation/shark.js";
 import { DayCycle } from "./simulation/day.js";
 import { Plankton } from "./simulation/plankton.js";
 import { createFishGeometry, createFishMaterial } from "./render/fish.js";
@@ -167,7 +167,7 @@ function rebuildPlace() {
 
 function rebuildLife() {
   while (sharks.length) removeLastShark();
-  const fishN = anySchoolPresent() ? Number(hud?.get("fish") ?? CONFIG.initialFish) : 0;
+  const fishN = anySchoolPresent() ? CONFIG.initialFish : 0;
   school = new School(fishN, { hour: day.look?.hour ?? 12 });
   school.colliders = outcrops.colliders;
   school.colliderCount = outcrops.colliderCount;
@@ -184,8 +184,6 @@ function rebuildLife() {
       const cfg = vehicleCfg(id);
       predCounts[id] = Math.min(cfg.max ?? 2, Math.max(2, cfg.count || 2));
     }
-  } else if (faunaPresent("shark")) {
-    predCounts.shark = Number(hud?.get("sharks") ?? CONFIG.shark.count);
   }
   sharks = spawnPredators(school, predCounts);
   shark = sharks[0] || null;
@@ -267,25 +265,6 @@ function removeSharkAt(i) {
       inspect = tracking;
     }
   }
-  syncCamHud();
-}
-
-function applySharkCount(n) {
-  if (!faunaPresent("shark")) n = 0;
-  const next = Math.max(0, Math.min(CONFIG.shark.max, n | 0));
-  const isShark = (s) => (s.kind || "shark") === "shark";
-  while (sharks.filter(isShark).length > next) {
-    const i = sharks.findLastIndex(isShark);
-    if (i < 0) break;
-    removeSharkAt(i);
-  }
-  while (sharks.filter(isShark).length < next) {
-    const s = createShark(sharks.filter(isShark).length, next, school, "shark");
-    bindShark(s);
-    sharks.push(s);
-    addSharkMesh(s);
-  }
-  rebindLead();
   syncCamHud();
 }
 
@@ -379,7 +358,6 @@ let cellEntered = false;
 async function enterCell(lat, lon) {
   const patch = await world.enter(lat, lon, loadPatchById);
   applyPatch(patch);
-  if (hud.get("fish") > CONFIG.maxFish) hud.set("fish", CONFIG.initialFish);
   bindWorld();
   oceanMap.focus(lat, lon);
   hud.set("oceanMap", false);
@@ -438,8 +416,6 @@ async function enterDemo(id, presence) {
     }
     applyPatch(patch);
     if (presence) applyPresence(presence, { honorFloor: !patch.lab });
-    if (hud.get("fish") > CONFIG.maxFish) hud.set("fish", CONFIG.initialFish);
-    else hud.set("fish", CONFIG.initialFish);
     bindWorld();
     if (Number.isFinite(patch.originLat)) oceanMap.focus(patch.originLat, patch.originLon);
     hud.set("oceanMap", false);
@@ -460,12 +436,6 @@ async function enterDemo(id, presence) {
 
 function applySandbox(presence) {
   applyPresence(presence, { honorFloor: !CONFIG.world.lab });
-  if (anySchoolPresent()) {
-    const n = Number(hud.get("fish") ?? CONFIG.initialFish);
-    hud.set("fish", n > 0 ? n : CONFIG.initialFish);
-  } else {
-    hud.set("fish", 0);
-  }
   rebuildLife();
   inspect = null;
   tracking = null;
@@ -477,8 +447,6 @@ window.__sim.lab = enterLab;
 window.__sim.demo = enterDemo;
 window.__sim.map = oceanMap;
 
-hud.on("fish", (n) => school.setCount(n));
-hud.on("sharks", (n) => applySharkCount(n));
 hud.on("hour", (h) => {
   day.setHour(h);
   hud.set("liveClock", false);
@@ -494,7 +462,7 @@ hud.on("fear", (on) => {
   for (const mesh of sharkMeshes) mesh.userData.fear.visible = on;
 });
 hud.on("reset", () => {
-  school.respawn(anySchoolPresent() ? Number(hud.get("fish")) : 0, day.look.hour);
+  school.respawn(anySchoolPresent() ? CONFIG.initialFish : 0, day.look.hour);
   plankton.seed();
   school.clipToBloom(plankton);
   resetSharks(sharks, school);
