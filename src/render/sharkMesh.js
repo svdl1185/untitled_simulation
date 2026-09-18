@@ -1,12 +1,13 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { attachWorldShading } from "./caustics.js";
+import { authoredVehicleGeometry } from "./models.js";
 import { CONFIG } from "../config.js";
 
 /**
- * Procedural vehicle silhouettes. Distinct enough to read at a glance;
- * replace later with authored glTF. Swim is a separate shader mode so a
- * whale does not lateral-undulate like a shark.
+ * Vehicle silhouettes. Orca is an authored glTF; the rest are procedural
+ * stand-ins. Swim is a separate shader mode so a whale does not
+ * lateral-undulate like a shark.
  */
 
 function prepare(g) {
@@ -40,9 +41,11 @@ export function createSharkMesh(uniforms, opts = {}) {
   const kind = opts.kind || "";
   const sex = opts.sex ?? 0;
   const swim = opts.swim || swimForForm(form);
-  const parts = partsFor(form, tint, kind, sex);
-  const geo = mergeGeometries(parts.map(prepare), false);
-  geo.computeVertexNormals();
+  const authored = authoredVehicleGeometry(form, sex);
+  const geo = authored
+    ? authored
+    : mergeGeometries(partsFor(form, tint, kind, sex).map(prepare), false);
+  if (!authored) geo.computeVertexNormals();
 
   const uSharkAmp = { value: 0.55 };
   const uSharkPhase = { value: 0 };
@@ -87,18 +90,23 @@ export function createSharkMesh(uniforms, opts = {}) {
   }
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
+  // Authored orca already carries black/white COLOR_0. Catalog tint would
+  // crush the patches (male tint is ~0.22). Scale still differs by sex.
+  if (authored) mat.color.set(0xffffff);
 
   const group = new THREE.Group();
   group.add(mesh);
 
-  const eye = EYES[form] || EYES.shark;
-  const eyeGeo = new THREE.SphereGeometry(eye.r, 8, 8);
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.3 });
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-  const eyeR = new THREE.Mesh(eyeGeo.clone(), eyeMat);
-  eyeL.position.set(eye.x, eye.y, eye.z);
-  eyeR.position.set(-eye.x, eye.y, eye.z);
-  group.add(eyeL, eyeR);
+  if (!authored) {
+    const eye = EYES[form] || EYES.shark;
+    const eyeGeo = new THREE.SphereGeometry(eye.r, 8, 8);
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.3 });
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    const eyeR = new THREE.Mesh(eyeGeo.clone(), eyeMat);
+    eyeL.position.set(eye.x, eye.y, eye.z);
+    eyeR.position.set(-eye.x, eye.y, eye.z);
+    group.add(eyeL, eyeR);
+  }
 
   const fear = new THREE.Group();
   const ringMat = new THREE.MeshBasicMaterial({

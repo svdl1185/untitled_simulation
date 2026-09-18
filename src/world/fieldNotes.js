@@ -589,7 +589,7 @@ export const FAUNA = {
     about:
       "Cosmopolitan dolphin, typically 5–8 m. Fish-eating (resident-type) ecotypes hunt herring, salmon, and other fish, usually in the upper 100–200 m; recorded to about 800 m. Must surface to breathe. Mammal-eating (transient) ecotypes hunt seals and whales.",
     program:
-      "Ram vehicle, orca mesh, tall dorsal (taller on males) and white patches. Tight pack, large fear radius. Bites school fish. Air-breather: hangs level at the surface and blows a short puff, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). Typical 6 min dive / ~1.2 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. This is the fish-eating programme. Banks in the turn like a dolphin, not a rorqual. sense is echo: PAR does not shrink detect or fear.",
+      "Ram vehicle, authored orca glTF (taller dorsal on males; white eye patch and belly). Tight pack, large fear radius. Bites school fish. Air-breather: hangs level at the surface and blows a short puff, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). Typical 6 min dive / ~1.2 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. This is the fish-eating programme. Banks in the turn like a dolphin, not a rorqual. sense is echo: PAR does not shrink detect or fear.",
     missing: [
       "Mammal-eating ecotypes are not wired — seals and other whales are not prey.",
       "Salmon are not a school taxon.",

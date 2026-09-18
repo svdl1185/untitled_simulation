@@ -83,7 +83,7 @@ Match existing module style in `src/simulation/`. No new frameworks. Keep the ha
 
 ## 8. Rendering and UI
 
-- Mesh under `src/render/`. Guild silhouette + swim (`tail` | `body` | `thunniform` | `fluke` | `jet` on `vehicle.swim` / `look.swim`); countershade; do not invent glow that is not a biological photophore. School looks live on `SPECIES[id].look`. Procedural stand-ins until replaced with authored glTF.
+- Mesh under `src/render/`. Guild silhouette + swim (`tail` | `body` | `thunniform` | `fluke` | `jet` on `vehicle.swim` / `look.swim`); countershade; do not invent glow that is not a biological photophore. School looks live on `SPECIES[id].look`. Orca is an authored glTF (`public/models/orca.glb`, male/female dorsal); other silhouettes are still procedural stand-ins.
 - Knobs in `src/config.js` / `SPECIES[id].fish` / `SPECIES[id].vehicle`. Toggles/sliders in `MENU` (`src/ui.js`), start **off**, wire with `hud.on` in `src/main.js`.
 - Prefer a physical control (depth, turbidity, nutrient) over a cosmetic one.
 - Field-notes card in `src/species.js` from `FAUNA`: **In nature**, **Not in the model** (`missing`, only if the array is non-empty). Diet lists live prey in this cell (click a name to look) or **None in cell**, with the natural diet under it. Air-breathers show a breath-hold meter. HUD readout only if it is a real state (counts, energy, zone, max depth, remaining breath).

@@ -120,7 +120,7 @@ Hulls in `src/world/ranges.js`. `presenceAt` ORs every covering hull, then troph
 
 ### Catalog
 
-One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`src/render/fish.js`, `src/render/sharkMesh.js`) with countershade. Lanternfish photophores are mesh dots plus emissive against the dark, and a `look.photophores` flag that restores visual detect in low PAR. Replace later with authored glTF.
+One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`src/render/fish.js`, `src/render/sharkMesh.js`) with countershade, except **orca**, which is an authored glTF (`public/models/orca.glb`; male/female dorsal, vertex-color patches, same fluke shader). Lanternfish photophores are mesh dots plus emissive against the dark, and a `look.photophores` flag that restores visual detect in low PAR.
 
 **School (hashed grid)**
 
@@ -167,7 +167,7 @@ One table plus presence plus a shared budget. Silhouettes are guild stand-ins (`
 | minke | ram · fluke | filter `z` **and** bite (incl. krill) | 400 m · ~50 m | Air-breather. `|lat| > 32`. Bloom prey. |
 | humpback | burst · fluke | school + krill | 500 m · ~60 m | Air-breather. School prey. Two-column blow. |
 | spermwhale | burst · fluke | `huntTaxa` market squid, Illex, lanternfish, Humboldt; `huntKinds` giant squid | 2000 m · ~700 m | Air-breather. `sense: echo`. `|lat| < 55`. Left spout. No free calories. |
-| orca | ram · fluke | school | 800 m · ~90 m | Air-breather. `sense: echo`. Fish-eating programme. |
+| orca | ram · fluke | school | 800 m · ~90 m | Air-breather. `sense: echo`. Fish-eating programme. Authored glTF (male/female dorsal). |
 | commondolphin | ram · fluke | flying fish, sardinella, anchovy, sardine | 300 m · ~18 m | Air-breather. `|lat| < 40`. Count 18. |
 | giantsquid | jet | lanternfish, market squid, Illex | 1200 m · night −420 / day −850 | Floor deeper than ~350 m. `|lat| < 55`. Lanternfish glow restores detect. |
 
@@ -220,7 +220,7 @@ Physics, chemistry, scale, and senses that every biome would read.
 | Vehicle–vehicle bites besides sperm whale × giant squid | Humboldt is school `huntTaxa`; other pairs still need `huntKinds`. Humboldt cannibalism is not a loop |
 | Disease, parasites, epizootics | Not a budget |
 | Pressure, compressibility, gas solubility | Deep physiology |
-| Authored meshes | Guild silhouettes |
+| Authored meshes besides orca | Remaining guild silhouettes |
 | Sediment grain size and transport | Burying, gravel spawn beds, resuspension turbidity |
 
 ### 2. Seafloor besides tropical coral reefs

@@ -7,6 +7,7 @@ import { DayCycle } from "./simulation/day.js";
 import { Plankton } from "./simulation/plankton.js";
 import { createFishGeometry, createFishMaterial } from "./render/fish.js";
 import { createSharkMesh, syncSharkMesh } from "./render/sharkMesh.js";
+import { preloadVehicleMeshes } from "./render/models.js";
 import { createWaterSurface, createSeafloor, createSandDetail, createThermocline } from "./render/water.js";
 import { createOutcrops } from "./render/outcrops.js";
 import { createWorldUniforms, syncWorldUniforms } from "./render/caustics.js";
@@ -118,7 +119,7 @@ function bindShark(s) {
 }
 
 function disposeObject(obj) {
-  obj.geometry?.dispose();
+  if (obj.geometry && !obj.geometry.userData?.shared) obj.geometry.dispose();
   if (!obj.material) return;
   const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
   for (const m of mats) {
@@ -291,6 +292,7 @@ const eatFX = createEatParticles();
 scene.add(eatFX.points);
 const blowFX = createBlowParticles();
 scene.add(blowFX.points);
+await preloadVehicleMeshes();
 for (const s of sharks) {
   bindShark(s);
   addSharkMesh(s);
