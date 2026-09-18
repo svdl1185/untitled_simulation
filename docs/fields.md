@@ -12,7 +12,7 @@ Photosynthetically active radiation. Beer–Lambert: \(I(z) = I_0 e^{-K_d z}\).
 - Ice is an \(I_0\) skin: `iceTransmit` (leads plus the floe) multiplies surface PAR before Kd. Pack ice does not change turbidity Kd.
 - `samplePAR(y, look)` is PAR 0–1 at depth.
 - `visualRange(y, look, base, glow)` scales detect / fear for sighted hunters. `glow` is photophore prey (lanternfish): restores a fraction of `base` in the dark. Sperm whale / orca `sense: "echo"` skip this. Filter-only diets skip it.
-- Camera lamp (`K`) is fill after dark. It does not feed `visualRange`.
+- Camera lamp (`K`) is a dive torch: a local cone with inverse-square × \(K_d\) falloff. Power (`[` `]`) and beam half-angle are knobs. It does not feed `visualRange`, and it does not lift fog or exposure.
 
 ## Temperature — `src/simulation/temperature.js`
 

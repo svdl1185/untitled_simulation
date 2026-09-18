@@ -545,6 +545,12 @@ hud.on("currents", (on) => oceanMap.setCurrents(on));
 hud.on("lamp", (on) => {
   env.lampOn = !!on;
 });
+hud.on("lampPower", (n) => {
+  CONFIG.lamp.intensity = Number(n);
+});
+hud.on("lampAngle", (n) => {
+  CONFIG.lamp.angle = Number(n);
+});
 hud.on("turbidity", (n) => {
   CONFIG.water.turbidity = Number(n);
 });
@@ -798,7 +804,17 @@ function hudView() {
     camY: camera.position.y,
     zones: columnZones(day.look.preferredDepth),
   };
-  return { station, subject, day, census, placeName: loc.name || loc.region, column };
+  return {
+    station,
+    subject,
+    day,
+    census,
+    placeName: loc.name || loc.region,
+    column,
+    lamp: env.lampOn
+      ? { power: CONFIG.lamp.intensity, angle: CONFIG.lamp.angle }
+      : null,
+  };
 }
 
 function hudHit(clientX, clientY) {

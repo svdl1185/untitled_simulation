@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CONFIG } from "../config.js";
-import { visualClarity } from "../simulation/light.js";
+import { attenuationKd, visualClarity } from "../simulation/light.js";
 
 export function createEnvironment(scene, uniforms) {
   const sky = _sky(uniforms);
@@ -17,10 +17,14 @@ export function createEnvironment(scene, uniforms) {
   fill.position.set(-30, -10, -40);
   scene.add(fill);
 
-  const lamp = new THREE.SpotLight(0xd8f3fa, 0, 88, 0.52, 0.48, 1.05);
+  const lamp = new THREE.SpotLight(0xffe8c4, 0, 42, 0.28, 0.42, 2);
   scene.add(lamp);
   scene.add(lamp.target);
+  const beam = _lampVolume();
+  scene.add(beam.mesh);
   const _lampFwd = new THREE.Vector3();
+  const _lampRight = new THREE.Vector3();
+  const _lampUp = new THREE.Vector3();
 
   const particles = _motes();
   scene.add(particles);
@@ -32,6 +36,7 @@ export function createEnvironment(scene, uniforms) {
     fill,
     lamp,
     lampOn: false,
+    beam,
     particles,
     _moteTint: new THREE.Color(0xaad8e8),
     _abyss: new THREE.Color(0x010308),
@@ -70,23 +75,129 @@ export function createEnvironment(scene, uniforms) {
       if (!above) particles.material.color.lerp(this._abyss, optical * 0.88);
 
       camera.getWorldDirection(_lampFwd);
-      lamp.position.copy(camera.position).addScaledVector(_lampFwd, 1.15);
-      lamp.target.position.copy(camera.position).addScaledVector(_lampFwd, 28);
+      _lampRight.crossVectors(_lampFwd, camera.up);
+      if (_lampRight.lengthSq() < 1e-6) _lampRight.set(1, 0, 0);
+      else _lampRight.normalize();
+      _lampUp.crossVectors(_lampRight, _lampFwd).normalize();
+      // Handheld offset beside the eye — never a bulb in front of the near plane.
+      lamp.position
+        .copy(camera.position)
+        .addScaledVector(_lampRight, 0.2)
+        .addScaledVector(_lampUp, -0.12)
+        .addScaledVector(_lampFwd, 0.06);
+      const power = Math.max(0, CONFIG.lamp?.intensity ?? 1);
+      const halfDeg = THREE.MathUtils.clamp(CONFIG.lamp?.angle ?? 16, 8, 40);
+      const halfRad = THREE.MathUtils.degToRad(halfDeg);
+      const kd = attenuationKd();
+      const range = THREE.MathUtils.clamp(1.15 / Math.max(kd, 0.012), 16, 56);
+      const inner = Math.cos(halfRad * 0.62);
+      const outer = Math.cos(halfRad * 1.18);
+      lamp.target.position.copy(camera.position).addScaledVector(_lampFwd, range);
       lamp.target.updateMatrixWorld();
+      lamp.angle = halfRad * 1.05;
+      lamp.penumbra = 0.45;
+      lamp.distance = range;
+      lamp.decay = 2;
       uniforms.uLampPos.value.copy(lamp.position);
       uniforms.uLampDir.value.copy(_lampFwd);
-      if (this.lampOn) {
-        const night = look.night ?? 0;
-        const dark = above ? night * 0.4 : (1 - inLight) * 0.7 + night * 0.85;
-        uniforms.uLampI.value = 0.62 + dark * 0.7;
-        lamp.intensity = 8 + dark * 18;
-        lamp.distance = 58 + dark * 36;
-        scene.fog.density *= 1 - Math.min(0.68, 0.32 + dark * 0.38);
-        look.exposure = Math.max(look.exposure, 0.78 + dark * 0.22);
+      uniforms.uLampCos.value.set(outer, inner);
+      uniforms.uLampKd.value = kd;
+      uniforms.uLampRange.value = range;
+      if (this.lampOn && power > 0.02) {
+        uniforms.uLampI.value = power;
+        lamp.intensity = 0;
+        beam.update(camera, halfRad, range, above ? 0 : power, kd);
       } else {
         uniforms.uLampI.value = 0;
         lamp.intensity = 0;
+        beam.update(camera, halfRad, range, 0, kd);
       }
+    },
+  };
+}
+
+const LAMP_SLICES = 12;
+
+function _lampVolume() {
+  const geo = new THREE.CircleGeometry(1, 22);
+  const mat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    uniforms: {
+      uI: { value: 0 },
+      uKd: { value: 0.026 },
+      uRange: { value: 42 },
+    },
+    vertexShader: /* glsl */ `
+      varying vec3 vWorld;
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        vec4 mvPosition = vec4(position, 1.0);
+        #ifdef USE_INSTANCING
+        mvPosition = instanceMatrix * mvPosition;
+        #endif
+        vec4 world = modelMatrix * mvPosition;
+        vWorld = world.xyz;
+        gl_Position = projectionMatrix * viewMatrix * world;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uI;
+      uniform float uKd;
+      uniform float uRange;
+      varying vec3 vWorld;
+      varying vec2 vUv;
+      void main() {
+        vec2 p = vUv * 2.0 - 1.0;
+        float r2 = dot(p, p);
+        if (r2 > 1.0) discard;
+        float dist = length(vWorld - cameraPosition);
+        float core = exp(-r2 * 3.8);
+        float halo = exp(-r2 * 1.15);
+        float along = exp(-dist * uKd) * (1.0 - smoothstep(uRange * 0.58, uRange, dist));
+        float near = smoothstep(2.2, 9.0, dist);
+        float spark = smoothstep(0.94, 0.998, fract(sin(dot(vWorld * 0.71, vec3(12.98, 78.23, 37.72))) * 43758.5453));
+        float a = uI * along * near * (core * 0.14 + halo * 0.05 + spark * core * 0.35);
+        gl_FragColor = vec4(vec3(1.0, 0.94, 0.82) * a, 0.0);
+      }
+    `,
+  });
+  const mesh = new THREE.InstancedMesh(geo, mat, LAMP_SLICES);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 5;
+  mesh.visible = false;
+  const dummy = new THREE.Object3D();
+
+  return {
+    mesh,
+    update(camera, halfRad, range, intensity, kd) {
+      const on = intensity > 0.02;
+      mesh.visible = on;
+      if (!on) {
+        mat.uniforms.uI.value = 0;
+        return;
+      }
+      mesh.position.copy(camera.position);
+      mesh.quaternion.copy(camera.quaternion);
+      const tan = Math.tan(halfRad);
+      for (let i = 0; i < LAMP_SLICES; i++) {
+        const t = (i + 1) / (LAMP_SLICES + 0.35);
+        const z = 2.4 + t * t * range;
+        dummy.position.set(0, 0, -z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.setScalar(Math.max(0.12, z * tan));
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mat.uniforms.uI.value = (intensity / LAMP_SLICES) * 0.28;
+      mat.uniforms.uKd.value = kd;
+      mat.uniforms.uRange.value = range;
     },
   };
 }

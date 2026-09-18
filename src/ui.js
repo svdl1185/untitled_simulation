@@ -156,8 +156,32 @@ export const MENU = [
         id: "lamp",
         kind: "toggle",
         label: "Lamp",
-        hint: "Camera fill light after dark. Optics, not habitat.",
+        hint: "Dive torch on the camera. A tight beam in the water; does not feed visualRange.",
         key: "K",
+        cellOnly: true,
+      },
+      {
+        id: "lampPower",
+        kind: "slider",
+        label: "Lamp power",
+        hint: "Torch output. [ and ] nudge it. Dim to off; raise from off to strike.",
+        min: 0.35,
+        max: 1.45,
+        step: 0.05,
+        value: CONFIG.lamp.intensity,
+        format: (n) => Number(n).toFixed(2),
+        cellOnly: true,
+      },
+      {
+        id: "lampAngle",
+        kind: "slider",
+        label: "Lamp beam",
+        hint: "Half-angle. Narrow is a spot; wide is a flood. Still a cone, not a fill.",
+        min: 8,
+        max: 36,
+        step: 1,
+        value: CONFIG.lamp.angle,
+        format: (n) => `${Math.round(Number(n))}°`,
         cellOnly: true,
       },
       {
@@ -214,6 +238,7 @@ const KEY_HELP = [
   ["Drag", "Look around · orbit when following"],
   ["Scroll", "Zoom or dolly"],
   ["Right-drag", "Pan · Shift-drag also pans"],
+  ["K", "Dive lamp · [ ] power"],
   ["C", "Follow camera (after Follow)"],
   ["N", "Next followed animal"],
   ["V / Esc", "Free roam · Esc also closes map if a cell is open"],
@@ -609,6 +634,28 @@ export function createHUD() {
       return;
     }
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) return;
+    if (e.code === "BracketLeft" || e.code === "BracketRight") {
+      const lampItem = findItem("lamp");
+      const powerItem = findItem("lampPower");
+      if (!lampItem || !powerItem || rowHidden(lampItem)) return;
+      e.preventDefault();
+      const step = Number(powerItem.step ?? 0.05) * (e.shiftKey ? 4 : 1);
+      const dir = e.code === "BracketRight" ? 1 : -1;
+      const next = Math.min(
+        powerItem.max,
+        Math.max(powerItem.min, Number(values.lampPower ?? powerItem.value) + dir * step)
+      );
+      set("lampPower", next);
+      emit("lampPower", next);
+      if (!values.lamp && dir > 0) {
+        set("lamp", true);
+        emit("lamp", true);
+      } else if (values.lamp && dir < 0 && next <= powerItem.min + 1e-6) {
+        set("lamp", false);
+        emit("lamp", false);
+      }
+      return;
+    }
     for (const section of MENU) {
       for (const item of section.items) {
         if (!item.key || e.code !== `Key${item.key}`) continue;
@@ -698,6 +745,15 @@ export function createHUD() {
           : null
       );
       columnView.set(inCell() ? view.column : null);
+      const lampHud = document.getElementById("lamp-hud");
+      if (lampHud) {
+        const lamp = view.lamp;
+        const show = !!(lamp && inCell());
+        lampHud.hidden = !show;
+        if (show) {
+          lampHud.textContent = `Lamp  ${Math.round(lamp.angle)}° · ${Number(lamp.power).toFixed(2)}`;
+        }
+      }
       if (brandPlace) {
         brandPlace.textContent = values.oceanMap ? "World ocean" : view.placeName || brandPlace.textContent;
       }

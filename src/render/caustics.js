@@ -28,6 +28,9 @@ export function createWorldUniforms() {
     uLampPos: { value: new THREE.Vector3() },
     uLampDir: { value: new THREE.Vector3(0, 0, -1) },
     uLampI: { value: 0 },
+    uLampCos: { value: new THREE.Vector2(0.92, 0.97) },
+    uLampKd: { value: 0.026 },
+    uLampRange: { value: 42 },
   };
 }
 
@@ -42,7 +45,25 @@ uniform float uIceT;
 uniform vec3 uLampPos;
 uniform vec3 uLampDir;
 uniform float uLampI;
+uniform vec2 uLampCos;
+uniform float uLampKd;
+uniform float uLampRange;
 uniform vec4 uRocks[8];
+
+float lampBeam(vec3 w) {
+  if (uLampI < 0.001) return 0.0;
+  vec3 toFrag = w - uLampPos;
+  float dist = length(toFrag);
+  if (dist < 0.08) return 0.0;
+  vec3 L = toFrag / dist;
+  float spot = smoothstep(uLampCos.x, uLampCos.y, dot(L, uLampDir));
+  if (spot < 0.001) return 0.0;
+  float near = smoothstep(0.7, 3.4, dist);
+  float att = 1.0 / (1.0 + dist * dist * 0.008);
+  float water = exp(-uLampKd * dist);
+  float far = 1.0 - smoothstep(uLampRange * 0.62, uLampRange, dist);
+  return min(uLampI * spot * att * water * far * near, 0.78);
+}
 
 float worldCaustic(vec3 w) {
   float depth = smoothstep(uPhoticY + 6.0, -5.0, w.y) * (1.0 - smoothstep(-1.4, 0.35, w.y));
@@ -93,34 +114,25 @@ vec3 applyWorldLight(vec3 col, vec3 w) {
   float photic = max(24.0, -uPhoticY);
   float par = uIceT * exp(-(log(100.0) / photic) * depth);
   float clear = clamp(sqrt(par / 0.18), 0.0, 1.0);
-  // Camera lamp is optics, not habitat: a local beam restores clear so
-  // Kd does not eat the fill. Does not feed visualRange.
-  float lamp = 0.0;
-  if (uLampI > 0.001) {
-    vec3 toFrag = w - uLampPos;
-    float dist = length(toFrag);
-    if (dist > 0.02) {
-      float beam = smoothstep(0.38, 0.84, dot(toFrag / dist, uLampDir));
-      lamp = uLampI * beam * exp(-dist * 0.034) * smoothstep(78.0, 5.0, dist);
-      lamp = clamp(lamp, 0.0, 1.0);
-    }
-  }
-  clear = max(clear, lamp);
   vec3 abyss = vec3(0.008, 0.016, 0.035);
   col *= 0.74 + 0.26 * lee;
   col += col * c * 0.62;
-  col = mix(col, col * vec3(0.32, 0.52, 0.6), (1.0 - clear) * 0.5 * smoothstep(0.0, 0.12, par));
-  col = mix(col, abyss, (1.0 - clear) * (1.0 - clear) * 0.92);
-  col *= 0.08 + 0.92 * clear;
-  col += uGlow * vec3(0.55, 0.85, 0.45) * (1.0 - clear);
-  // Post-fog / post-tonemap fill: lift the beam so a nearby animal is readable
-  // even when night sun and Kd have already gone to abyss.
+  vec3 lit = mix(col, col * vec3(0.32, 0.52, 0.6), (1.0 - clear) * 0.5 * smoothstep(0.0, 0.12, par));
+  vec3 dark = mix(lit, abyss, (1.0 - clear) * (1.0 - clear) * 0.92);
+  dark *= 0.08 + 0.92 * clear;
+  dark += uGlow * vec3(0.55, 0.85, 0.45) * (1.0 - clear);
+  // Camera lamp is a dive torch: local cone, inverse-square × Kd.
+  // Optics, not habitat — does not feed visualRange. Never a scene fill.
+  float lamp = lampBeam(w);
   if (lamp > 0.001) {
-    vec3 litUp = max(col * (1.0 + lamp * 0.55), vec3(0.18, 0.28, 0.34) * lamp);
-    col = mix(col, litUp, lamp);
-    col += vec3(0.42, 0.66, 0.82) * lamp * 0.14;
+    float fill = lamp * mix(1.35, 0.2, clear);
+    vec3 surf = max(col, vec3(0.26, 0.24, 0.2));
+    vec3 add = surf * fill * vec3(1.05, 0.97, 0.84);
+    vec3 outc = dark + add;
+    vec3 over = max(outc - vec3(0.58), 0.0);
+    return outc / (vec3(1.0) + over * 2.6);
   }
-  return col;
+  return dark;
 }
 `;
 
@@ -138,6 +150,9 @@ export function attachWorldShading(material, uniforms) {
     shader.uniforms.uLampPos = uniforms.uLampPos;
     shader.uniforms.uLampDir = uniforms.uLampDir;
     shader.uniforms.uLampI = uniforms.uLampI;
+    shader.uniforms.uLampCos = uniforms.uLampCos;
+    shader.uniforms.uLampKd = uniforms.uLampKd;
+    shader.uniforms.uLampRange = uniforms.uLampRange;
     shader.uniforms.uGlow = material.userData.uGlow || { value: 0 };
     if (!shader.vertexShader.includes("varying vec3 vCausticWorld")) {
       shader.vertexShader = shader.vertexShader.replace(
@@ -171,7 +186,7 @@ export function attachWorldShading(material, uniforms) {
   };
   const prevKey = material.customProgramCacheKey?.bind(material);
   material.customProgramCacheKey = () =>
-    `${prevKey ? prevKey() : material.uuid}|world-caustic-v10`;
+    `${prevKey ? prevKey() : material.uuid}|world-caustic-v12`;
   material.needsUpdate = true;
   return material;
 }

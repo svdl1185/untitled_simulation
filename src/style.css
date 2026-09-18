@@ -53,6 +53,7 @@ body {
 .hud-top,
 .hud-left,
 .hud-right,
+#lamp-hud,
 #pilot-hint {
   position: fixed;
   z-index: 2;
@@ -684,6 +685,21 @@ h3 {
   width: 0;
   border-radius: inherit;
   background: #8fd8c8;
+}
+
+#lamp-hud {
+  left: auto;
+  right: 28px;
+  bottom: 24px;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+#lamp-hud[hidden] {
+  display: none;
 }
 
 #pilot-hint {
@@ -1377,7 +1393,8 @@ kbd {
 }
 
 body.ocean-map-open #hud-column,
-body.ocean-map-open #pilot-hint {
+body.ocean-map-open #pilot-hint,
+body.ocean-map-open #lamp-hud {
   visibility: hidden;
 }
 

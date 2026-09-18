@@ -81,6 +81,15 @@ export const CONFIG = {
     iceAnomaly: 0,
   },
 
+  /**
+   * Camera dive lamp. Optics, not habitat — does not feed visualRange.
+   * `intensity` is torch power; `angle` is half-angle in degrees (spot → flood).
+   */
+  lamp: {
+    intensity: 1,
+    angle: 16,
+  },
+
   fish: { ...FISH_DEFAULTS },
 
   shark: vehicleCfg("shark"),
