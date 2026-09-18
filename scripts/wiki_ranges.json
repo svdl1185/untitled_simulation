@@ -1,0 +1,92 @@
+{
+  "comment": "Wikipedia / IUCN / Cypron world range maps. Catalog grain must match the map. Family/genus ids do not steal a single-species map. Run: python3 scripts/build_wiki_range.py",
+  "maps": [
+    {
+      "id": "greatwhite",
+      "reusePacked": "greatwhite",
+      "mode": "replace",
+      "skipHabitat": true,
+      "source": "IUCN 2018 Wikipedia map (Carcharodon carcharias)",
+      "file": "Great_white_shark_(Carcharodon_carcharias)_IUCN_range_2018.svg"
+    },
+    {
+      "id": "tigershark",
+      "file": "Cypron-Range_Galeocerdo_cuvier.svg",
+      "mode": "replace",
+      "skipHabitat": true,
+      "projection": "robinson",
+      "source": "Wikipedia Cypron-Range Galeocerdo cuvier"
+    },
+    {
+      "id": "whaleshark",
+      "file": "Cypron-Range_Rhincodon_typus.svg",
+      "mode": "base",
+      "occupancy": 0.32,
+      "skipHabitat": true,
+      "projection": "robinson",
+      "source": "Wikipedia Cypron-Range Rhincodon typus"
+    },
+    {
+      "id": "hammerhead",
+      "file": "Sphyrna_lewini_distribution_map.svg",
+      "mode": "replace",
+      "skipHabitat": true,
+      "projection": "robinson",
+      "source": "Wikipedia Sphyrna lewini distribution map"
+    },
+    {
+      "id": "shark",
+      "file": "Cypron-Range_Prionace_glauca.svg",
+      "mode": "replace",
+      "skipHabitat": true,
+      "projection": "robinson",
+      "source": "Wikipedia Cypron-Range Prionace glauca"
+    },
+    {
+      "id": "orca",
+      "file": "Orca_range.svg",
+      "mode": "replace",
+      "skipHabitat": true,
+      "projection": "robinson",
+      "source": "Wikipedia Orca range (IUCN 2023)"
+    },
+    {
+      "id": "commondolphin",
+      "file": "Delphinus_delphis_map.svg",
+      "mode": "replace",
+      "skipHabitat": true,
+      "projection": "robinson",
+      "source": "Wikipedia Delphinus delphis map (IUCN 2021)"
+    },
+    {
+      "id": "humpback",
+      "file": "Cypron-Range_Megaptera_novaeangliae.svg",
+      "mode": "gate",
+      "skipHabitat": false,
+      "projection": "robinson",
+      "source": "Wikipedia Cypron-Range Megaptera novaeangliae"
+    },
+    {
+      "id": "spermwhale",
+      "file": "Cypron-Range_Physeter_macrocephalus.svg",
+      "mode": "replace",
+      "skipHabitat": false,
+      "projection": "robinson",
+      "source": "Wikipedia Cypron-Range Physeter macrocephalus"
+    }
+  ],
+  "skip": [
+    { "id": "herring", "reason": "Wikipedia map is an orthographic globe with catch dots, not a world range raster." },
+    { "id": "minke", "reason": "Wikipedia common-minke map is Northern Hemisphere only; catalog id is acutorostrata / bonaerensis." },
+    { "id": "anchovy", "reason": "Catalog is Engraulis grain; no matching family map." },
+    { "id": "flyingfish", "reason": "Catalog is Exocoetidae; no matching family map." },
+    { "id": "sandlance", "reason": "Catalog is Ammodytes grain; no matching genus map." },
+    { "id": "lanternfish", "reason": "Catalog is Myctophidae; no matching family map." },
+    { "id": "krill", "reason": "Catalog is Euphausiidae; no matching family map." },
+    { "id": "jackmackerel", "reason": "Catalog is Trachurus grain; no matching genus map." },
+    { "id": "illex", "reason": "Catalog is Illex grain; no matching genus map." },
+    { "id": "marketsquid", "reason": "Catalog is Doryteuthis / Loligo grain; no matching map." },
+    { "id": "bluefin", "reason": "Catalog is Atlantic / Pacific / southern bluefin; an Atlantic-only map would empty the West Pacific." },
+    { "id": "benthos", "reason": "Field guild, not a taxon range." }
+  ]
+}

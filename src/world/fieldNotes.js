@@ -365,13 +365,13 @@ export const FAUNA = {
     diet: "Fish, squid, carrion",
     sex: "Female / male. Females are larger and initiate courtship.",
     about:
-      "Oceanic lamnid-adjacent carcharhinid, typically 1.8–3.3 m. Worldwide in temperate and tropical gyres. Usually 0–350 m; recorded to about 1000 m. Eats pelagic fish and squid. Viviparous; females pup after a gestation the year-timer stands in for.",
+      "Oceanic carcharhinid, typically 1.8–3.3 m. Worldwide in temperate and tropical gyres. Range follows the Wikipedia Cypron map. Usually 0–350 m; recorded to about 1000 m. Eats pelagic fish and squid. Viviparous; females pup after a gestation the year-timer stands in for.",
     program:
-      "Burst-and-glide vehicle: the tail actually quiets on the glide, then kicks on the burst. Patrol → stalk → strike-from-below → recover. Bites any school fish in mouth radius. Pack spacing; different hunt indices. Roam uses the full column this cell allows, not a herring-only band.",
+      "Burst-and-glide vehicle: the tail actually quiets on the glide, then kicks on the burst. Patrol → stalk → strike-from-below → recover. Bites any school fish in mouth radius. Pack spacing; different hunt indices. Geographic occupancy is the Wikipedia Cypron raster. Roam uses the full column this cell allows, not a herring-only band.",
     missing: [
       "Humboldt squid are a school pack sperm whales hunt on huntTaxa; blue sharks do not bite Humboldt.",
       "Carrion and seabirds are not food items.",
-      "Transoceanic pupping-versus-feeding migrations are a range hull, not a swim.",
+      "Transoceanic pupping-versus-feeding migrations are occupancy on the Wikipedia raster, not a swim.",
       "Sexual segregation (females and males in different gyres) is not a state.",
       "Olfaction along an odor corridor to a carcass is not a sense.",
       "Courtship is a year-timer plus energy, not bite-copulation or a nursery in another cell.",
@@ -446,15 +446,15 @@ export const FAUNA = {
     diet: "Fish, marine mammals, carrion",
     sex: "Female / male. Females are larger.",
     about:
-      "Temperate to subtropical lamnid, typically 4–6 m. Circumglobal in coastal and offshore waters of every ocean except the two Pacific gyres and the polar seas. Major aggregations: Farallones / Guadalupe, Cape Cod, Western Cape, Neptune Islands, New Zealand, the Mediterranean. Often 0–250 m; recorded to about 1200 m on offshore dives. Adults eat mammals; juveniles eat fish.",
+      "Temperate to subtropical lamnid, typically 4–6 m. Circumglobal in coastal and offshore waters of every ocean except the polar seas. Range follows the IUCN 2018 map: possibly extant across the temperate–subtropical ocean, extant resident on coasts, the Mediterranean, Australia–NZ, and the two Pacific gyres. Major aggregations: Farallones / Guadalupe, Cape Cod, Western Cape, Neptune Islands, New Zealand, the Mediterranean. Often 0–250 m; recorded to about 1200 m on offshore dives. Adults eat mammals; juveniles eat fish.",
     program:
-      "Burst-and-glide vehicle. Bites school fish. Larger fear radius than the blue shark. IUCN/Cypron band year-round (occupancy 0.5); Cape Cod local summer, California/Guadalupe autumn–winter, and the White Shark Café late winter–spring raise abundance. They do not hug a 480 km shore fade — the range is pelagic.",
+      "Burst-and-glide vehicle. Bites school fish. Larger fear radius than the blue shark. Geographic occupancy is the IUCN 2018 Wikipedia raster (possibly extant 0.5, extant resident 1). Vehicle count follows the weight. The White Shark Café sits in possibly-extant water inside that map — occupancy does not empty it in summer.",
     missing: [
       "Seals, sea lions, and whale carcasses are not agents — this build is the fish-eating programme.",
       "Endothermy / regional warm muscle is not a temperature field.",
       "Breaching on pinnipeds is not a behaviour.",
       "The juvenile-to-adult diet shift (fish, then mammals) is not ontogeny.",
-      "The offshore white-shark-café commute is occupancy on a hull, not a swim.",
+      "The White Shark Café commute is occupancy inside the IUCN North Pacific gyre, not a swim.",
       "Spyhopping is not a state.",
       "Colony-adjacent hunting landmarks are not objects.",
     ],
@@ -468,7 +468,7 @@ export const FAUNA = {
     sex: "Female / male.",
     about:
       "Tropical coastal shark, typically 3–4.5 m. Usually 0–100 m; recorded to about 350 m. Famous generalist.",
-    program: "Burst-and-glide. Coastal tropical hulls (Caribbean, East Pacific, West Africa, Indo-West Pacific, Hawaii) fade with kilometres from shore. Bites school fish. Not a filled latitude band; the Mediterranean and the gyres are empty.",
+    program: "Burst-and-glide. Geographic occupancy is the Wikipedia Cypron raster (Caribbean, Gulf of Mexico, West Africa, Indo-West Pacific; Mediterranean empty). Bites school fish.",
     missing: [
       "Turtles, carrion, and seabirds are not agents. Energy is only from school-fish bites, not a fake constant.",
       "Night-inshore / day-offshore commutes are not a schedule.",
@@ -486,7 +486,7 @@ export const FAUNA = {
     sex: "Female / male.",
     about:
       "Tropical and subtropical sphyrnid, typically 1.5–3 m. Schools by day at seamounts; hunts at night. Usually 0–275 m; recorded to about 500 m.",
-    program: "Burst-and-glide, tighter pack spacing than tiger sharks. Bites school fish. Same coastal tropical hulls as the tiger shark (fade with kilometres from shore), plus the Mediterranean.",
+    program: "Burst-and-glide, tighter pack spacing than tiger sharks. Bites school fish. Geographic occupancy is the Wikipedia distribution raster (tropical–subtropical coasts, including Gibraltar).",
     missing: [
       "Rays and seamount schooling landmarks are not in the cell.",
       "Electroreception is not a sense.",
@@ -506,14 +506,14 @@ export const FAUNA = {
     about:
       "Largest fish, typically 8–12 m. Tropical. Feeds at the surface on blooms and bait, but makes deep dives — recorded to about 1920 m. Not a hunter of herring shoals.",
     program:
-      "Ram vehicle. Filter diet: Type II graze on z at the current depth (plankton.graze). Does not bite school fish. Hungry animals stay with the bloom; satiated animals may roam the full column this cell allows. Tiny fear radius. Little bank — pecs are hydrofoils, not flapping wings.",
+      "Ram vehicle. Filter diet: Type II graze on z at the current depth (plankton.graze). Does not bite school fish. Hungry animals stay with the bloom; satiated animals may roam the full column this cell allows. Tiny fear radius. Little bank — pecs are hydrofoils, not flapping wings. Geographic occupancy is the Wikipedia Cypron raster as a tropical prior; Ningaloo / Yucatán / Mozambique hulls raise abundance in season.",
     missing: [
       "Fish eggs and bait balls as a separate food are not fields.",
       "The deep-dive optical story is still photic water — lighting is not a reason to forbid the dive.",
       "Ram-filter versus suction-filter (vertical feeding, yo-yo dives) is graze-while-cruising, not a feeding-mode switch.",
       "Aggregations at fish-spawn slicks are not a cue.",
       "Remoras are not agents.",
-      "Seasonal coastal aggregations (Ningaloo, Yucatán, Mozambique) are occupancy windows on the tropical prior, not a commute.",
+      "Seasonal coastal aggregations (Ningaloo, Yucatán, Mozambique) are occupancy windows on the Wikipedia Cypron tropical prior, not a commute.",
     ],
   },
   minke: {
@@ -546,7 +546,7 @@ export const FAUNA = {
     about:
       "Coastal migratory rorqual, typically 12–16 m. Feeds in high-latitude summers, winters in tropics. Lunge-feeds; recorded to about 500 m, usually much shallower. Must surface to breathe.",
     program:
-      "Burst vehicle, fluke swim, huge bite radius, long pecs, ventral grooves on the throat. Slow turn, little bank; pecs beat. Hunts school fish and krill. Air-breather: hangs level at the surface and blows two columns, then a foraging dive toward prey or typical forage ~60 m, clamped by min(500 m, this cell's floor). Typical 10 min dive / 2.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. Feeding hulls occupy local summer; tropical hulls occupy local winter. Needs school prey in the cell.",
+      "Burst vehicle, fluke swim, huge bite radius, long pecs, ventral grooves on the throat. Slow turn, little bank; pecs beat. Hunts school fish and krill. Air-breather: hangs level at the surface and blows two columns, then a foraging dive toward prey or typical forage ~60 m, clamped by min(500 m, this cell's floor). Typical 10 min dive / 2.5 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. Feeding hulls occupy local summer; tropical hulls occupy local winter. Wikipedia Cypron raster clips cells outside that map. Needs school prey in the cell.",
     missing: [
       "Song and breeding lagoons are not a season.",
       "Bubble-net hydrodynamics are not a field.",
@@ -566,7 +566,7 @@ export const FAUNA = {
     diet: "Squid (deep-sea squid, Humboldt, market squid)",
     sex: "Female / male. Males are drawn larger (typically 16 m vs 11 m).",
     about:
-      "The deep-diving toothed whale. Females ~11 m, males ~16 m. Cosmopolitan in ice-free oceans. Typical foraging dives 400–1200 m for 40–50 minutes; recorded beyond 2000 m. Hunts squid by echolocation. Must return to the surface to breathe.",
+      "The deep-diving toothed whale. Females ~11 m, males ~16 m. Cosmopolitan in ice-free oceans. Range follows the Wikipedia Cypron map, then oceanic floor and ice. Typical foraging dives 400–1200 m for 40–50 minutes; recorded beyond 2000 m. Hunts squid by echolocation. Must return to the surface to breathe.",
     program:
       "Burst vehicle, fluke swim, block head (spermaceti organ, underslung jaw, left blowhole, knuckles to the fluke). The head stays stiff; only the tailstock waves. Slow turn, little bank. Air-breather: hangs level at the surface and blows a single forward-left spout, then a foraging dive toward live squid/lanternfish or typical forage ~700 m — not a commute to 2000 m. maxDepth 2000 m is the clamp; in a 1500 m cell the floor wins first. Prefers market squid, Illex, lanternfish, and Humboldt squid (huntTaxa). Bites giant squid when that vehicle is in mouth range (huntKinds). Typical 45 min forage / 8 min blow series, mapped 15× onto wall-clock (~3 min dive) so it still finishes inside the 8 min day; recovery only counts at the air. Does not bite herring. Missing named prey still produces the dive; it does not get free calories. sense is echo: PAR does not shrink this whale's detect or fear.",
     missing: [
@@ -589,7 +589,7 @@ export const FAUNA = {
     diet: "Fish (this ecotype); other ecotypes eat mammals",
     sex: "Female / male.",
     about:
-      "Cosmopolitan dolphin, typically 5–8 m. Fish-eating (resident-type) ecotypes hunt herring, salmon, and other fish, usually in the upper 100–200 m; recorded to about 800 m. Must surface to breathe. Mammal-eating (transient) ecotypes hunt seals and whales.",
+      "Cosmopolitan dolphin, typically 5–8 m. Range follows the Wikipedia IUCN 2023 map. Fish-eating (resident-type) ecotypes hunt herring, salmon, and other fish, usually in the upper 100–200 m; recorded to about 800 m. Must surface to breathe. Mammal-eating (transient) ecotypes hunt seals and whales.",
     program:
       "Ram vehicle, authored orca glTF (taller dorsal on males; white eye patch and belly). Tight pack, large fear radius. Bites school fish. Air-breather: hangs level at the surface and blows a short puff, then a foraging dive toward the school or typical forage ~90 m, clamped by min(800 m, this cell's floor). Typical 6 min dive / ~1.2 min blow series, mapped 5× onto wall-clock; recovery only counts at the air. This is the fish-eating programme. Banks in the turn like a dolphin, not a rorqual. sense is echo: PAR does not shrink detect or fear.",
     missing: [
@@ -614,7 +614,7 @@ export const FAUNA = {
     about:
       "Small oceanic dolphin, typically 1.7–2.4 m. Tropical and warm-temperate. Hunts surface forage, often with tunas. Usually the upper 200 m; recorded near 300 m. Must surface to breathe.",
     program:
-      "Ram vehicle, authored dolphin glTF, smaller than orca. Banks in the turn. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather: hangs level at the surface and blows a small puff, then a foraging dive toward that prey or typical forage ~18 m, clamped by min(300 m, this cell's floor). Typical 2.5 min dive / ~40 s blow series, mapped 5× onto wall-clock; recovery only counts at the air. Warm-temperate hulls (North Atlantic, Med, California, Japan, New Zealand, South Africa, southern Australia), not a filled tropical band.",
+      "Ram vehicle, authored dolphin glTF, smaller than orca. Banks in the turn. huntTaxa is flying fish, sardinella, anchovy, and sardine — the surface loop mahi also uses. Air-breather: hangs level at the surface and blows a small puff, then a foraging dive toward that prey or typical forage ~18 m, clamped by min(300 m, this cell's floor). Typical 2.5 min dive / ~40 s blow series, mapped 5× onto wall-clock; recovery only counts at the air. Geographic occupancy is the Wikipedia IUCN 2021 raster (warm-temperate bands, not a filled tropical gyre).",
     missing: [
       "Tuna-dolphin associations are not a cue.",
       "Long-beaked D. capensis is not a second id.",

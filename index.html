@@ -284,10 +284,13 @@
               MPB uptake, infauna graze, benthos graze.
             </li>
             <li>
-              <strong>Range.</strong> Hulls and catalog niches scored by season, kilometres from shore,
-              SST, ice, OMZ, upwell, and shelf-vs-oceanic floor, then trophic gates. Occupancy scales
-              abundance on a year-round hull; it does not empty a cell the species still lives in.
-              School share and vehicle count scale with the weight. Overlap is habitat. Empty is honest.
+              <strong>Range.</strong> Hulls, Wikipedia / IUCN / Cypron rasters, and catalog niches
+              scored by season, kilometres from shore, SST, ice, OMZ, upwell, and shelf-vs-oceanic floor,
+              then trophic gates. A matching Wikipedia world map is scanned onto a 360×170 occupancy
+              raster (<code>scripts/wiki_ranges.json</code>); family/genus ids do not steal a
+              single-species map. Occupancy scales abundance on a year-round hull; it does not empty
+              a cell the species still lives in. School share and vehicle count scale with the weight.
+              Overlap is habitat. Empty is honest.
             </li>
             <li>
               <strong>Window.</strong> Water, fog, and fish follow the same <em>K</em><sub>d</sub>.

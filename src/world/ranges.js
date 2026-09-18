@@ -1,5 +1,9 @@
 /**
  * Range polygons until AquaMaps/OBIS slot into the atlas.
+ * Wikipedia / IUCN / Cypron world maps are sampled onto 360×170 rasters
+ * (`scripts/wiki_ranges.json`, `scripts/build_wiki_range.py`) when a map
+ * matches the catalog grain. Hulls remain for taxa with no such map, and
+ * as seasonal occupancy on top of a raster.
  *
  * Every species whose hull covers the cell is present. Overlap is real
  * habitat, not a bug: Humboldt can hold anchoveta and sardine; the North
@@ -16,6 +20,7 @@ import { climateIce } from "../simulation/ice.js";
 import { climateUpwell } from "../simulation/flow.js";
 import { CONFIG } from "../config.js";
 import { coastKmAt, coastWeight, fillRings } from "./coast.js";
+import { WIKI_IDS, wikiMeta, applyWikiPresence, stampWikiRaster } from "./wikiRange.js";
 
 const HERRING_RESIDENT = [
   [
@@ -395,119 +400,6 @@ const MARKETSQUID_HULLS = [
     [36, 42],
     [36, 32],
     [10, 30],
-  ],
-];
-
-const GREATWHITE_RANGE = [
-  [
-    [-98, 20],
-    [-90, 30],
-    [-82, 35],
-    [-76, 50],
-    [-8, 50],
-    [6, 45],
-    [36, 42],
-    [36, 30],
-    [20, 32],
-    [20, -50],
-    [-50, -50],
-    [-70, -48],
-    [-70, -18],
-    [-82, 8],
-    [-90, 14],
-  ],
-  [
-    [20, 32],
-    [50, 30],
-    [80, 24],
-    [110, 16],
-    [130, 0],
-    [130, -50],
-    [20, -50],
-  ],
-  [
-    [110, -50],
-    [180, -50],
-    [180, -38],
-    [165, -22],
-    [155, 10],
-    [150, 46],
-    [128, 46],
-    [122, 34],
-    [118, 10],
-    [110, -12],
-  ],
-  [
-    [-180, -50],
-    [-165, -50],
-    [-165, -38],
-    [-180, -38],
-  ],
-  [
-    [160, 12],
-    [180, 12],
-    [180, -4],
-    [160, -4],
-  ],
-  [
-    [-180, 12],
-    [-95, 10],
-    [-85, 4],
-    [-85, -4],
-    [-180, -4],
-  ],
-  [
-    [-130, 22],
-    [-116, 22],
-    [-116, 50],
-    [-135, 50],
-    [-135, 40],
-    [-130, 32],
-  ],
-  [
-    [-82, -18],
-    [-70, -18],
-    [-70, -50],
-    [-82, -50],
-  ],
-  [
-    [150, -42],
-    [180, -42],
-    [180, -50],
-    [150, -50],
-  ],
-  [
-    [-180, -42],
-    [-82, -42],
-    [-82, -50],
-    [-180, -50],
-  ],
-];
-
-const GREATWHITE_CAPE = [
-  [
-    [-76, 32],
-    [-76, 46],
-    [-64, 46],
-    [-64, 32],
-  ],
-];
-
-const GREATWHITE_CALIFORNIA = [
-  [
-    [-126, 24],
-    [-126, 42],
-    [-116, 42],
-    [-116, 24],
-  ],
-];
-
-const GREATWHITE_CAFE = [
-  [
-    [-140, 23],
-    [-125, 23],
-    [-125, 32],
-    [-140, 32],
   ],
 ];
 
@@ -1023,10 +915,6 @@ const RANGES = [
   { id: "krill", hulls: [...SILVERFISH_HULLS, ...KRILL_NA_HULLS] },
   { id: "toothfish", hulls: SILVERFISH_HULLS },
   { id: "cod", hulls: COD_HULLS },
-  { id: "greatwhite", hulls: GREATWHITE_RANGE, occupancy: 0.5 },
-  { id: "greatwhite", hulls: GREATWHITE_CAPE, season: { peak: 210, width: 80 } },
-  { id: "greatwhite", hulls: GREATWHITE_CALIFORNIA, season: { peak: 300, width: 90 } },
-  { id: "greatwhite", hulls: GREATWHITE_CAFE, season: { peak: 60, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_FEED, season: { peak: 210, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_BREED, season: { peak: 30, width: 70 } },
   { id: "humboldtsquid", hulls: HUMBOLDT_HULLS },
@@ -1038,24 +926,14 @@ const RANGES = [
   { id: "yellowfin", hulls: TROPICAL_OCEANIC },
   { id: "sailfish", hulls: TROPICAL_OCEANIC },
   { id: "mahi", hulls: [...TROPICAL_OCEANIC, ...MED_HULL] },
-  { id: "tigershark", hulls: TROPICAL_COASTAL, coastKm: 560 },
-  { id: "hammerhead", hulls: [...TROPICAL_COASTAL, ...MED_HULL], coastKm: 560 },
   { id: "barracuda", hulls: TROPICAL_COASTAL, coastKm: 560 },
-  { id: "commondolphin", hulls: COMMON_DOLPHIN_HULLS, coastKm: 850 },
-  { id: "whaleshark", hulls: TROPICAL_OCEANIC, occupancy: 0.32 },
   { id: "whaleshark", hulls: WHALESHARK_NINGALOO, season: { peak: 105, width: 55, absolute: true } },
   { id: "whaleshark", hulls: WHALESHARK_YUCATAN, season: { peak: 210, width: 50, absolute: true } },
   { id: "whaleshark", hulls: WHALESHARK_MOZ, season: { peak: 15, width: 55, absolute: true } },
 ];
 
-/** Cosmopolitan pelagic taxa: geographic prior is 1, then catalog niches. */
-const OPEN_RANGE = [
-  "lanternfish",
-  "giantsquid",
-  "shark",
-  "spermwhale",
-  "orca",
-];
+/** Cosmopolitan pelagic taxa without a Wikipedia world map: geographic prior is 1, then catalog niches. */
+const OPEN_RANGE = ["lanternfish", "giantsquid"];
 
 export function seasonWeight(doy, peak, width, lat = 0, absolute = false) {
   if (peak == null || width == null || width <= 0) return 1;
@@ -1226,6 +1104,8 @@ export function presenceAt(lat, lon, env = {}) {
     p[spec.id] = Math.max(p[spec.id] ?? 0, occ);
   }
 
+  applyWikiPresence(p, lat, lon);
+
   for (const id of OPEN_RANGE) {
     if ((p[id] ?? 0) > 0.05) continue;
     p[id] = 1;
@@ -1234,6 +1114,7 @@ export function presenceAt(lat, lon, env = {}) {
 
   for (const id of Object.keys(p)) {
     if ((p[id] ?? 0) <= 0.05) continue;
+    if (wikiMeta(id)?.skipHabitat) continue;
     const w = habitatWeight(SPECIES[id], climate);
     p[id] = w > 0.05 ? Math.min(1, p[id] * w) : 0;
   }
@@ -1318,6 +1199,9 @@ export function rasterHabitat({
       }
     }
   }
+  for (const id of WIKI_IDS) {
+    if (grid[id]) stampWikiRaster(id, grid[id], cols, rows, south, north);
+  }
   for (const id of OPEN_RANGE) {
     const g = grid[id];
     if (!g) continue;
@@ -1339,6 +1223,7 @@ export function rasterHabitat({
       const climate = climateEnv(lat, lon, { dayOfYear: doy, floorY: floorAt?.(lat, lon) });
       for (const id of want) {
         if (p[id] <= 0.05) continue;
+        if (wikiMeta(id)?.skipHabitat) continue;
         const w = habitatWeight(SPECIES[id], climate);
         p[id] = w > 0.05 ? Math.min(1, p[id] * w) : 0;
       }
