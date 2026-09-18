@@ -22,7 +22,7 @@ Sibling of `sampleFlow`.
 - The mixed layer is well-mixed; below it temperature falls toward a deep value. `CONFIG.thermoY` is that mixed-layer depth. Winter mixes deeper; storms mix deeper still.
 - `sampleTemp(x, y, z)` returns °C.
 - `q10Factor` / `columnQ10` scale NPZD rates, school metabolism/graze, and vehicle drain.
-- Catalog `temp.min` / `temp.max` scores presence on **seasonal** SST (`climatologySST`) with ~1.6 °C shoulders, not the annual mean. Coastal range rows may also set `coastKm`: presence fades with kilometres from Natural Earth land (`src/world/coast.js`).
+- Catalog `temp.min` / `temp.max` scores presence on **seasonal** SST (`climatologySST`) with ~1.6 °C shoulders, not the annual mean. Coastal range rows set `coastKm`: presence fades with kilometres from Natural Earth land (`src/world/coast.js`), so a neritic envelope paints as a shoreline ribbon, not a filled lon/lat box.
 
 ## Dissolved oxygen — `src/simulation/oxygen.js`
 

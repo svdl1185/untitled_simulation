@@ -111,7 +111,7 @@ Near the camera only. One hashed-grid school (cap 20k, `UniformGrid3D`, 32768 bu
 
 ### Range and presence
 
-Hulls, Wikipedia rasters, and catalog niches in `src/world/ranges.js`. When a Wikipedia / IUCN / Cypron world map matches the catalog grain, `scripts/build_wiki_range.py` samples it onto a 360×170 occupancy raster (`src/world/wikiRangeData.js`). `presenceAt` scores that raster (or a covering hull, or an oceanic prior) by seasonal occupancy, kilometres from shore, SST (soft shoulders), ice, OMZ, upwell, and shelf-vs-oceanic floor, then trophic gates. Raster taxa that should match the Wikipedia shape skip the climate punch (`skipHabitat`). Weights 0–1; overlap is habitat. Empty is honest. School `share` and vehicle `count` scale with the weight. The **Day of year** slider is the calendar (`CONFIG.time.dayIndex`); live clock advances hour only. Map hover uses the same function plus a coarse GEBCO floor. **Overlay** rasters geographic habitat onto the basemap — the Wikipedia range where we scanned one, otherwise hull × coast × season × SST × ice × upwell × floor. A day-of-year scrubber sits on the overlay. Range vs spawn toggles the trophic gate. Cell spawn still trophic-gates. Occupancy with `season.floor` scales abundance in a year-round hull and does not empty the cell; omit `floor` only on hulls the animals actually leave. `CONFIG.presence[id]` on `applyPatch`; spawn gated with `faunaPresent(id)`. A new catalog id that has a matching world map goes in `scripts/wiki_ranges.json`; family/genus ids do not steal a single-species map.
+Hulls, Wikipedia rasters, and catalog niches in `src/world/ranges.js`. When a Wikipedia / IUCN / Cypron world map matches the catalog grain, `scripts/build_wiki_range.py` samples it onto a 360×170 occupancy raster (`src/world/wikiRangeData.js`). `presenceAt` scores that raster (or a covering hull, or an oceanic prior) by seasonal occupancy, kilometres from shore, SST (soft shoulders), ice, OMZ, upwell, and shelf-vs-oceanic floor, then trophic gates. Raster taxa that should match the Wikipedia shape skip the climate punch (`skipHabitat`). Weights 0–1; overlap is habitat. Empty is honest. School `share` and vehicle `count` scale with the weight. The **Day of year** slider is the calendar (`CONFIG.time.dayIndex`); live clock advances hour only. Map hover uses the same function plus a coarse GEBCO floor. **Overlay** rasters geographic habitat onto the basemap — the Wikipedia range where we scanned one, otherwise a hull envelope clipped to kilometres from shore, then season × SST × ice × upwell × floor. Neritic taxa without a scanned map (sardine, pilchard, anchovy, sardinella, mackerel, market squid, Illex, jack mackerel, Humboldt squid) are coastal ribbons, not filled lon/lat boxes. A day-of-year scrubber sits on the overlay. Range vs spawn toggles the trophic gate. Cell spawn still trophic-gates. Occupancy with `season.floor` scales abundance in a year-round hull and does not empty the cell; omit `floor` only on hulls the animals actually leave. `CONFIG.presence[id]` on `applyPatch`; spawn gated with `faunaPresent(id)`. A new catalog id that has a matching world map goes in `scripts/wiki_ranges.json`; family/genus ids do not steal a single-species map. Without a map, set `coastKm` on the envelope — do not leave an axis-aligned rectangle as the painted range.
 
 - Most bite-predators need some *forage* school prey in the cell, not another piscivore. Bluefin needs *named* temperate forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel), not a flying-fish-only cell. Cod need herring, capelin, or sand lance, and a shelf (dropped if floor deeper than ~650 m). Humboldt needs named East-Pacific forage or lanternfish, an OMZ, and climate upwell. Toothfish need silverfish. Common dolphin need surface forage. Giant squid need lanternfish / market squid / Illex, and a floor deeper than ~350 m (`floor.max`).
 - Whale shark and minke eat the bloom — they can occupy a cell with no school fish. Minke feeding occupancy is a local-summer window.
@@ -131,22 +131,22 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 | herring | forage · polarized | `z` | −20 / −110 · 400 m | Temp −1.8–20 °C. Default pancake. North Sea year-round; Norwegian Sea summer; Vestfjorden winter. |
 | capelin | forage · polarized | `z` | −8 / −52 · 300 m | Temp −1.8–12 °C. Coastal spawn is a spring window. |
 | menhaden | forage · polarized | `p` (higher graze) | −6 / −32 · 48 m | Inner-shelf; fades with kilometres from shore. Summer abundance boost, winter still present. Filter on phytoplankton. |
-| sardine | forage · polarized | `z` | −12 / −58 · 200 m | |
-| pilchard | forage · polarized | `z` | −14 / −68 · 150 m | |
-| anchovy | forage · polarized | `z` | −8 / −38 · 150 m | Latin follows the cell. |
-| sardinella | forage · polarized | `z` | −10 / −48 · 200 m | Temp 16–31 °C. |
-| mackerel | forage · polarized | `z` + named forage | −12 / −48 · 400 m | `diet: "both"`. Stays on the bloom cap. |
+| sardine | forage · polarized | `z` | −12 / −58 · 200 m | Neritic; fades with kilometres from shore. |
+| pilchard | forage · polarized | `z` | −14 / −68 · 150 m | Neritic envelope (Iberia / Med). |
+| anchovy | forage · polarized | `z` | −8 / −38 · 150 m | Latin follows the cell. Coastal clip. |
+| sardinella | forage · polarized | `z` | −10 / −48 · 200 m | Temp 16–31 °C. Coastal clip. |
+| mackerel | forage · polarized | `z` + named forage | −12 / −48 · 400 m | `diet: "both"`. Stays on the bloom cap. Coastal clip. |
 | flyingfish | surface · loose | `z` | top ~20 m · 20 m | Temp 16–31 °C. Oceanic realm. Fear steers up. Glide not simulated. |
 | sprat | forage · polarized | `z` | −8 / −38 · 150 m | |
 | sandlance | forage · polarized (thin) | `z` | −6 / −42 · 120 m | Fear steers down. Burying is not a state. |
 | polarcod | forage · polarized | `z` | −12 / −48 · 700 m | Temp −1.8–6 °C. `iceAssociated`. |
 | silverfish | forage · polarized | `z` | −18 / −82 · 700 m | Temp −1.8–6 °C. Toothfish prey. `iceAssociated`. |
-| saury | surface · loose | `z` | top ~50 m · 50 m | Fear steers up. |
-| marketsquid | cephalopod · scatter | `z` | −16 / −200 · 400 m | Jet pulse–coast. Sperm `huntTaxa`. |
+| saury | surface · loose | `z` | top ~50 m · 50 m | Fear steers up. SST 8–22 °C. |
+| marketsquid | cephalopod · scatter | `z` | −16 / −200 · 400 m | Jet pulse–coast. Sperm `huntTaxa`. Coastal clip. |
 | lanternfish | forage · scatter | `z` | −40 / −280 · 450 m | `o2Min` 0.08. Photophores restore visual detect. Oceanic realm. Enlarges `gridMinY` when present. |
 | krill | forage · scatter | `p` | −6 / −90 · 220 m | Paddle; mysticetes bite this taxon. `iceAssociated`. |
-| jackmackerel | forage · polarized | `z` | −14 / −95 · 300 m | Humboldt `huntTaxa`. |
-| illex | cephalopod · scatter | `z` | −20 / −240 · 600 m | Atlantic squid. Sperm `huntTaxa`. |
+| jackmackerel | forage · polarized | `z` | −14 / −95 · 300 m | Humboldt `huntTaxa`. Coastal stocks + oceanic belt. |
+| illex | cephalopod · scatter | `z` | −20 / −240 · 600 m | Atlantic squid. Sperm `huntTaxa`. Coastal clip. |
 | tuna (skipjack) | pelagic predator · polarized | school fish | −8 / −48 · 260 m | `diet: "bite"`. Prey-capped share. `o2Min` 2.4. Circumtropical oceanic hulls. |
 | yellowfin | pelagic predator · polarized | school fish | −12 / −90 · 500 m | Deeper than skipjack. Circumtropical oceanic hulls. |
 | mahi | surface predator · loose | school fish | −3 / −18 · 85 m | Surface band. Temp 16–31 °C. |
@@ -154,7 +154,7 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 | sailfish | surface predator · loose | school fish | −6 / −42 · 200 m | Billfish mesh. Temp 16–31 °C. |
 | cod | demersal · scatter | named shelf forage + benthos | bed · 600 m | `habitat: "benthic"`. Shelf only (dropped if floor ≲ −650 m). |
 | toothfish | slope · scatter | silverfish | bed · 2000 m | Antarctic slope. Not the 650 m gate. |
-| humboldtsquid | cephalopod predator · scatter | anchovy, sardine, mackerel, lanternfish, jack mackerel | −80 / OMZ core · 1200 m | Jet on the grid. `needOmz`. Enlarges `gridMinY`. Sperm `huntTaxa`. |
+| humboldtsquid | cephalopod predator · scatter | anchovy, sardine, mackerel, lanternfish, jack mackerel | −80 / OMZ core · 1200 m | Jet on the grid. `needOmz`. Coastal East Pacific plus equatorial tongue. Enlarges `gridMinY`. Sperm `huntTaxa`. |
 
 **Vehicles (rares and air-breathers)**
 

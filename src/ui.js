@@ -1250,7 +1250,7 @@ function bindFilter(root, emit) {
   let focusId = null;
   let query = "";
   const lead = el("p", {
-    text: "Geographic habitat on this day of year: hull, coast distance, season, SST, ice, upwell, and floor. Occupancy scales how many animals the cell holds — it does not empty a range the species still lives in. Spawn mode adds the trophic gate the cell uses. Several taxa overlay at once.",
+    text: "Geographic habitat on this day of year: Wikipedia raster where we have one, otherwise a hull envelope clipped to kilometres from shore, then season, SST, ice, upwell, and floor. Occupancy scales how many animals the cell holds — it does not empty a range the species still lives in. Spawn mode adds the trophic gate the cell uses. Several taxa overlay at once.",
   });
   const search = el("input", {
     type: "search",

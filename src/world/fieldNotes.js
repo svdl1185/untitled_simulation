@@ -75,7 +75,7 @@ export const FAUNA = {
     about:
       "Pacific and southern-hemisphere sardine, typically 15–25 cm. Tight, fast shoals in eastern-boundary currents. Usually in the upper 100 m; recorded near 200 m. Co-occurs with anchovy.",
     program:
-      "Polarized clupeid shoal. Type II graze on z. Occupies eastern-boundary cells where climate upwell shoals the nutricline. Empty in the North Sea is a range gate.",
+      "Polarized clupeid shoal. Type II graze on z. Occupies eastern-boundary cells where climate upwell shoals the nutricline. Geographic occupancy is a coastal envelope clipped to kilometres from shore — not a filled lon/lat box. Empty in the North Sea is a range gate.",
     missing: [
       "Temperature-driven stock collapses are not a field.",
       "Sardine–anchovy regime alternation is not a two-stock oscillator.",
@@ -92,7 +92,7 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "Northeast Atlantic, Mediterranean, and northwest African upwelling. Typically 15–25 cm. Day depths tens of metres; recorded to about 150 m. Overlaps herring at the Celtic / Biscay edge.",
-    program: "Polarized shoal. Type II graze on z. Canary / Iberian cells inherit climate upwell on the nutricline.",
+    program: "Polarized shoal. Type II graze on z. Canary / Iberian cells inherit climate upwell on the nutricline. Range is a coastal envelope (Iberia, Morocco, Mediterranean) fading with kilometres from shore.",
     missing: [
       "Purse-seine fishing mortality is not in the budget.",
       "Coastwise migration along Iberia and the Canary Current is a range hull, not a swim.",
@@ -108,7 +108,7 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "Small engraulid, typically 8–16 cm. Coastal upwelling. Usually above 100 m; recorded to about 150 m. Latin follows the cell: ringens (Humboldt), mordax (California), japonicus (Kuroshio), encrasicolus (Europe).",
-    program: "Slender polarized shoal. Type II graze on z. Competes with sardine where both hulls cover the kilometre. Humboldt / California cells shoal the nutricline under climate upwell.",
+    program: "Slender polarized shoal. Type II graze on z. Competes with sardine where both envelopes cover the kilometre. Occupancy fades with kilometres from shore. Humboldt / California cells shoal the nutricline under climate upwell.",
     missing: [
       "Egg and larval stages are not agents.",
       "Lunar batch spawning is not a clock.",
@@ -126,7 +126,7 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "Tropical Atlantic, Caribbean, Gulf of Guinea, and Indian Ocean. Typically 15–25 cm. Upper 100–200 m. The forage that occupies warm water herring never reach.",
-    program: "Polarized tropical shoal. Type II graze on z.",
+    program: "Polarized tropical shoal. Type II graze on z. Occupancy is a coastal envelope around the tropical Atlantic and Indian Ocean, fading with kilometres from shore.",
     missing: [
       "Indian oil sardine is the same id with a localized latin name, not a second loop.",
       "Monsoon-driven inshore/offshore shifts are a range hull, not a swim.",
@@ -251,11 +251,11 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "North Pacific scomberesocid, typically 20–30 cm. Surface to about 50 m. Loose aggregations, not a polarized lattice. Migrates with the Kuroshio / Oyashio.",
-    program: "Loose surface aggregation on the shared grid. Type II graze on z. Fear steers toward the surface.",
+    program: "Loose surface aggregation on the shared grid. Type II graze on z. Fear steers toward the surface. SST 8–22 °C sculpts the North Pacific band.",
     missing: [
       "Seasonal north–south migration is a range hull, not a swim.",
       "Night-light attraction (the stick-held dip-net fishery) is not a cue.",
-      "The Oyashio–Kuroshio front is not a temperature field.",
+      "The Oyashio–Kuroshio front as a mesoscale filament is not a field — occupancy uses climatology SST.",
       "Surface skipping and jumping are not a behaviour.",
     ],
   },
@@ -269,7 +269,7 @@ export const FAUNA = {
     about:
       "Temperate loliginids (California Doryteuthis opalescens, European Loligo, Japanese Todarodes-adjacent market squid). Typically 12–30 cm mantle. Night near the surface; day tens to a few hundred metres. Recorded to about 400 m. Short-lived; spawn and die. Prey for sperm whales, sea lions, and fish.",
     program:
-      "Scatter social mode on the shared hashed grid — nearly independent, not a fish shoal. Type II graze on z. Can pitch nearly vertically. Pulse–coast on the school velocity (same clock as the mantle mesh), then hang on the current. Sperm whales prefer this taxon (with Illex and lanternfish) when it is present.",
+      "Scatter social mode on the shared hashed grid — nearly independent, not a fish shoal. Type II graze on z. Can pitch nearly vertically. Pulse–coast on the school velocity (same clock as the mantle mesh), then hang on the current. Occupancy fades with kilometres from shore. Sperm whales prefer this taxon (with Illex and lanternfish) when it is present.",
     missing: [
       "Piscivory on small fish is not a bite.",
       "Spawning aggregations and die-off are not a season.",
@@ -331,7 +331,7 @@ export const FAUNA = {
     about:
       "Carangid forage of eastern-boundary currents, typically 20–50 cm. Deeper and larger than sardine. Humboldt (murphyi), California (symmetricus), Japan (japonicus), New Zealand (declivis). Usually the upper 150 m; recorded near 300 m. Prey for tunas and Humboldt squid.",
     program:
-      "Polarized shoal, not a Scomber clone: different hulls, a deeper day band, and a Humboldt-squid huntTaxa slot. Type II graze on z.",
+      "Polarized shoal, not a Scomber clone: different hulls, a deeper day band, and a Humboldt-squid huntTaxa slot. Type II graze on z. Coastal stocks fade with kilometres from shore; murphyi's oceanic spawning belt west of Chile is a separate envelope.",
     missing: [
       "Piscivory on anchoveta is not a school-on-school bite.",
       "The oceanic jack-mackerel-belt spawning is a hull, not a swim.",
@@ -348,7 +348,7 @@ export const FAUNA = {
     about:
       "Ommastrephid squid of the Atlantic. Northern shortfin (illecebrosus) from the Grand Banks to the Mid-Atlantic; Argentine shortfin (argentinus) on the Patagonian shelf. Typically 20–40 cm mantle. Night near the surface; day a few hundred metres. Recorded to about 600 m. The Atlantic squid sperm whales actually meet.",
     program:
-      "Scatter school squid, same programme as market squid but an Atlantic hull and a deeper day refuge. Type II graze on z. Can pitch nearly vertically. Pulse–coast on the school velocity. Sperm huntTaxa includes this id.",
+      "Scatter school squid, same programme as market squid but an Atlantic hull and a deeper day refuge. Type II graze on z. Can pitch nearly vertically. Pulse–coast on the school velocity. Occupancy fades with kilometres from shore. Sperm huntTaxa includes this id.",
     missing: [
       "Shelf-break spawning and the fishery are not a season.",
       "Chromatophores and ink are not displays. The mantle pulse is a speed envelope on the school loop, not a second integrator.",
@@ -637,7 +637,7 @@ export const FAUNA = {
     about:
       "East Pacific jumbo flying squid, typically 0.8–2 m. Famous DVM: night in the upper 100 m, day 200–700 m, recorded to about 1200 m in the oxygen minimum. Hunts anchoveta, sardine, and lanternfish. Cannibalistic.",
     program:
-      "Scatter school, jet pulse–coast on the hashed-grid velocity (same integrator as market squid), not a Reynolds handful. Day DVM follows the OMZ core (`omzCoreY`); night the upper 100 m. Enlarges `gridMinY` when present. Neighbour-walk bites anchovy, sardine, mackerel, lanternfish, and jack mackerel (huntTaxa). In low PAR, lanternfish photophores restore a fraction of detect range so the day OMZ hunt is not a starve. Flees sperm whales downward (deep day band). East Pacific hull plus an OMZ presence gate. Sperm whales hunt this taxon (`huntTaxa`).",
+      "Scatter school, jet pulse–coast on the hashed-grid velocity (same integrator as market squid), not a Reynolds handful. Day DVM follows the OMZ core (`omzCoreY`); night the upper 100 m. Enlarges `gridMinY` when present. Neighbour-walk bites anchovy, sardine, mackerel, lanternfish, and jack mackerel (huntTaxa). In low PAR, lanternfish photophores restore a fraction of detect range so the day OMZ hunt is not a starve. Flees sperm whales downward (deep day band). East Pacific coastal envelope plus an equatorial tongue toward 140°W, an OMZ presence gate, and climate upwell. Sperm whales hunt this taxon (`huntTaxa`).",
     missing: [
       "Cannibalism is not a school-on-school huntTaxa loop on this pack.",
       "Rapid chromatophore flashing as pack communication is not a state.",

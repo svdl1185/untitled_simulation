@@ -391,6 +391,39 @@ function assert(cond, msg) {
   assert(chesJan.menhaden > 0, "winter Chesapeake still holds menhaden — occupancy is abundance, not an empty cell");
   assert(chesJun.menhaden > chesJan.menhaden, "summer should raise menhaden abundance in the same hull");
 
+  const peruShelf = presenceAt(-16, -76.2, { floorY: -2800, dayOfYear: 180 });
+  assert(peruShelf.sardine > 0, "Peru upwelling cell should hold sardine");
+  assert(peruShelf.anchovy > 0, "Peru upwelling cell should hold anchoveta");
+  assert(peruShelf.humboldtsquid > 0, "Peru upwelling cell should hold Humboldt squid");
+  assert(peruShelf.jackmackerel > 0, "Peru upwelling cell should hold jack mackerel");
+  const peruGyre = presenceAt(-16, -90, { floorY: -4000, dayOfYear: 180 });
+  assert(!(peruGyre.sardine > 0), "open SE Pacific west of the Humboldt coast is not sardine water");
+  assert(!(peruGyre.anchovy > 0), "open SE Pacific west of the Humboldt coast is not anchovy water");
+  const peruOff = presenceAt(-16, -83, { floorY: -4000, dayOfYear: 180 });
+  assert(!(peruOff.sardine > 0), "the old Humboldt sardine box should empty far from shore");
+  const honshu = presenceAt(38, 141.5, { floorY: -200, dayOfYear: 180 });
+  assert(honshu.sardine > 0, "Honshu should hold sardine");
+  const kuroshioOff = presenceAt(36, 150, { floorY: -4000, dayOfYear: 180 });
+  assert(!(kuroshioOff.sardine > 0), "open Pacific east of Honshu should not fill the old sardine box");
+  const calCoast = presenceAt(36, -122, { floorY: -200, dayOfYear: 180 });
+  assert(calCoast.sardine > 0, "California Current coast should hold sardine");
+  const calOff = presenceAt(32, -125, { floorY: -4000, dayOfYear: 180 });
+  assert(!(calOff.sardine > 0), "offshore California Current box should empty with coast distance");
+
+  const packSardine = rasterHabitat({
+    cols: 90,
+    rows: 42,
+    ids: ["sardine"],
+    dayOfYear: 180,
+  });
+  const atS = (lat, lon) => {
+    const i = Math.max(0, Math.min(packSardine.cols - 1, (((lon + 180) / 360) * packSardine.cols) | 0));
+    const j = Math.max(0, Math.min(packSardine.rows - 1, (((packSardine.north - lat) / (packSardine.north - packSardine.south)) * packSardine.rows) | 0));
+    return j * packSardine.cols + i;
+  };
+  assert(packSardine.grid.sardine[atS(-16, -76)] > 0.05, "overlay should paint sardine on the Peru coast");
+  assert(!(packSardine.grid.sardine[atS(-16, -90)] > 0.05), "overlay should not fill a rectangle west of Peru");
+
   const offshore = presenceAt(8, -40, { floorY: -4000, ...wiki });
   assert(!(offshore.tigershark > 0), "open water hundreds of km off Brazil is not tiger-shark habitat");
 

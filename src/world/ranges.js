@@ -5,12 +5,17 @@
  * matches the catalog grain. Hulls remain for taxa with no such map, and
  * as seasonal occupancy on top of a raster.
  *
+ * A neritic hull is an envelope (which ocean, which coast), not the painted
+ * range. `coastKm` clips it to kilometres from Natural Earth land so Overlay
+ * follows the shoreline instead of an axis-aligned box. Do not ship a
+ * four-corner rectangle as the visible habitat.
+ *
  * Every species whose hull covers the cell is present. Overlap is real
  * habitat, not a bug: Humboldt can hold anchoveta and sardine; the North
  * Sea can hold herring, mackerel, sharks, and cod in one patch.
  * Predators still need prey in the cell (trophic gate), not a lat split.
- * Coastal taxa fade with kilometres from shore. Occupancy with a season
- * floor scales abundance and does not empty a year-round hull.
+ * Occupancy with a season floor scales abundance and does not empty a
+ * year-round hull.
  */
 
 import { emptyPresence, PRESENCE_IDS, SCHOOL_IDS, SPECIES, speciesLabel, isForagePrey } from "./fauna.js";
@@ -796,12 +801,45 @@ const WHALESHARK_MOZ = [
   ],
 ];
 
-const HUMBOLDT_HULLS = [
+/** East Pacific margin from the CCS to Chile — envelope, then coastKm. */
+const HUMBOLDT_COAST = [
   [
-    [-120, 32],
-    [-120, -42],
-    [-70, -42],
-    [-70, 32],
+    [-126, 46],
+    [-126, 38],
+    [-122, 30],
+    [-116, 24],
+    [-110, 18],
+    [-102, 12],
+    [-92, 6],
+    [-86, 0],
+    [-82, -10],
+    [-82, -22],
+    [-78, -34],
+    [-74, -46],
+    [-70, -46],
+    [-70, -36],
+    [-72, -22],
+    [-76, -8],
+    [-80, 4],
+    [-88, 12],
+    [-98, 18],
+    [-110, 24],
+    [-118, 32],
+    [-124, 40],
+    [-124, 46],
+  ],
+];
+
+/** Nigmatullin equatorial tongue, west toward 140°W. Not a filled gyre. */
+const HUMBOLDT_EQUATOR = [
+  [
+    [-140, 8],
+    [-110, 10],
+    [-88, 5],
+    [-82, 0],
+    [-88, -5],
+    [-110, -10],
+    [-140, -8],
   ],
 ];
 
@@ -836,6 +874,18 @@ const JACKMACKEREL_HULLS = [
     [-180, -32],
     [-170, -32],
     [-170, -48],
+  ],
+];
+
+/** Trachurus murphyi oceanic spawning belt west of Chile. */
+const JACKMACKEREL_BELT = [
+  [
+    [-120, -32],
+    [-92, -30],
+    [-78, -36],
+    [-78, -48],
+    [-96, -50],
+    [-120, -44],
   ],
 ];
 
@@ -899,37 +949,40 @@ const RANGES = [
   { id: "capelin", hulls: CAPELIN_HULLS, occupancy: 0.5 },
   { id: "capelin", hulls: CAPELIN_SPAWN, season: { peak: 150, width: 50 } },
   { id: "menhaden", hulls: MENHADEN_HULLS, coastKm: 200, season: { peak: 210, width: 120, floor: 0.4 } },
-  { id: "sardine", hulls: SARDINE_HULLS },
-  { id: "pilchard", hulls: PILCHARD_HULLS },
-  { id: "anchovy", hulls: ANCHOVY_HULLS },
-  { id: "sardinella", hulls: SARDINELLA_HULLS },
-  { id: "mackerel", hulls: MACKEREL_HULLS },
+  { id: "sardine", hulls: SARDINE_HULLS, coastKm: 420 },
+  { id: "pilchard", hulls: PILCHARD_HULLS, coastKm: 280 },
+  { id: "anchovy", hulls: ANCHOVY_HULLS, coastKm: 380 },
+  { id: "sardinella", hulls: SARDINELLA_HULLS, coastKm: 480 },
+  { id: "mackerel", hulls: MACKEREL_HULLS, coastKm: 750 },
   { id: "sprat", hulls: SPRAT_HULLS },
   { id: "sandlance", hulls: SANDLANCE_HULLS },
   { id: "polarcod", hulls: POLARCOD_HULLS },
   { id: "silverfish", hulls: SILVERFISH_HULLS },
   { id: "saury", hulls: SAURY_HULLS },
-  { id: "marketsquid", hulls: MARKETSQUID_HULLS },
-  { id: "jackmackerel", hulls: JACKMACKEREL_HULLS },
-  { id: "illex", hulls: ILLEX_HULLS },
+  { id: "marketsquid", hulls: MARKETSQUID_HULLS, coastKm: 380 },
+  { id: "jackmackerel", hulls: JACKMACKEREL_HULLS, coastKm: 900 },
+  { id: "jackmackerel", hulls: JACKMACKEREL_BELT },
+  { id: "illex", hulls: ILLEX_HULLS, coastKm: 650 },
   { id: "krill", hulls: [...SILVERFISH_HULLS, ...KRILL_NA_HULLS] },
   { id: "toothfish", hulls: SILVERFISH_HULLS },
-  { id: "cod", hulls: COD_HULLS },
+  { id: "cod", hulls: COD_HULLS, coastKm: 900 },
   { id: "humpback", hulls: HUMPBACK_FEED, season: { peak: 210, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_BREED, season: { peak: 30, width: 70 } },
-  { id: "humboldtsquid", hulls: HUMBOLDT_HULLS },
+  { id: "humboldtsquid", hulls: HUMBOLDT_COAST, coastKm: 950 },
+  { id: "humboldtsquid", hulls: HUMBOLDT_EQUATOR },
   { id: "minke", hulls: MINKE_HULLS, season: { peak: 210, width: 100 } },
-  { id: "bluefin", hulls: BLUEFIN_FEED, season: { peak: 210, width: 110 } },
-  { id: "bluefin", hulls: BLUEFIN_SPAWN, season: { peak: 120, width: 55, absolute: true } },
+  { id: "bluefin", hulls: [BLUEFIN_FEED[0]], season: { peak: 210, width: 110 } },
+  { id: "bluefin", hulls: [BLUEFIN_FEED[1], BLUEFIN_FEED[2]], season: { peak: 210, width: 110 }, coastKm: 700 },
+  { id: "bluefin", hulls: BLUEFIN_SPAWN, season: { peak: 120, width: 55, absolute: true }, coastKm: 450 },
+  { id: "whaleshark", hulls: WHALESHARK_NINGALOO, season: { peak: 105, width: 55, absolute: true }, coastKm: 180 },
+  { id: "whaleshark", hulls: WHALESHARK_YUCATAN, season: { peak: 210, width: 50, absolute: true }, coastKm: 220 },
+  { id: "whaleshark", hulls: WHALESHARK_MOZ, season: { peak: 15, width: 55, absolute: true }, coastKm: 200 },
   { id: "flyingfish", hulls: TROPICAL_OCEANIC },
   { id: "tuna", hulls: TROPICAL_OCEANIC },
   { id: "yellowfin", hulls: TROPICAL_OCEANIC },
   { id: "sailfish", hulls: TROPICAL_OCEANIC },
   { id: "mahi", hulls: [...TROPICAL_OCEANIC, ...MED_HULL] },
   { id: "barracuda", hulls: TROPICAL_COASTAL, coastKm: 560 },
-  { id: "whaleshark", hulls: WHALESHARK_NINGALOO, season: { peak: 105, width: 55, absolute: true } },
-  { id: "whaleshark", hulls: WHALESHARK_YUCATAN, season: { peak: 210, width: 50, absolute: true } },
-  { id: "whaleshark", hulls: WHALESHARK_MOZ, season: { peak: 15, width: 55, absolute: true } },
 ];
 
 /** Cosmopolitan pelagic taxa without a Wikipedia world map: geographic prior is 1, then catalog niches. */

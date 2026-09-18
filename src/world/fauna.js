@@ -742,6 +742,7 @@ export const SPECIES = {
     label: "Pacific saury",
     guild: "surface",
     agent: "school",
+    temp: { min: 8, max: 22 },
     social: "loose",
     share: 0.22,
     fish: {

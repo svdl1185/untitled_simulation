@@ -1,5 +1,5 @@
 {
-  "comment": "Wikipedia / IUCN / Cypron world range maps. Catalog grain must match the map. Family/genus ids do not steal a single-species map. Run: python3 scripts/build_wiki_range.py",
+  "comment": "Wikipedia / IUCN / Cypron world range maps. Catalog grain must match the map. Family/genus ids do not steal a single-species map. If there is no matching world map, set coastKm on the hull envelope in src/world/ranges.js — do not leave an axis-aligned box as the painted range. Run: python3 scripts/build_wiki_range.py",
   "maps": [
     {
       "id": "greatwhite",
