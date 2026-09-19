@@ -43,7 +43,7 @@ def rgba(rgb, a=1.0):
 # ---------------------------------------------------------------------------
 # bmesh
 # ---------------------------------------------------------------------------
-def add_body(bm, stations, segs, belly=0.78, dorsal=1.05):
+def add_body(bm, stations, segs, belly=0.78, dorsal=1.05, shape=None, nose="fan"):
     rings = []
     for y, rx, rz in stations:
         ring = []
@@ -55,6 +55,8 @@ def add_body(bm, stations, segs, belly=0.78, dorsal=1.05):
                 z *= belly
             elif z > 0:
                 z *= dorsal
+            if shape:
+                x, z = shape(y, a, x, z, rx, rz)
             ring.append(bm.verts.new((x, y, z)))
         rings.append(ring)
     for i in range(len(rings) - 1):
@@ -63,7 +65,14 @@ def add_body(bm, stations, segs, belly=0.78, dorsal=1.05):
             bm.faces.new((rings[i][j], rings[i + 1][j], rings[i + 1][j2], rings[i][j2]))
     if len(rings[0]) >= 3:
         bm.faces.new(list(reversed(rings[0])))
-    if len(rings[-1]) >= 3:
+    if nose == "point" and rings:
+        tip_y = stations[-1][0] + max(0.02, stations[-1][1])
+        tip = bm.verts.new((0.0, tip_y, -0.012))
+        last = rings[-1]
+        for j in range(segs):
+            j2 = (j + 1) % segs
+            bm.faces.new((last[j], last[j2], tip))
+    elif len(rings[-1]) >= 3:
         bm.faces.new(rings[-1])
     return rings
 
@@ -111,10 +120,17 @@ def add_tube(bm, p0, p1, r0, r1, segs=6):
     bm.faces.new(rings[1])
 
 
-def add_eye(bm, loc, r):
-    geo = bmesh.ops.create_icosphere(bm, subdivisions=1, radius=r)
-    bmesh.ops.translate(bm, verts=geo["verts"], vec=Vector(loc))
-    return geo["verts"]
+def add_eye(bm, loc, r, subdivisions=1, squash=None):
+    geo = bmesh.ops.create_icosphere(bm, subdivisions=subdivisions, radius=r)
+    verts = geo["verts"]
+    if squash:
+        sx, sy, sz = squash
+        for v in verts:
+            v.co.x *= sx
+            v.co.y *= sy
+            v.co.z *= sz
+    bmesh.ops.translate(bm, verts=verts, vec=Vector(loc))
+    return verts
 
 
 def mesh_from_bm(name, bm):
@@ -311,63 +327,377 @@ def v_anal(bm, y=-0.7, h=-0.42, root=0.65):
 def shark_stations(kind):
     if kind == "greatwhite":
         return [
-            (-5.05, 0.02, 0.02),
-            (-4.5, 0.18, 0.2),
-            (-3.4, 0.55, 0.62),
-            (-1.4, 0.88, 1.0),
-            (0.6, 0.92, 1.08),
-            (2.6, 0.7, 0.82),
-            (4.2, 0.42, 0.5),
-            (5.05, 0.12, 0.14),
+            (-5.08, 0.03, 0.03),
+            (-4.42, 0.22, 0.24),
+            (-3.15, 0.62, 0.70),
+            (-1.15, 0.92, 1.05),
+            (0.55, 0.98, 1.12),
+            (1.85, 0.90, 0.96),
+            (2.85, 0.82, 0.78),
+            (3.45, 0.76, 0.58),
+            (3.95, 0.64, 0.44),
+            (4.32, 0.46, 0.32),
+            (4.55, 0.26, 0.20),
+            (4.70, 0.10, 0.08),
         ]
     if kind == "tigershark":
         return [
-            (-5.0, 0.03, 0.03),
-            (-4.4, 0.22, 0.24),
-            (-2.8, 0.72, 0.8),
-            (-0.6, 0.95, 1.05),
-            (1.4, 0.88, 0.98),
-            (3.2, 0.58, 0.66),
-            (4.5, 0.32, 0.36),
-            (5.05, 0.1, 0.12),
+            (-5.05, 0.03, 0.035),
+            (-4.38, 0.24, 0.26),
+            (-2.75, 0.78, 0.86),
+            (-0.55, 1.00, 1.10),
+            (1.15, 0.96, 1.02),
+            (2.25, 0.90, 0.86),
+            (3.15, 0.90, 0.72),
+            (3.70, 0.92, 0.64),
+            (4.15, 0.88, 0.54),
+            (4.48, 0.74, 0.42),
+            (4.68, 0.42, 0.28),
+            (4.80, 0.16, 0.14),
         ]
+    # Blue shark: slender fusiform, long conical snout, distinct head.
     return [
-        (-5.05, 0.02, 0.02),
-        (-4.45, 0.16, 0.18),
-        (-2.8, 0.48, 0.55),
-        (-0.8, 0.7, 0.82),
-        (1.2, 0.68, 0.8),
-        (3.0, 0.48, 0.55),
-        (4.4, 0.26, 0.3),
-        (5.1, 0.08, 0.1),
+        (-5.08, 0.02, 0.025),
+        (-4.42, 0.14, 0.16),
+        (-3.2, 0.36, 0.42),
+        (-1.6, 0.55, 0.64),
+        (0.05, 0.62, 0.70),
+        (1.45, 0.64, 0.68),
+        (2.35, 0.58, 0.54),
+        (3.05, 0.52, 0.42),
+        (3.48, 0.50, 0.34),
+        (3.82, 0.46, 0.28),
+        (4.12, 0.36, 0.20),
+        (4.42, 0.26, 0.14),
+        (4.74, 0.16, 0.09),
+        (5.02, 0.075, 0.048),
+        (5.16, 0.028, 0.022),
     ]
+
+
+def _ang_dist(a, a0):
+    return abs((a - a0 + math.pi) % TAU - math.pi)
+
+
+def _flat_snout(y, a, x, z, y0, y1, amount):
+    if y > y0 and math.sin(a) < 0:
+        z *= 1.0 - amount * smoothstep(y0, y1, y)
+    return x, z
+
+
+def blue_shark_shape(y, a, x, z, rx, rz):
+    """Conical snout, flattened underside, mild cheek for the eye."""
+    x, z = _flat_snout(y, a, x, z, 3.35, 5.08, 0.42)
+    if 3.62 < y < 3.98:
+        lat = 1.0 - _ang_dist(a, 0.22 if x >= 0 else math.pi - 0.22) / 0.5
+        if lat > 0:
+            k = lat ** 1.5 * max(0.0, 1.0 - abs(y - 3.80) / 0.16)
+            x *= 1.0 - 0.05 * k
+    if 3.68 < y < 3.96 and math.sin(a) > 0.2:
+        lat = 1.0 - _ang_dist(a, 0.7 if x >= 0 else math.pi - 0.7) / 0.4
+        if lat > 0:
+            k = lat * max(0.0, 1.0 - abs(y - 3.82) / 0.12)
+            z += 0.025 * k
+    return x, z
+
+
+def greatwhite_shape(y, a, x, z, rx, rz):
+    """Stout short cone, heavy cheek, flattened underside."""
+    x, z = _flat_snout(y, a, x, z, 3.15, 4.70, 0.34)
+    if 3.28 < y < 3.88:
+        lat = 1.0 - _ang_dist(a, 0.18 if x >= 0 else math.pi - 0.18) / 0.55
+        if lat > 0:
+            k = lat ** 1.3 * max(0.0, 1.0 - abs(y - 3.55) / 0.22)
+            x *= 1.0 + 0.08 * k
+    if 3.40 < y < 3.80 and math.sin(a) > 0.15:
+        lat = 1.0 - _ang_dist(a, 0.65 if x >= 0 else math.pi - 0.65) / 0.42
+        if lat > 0:
+            k = lat * max(0.0, 1.0 - abs(y - 3.58) / 0.14)
+            z += 0.045 * k
+    return x, z
+
+
+def tiger_shark_shape(y, a, x, z, rx, rz):
+    """Wide truncated snout — a blunt head, not a cone."""
+    x, z = _flat_snout(y, a, x, z, 3.05, 5.10, 0.30)
+    if y > 3.15:
+        t = smoothstep(3.15, 5.00, y)
+        x *= 1.0 + 0.20 * t
+        if math.sin(a) > 0:
+            z *= 1.0 - 0.20 * t
+    return x, z
+
+
+def whale_shark_shape(y, a, x, z, rx, rz):
+    """Broad truncated head; mouth sits on the front face."""
+    if y > 3.30:
+        t = smoothstep(3.30, 5.05, y)
+        x *= 1.0 + 0.10 * t
+        if math.sin(a) < 0:
+            z *= 1.0 - 0.26 * t
+        else:
+            z *= 1.0 - 0.06 * t
+    return x, z
+
+
+def add_lower_jaw(bm, stations, segs=10):
+    """Separate mandible so the gape reads in silhouette."""
+    rings = []
+    for y, rx, rz, zc in stations:
+        ring = []
+        for i in range(segs):
+            a = (i / segs) * TAU
+            ring.append(bm.verts.new((math.cos(a) * rx, y, zc + math.sin(a) * rz)))
+        rings.append(ring)
+    for i in range(len(rings) - 1):
+        for j in range(segs):
+            j2 = (j + 1) % segs
+            bm.faces.new((rings[i][j], rings[i + 1][j], rings[i + 1][j2], rings[i][j2]))
+    bm.faces.new(list(reversed(rings[0])))
+    bm.faces.new(rings[-1])
+
+
+def add_gape(bm, verts, thick=0.02):
+    add_poly(bm, verts, thick)
+
+
+def add_gills(bm, side, y0=3.08, x0=0.51, n=5, span=0.88, h=0.32):
+    s = 1.0 if side > 0 else -1.0
+    for i in range(n):
+        t = i / max(1, n - 1)
+        y = y0 - t * span
+        x = s * (x0 - t * 0.05)
+        hh = h - t * 0.05
+        add_poly(
+            bm,
+            [
+                (x, y + 0.008, 0.11),
+                (x * 1.012, y - 0.018, 0.11 - hh),
+                (x * 1.012, y - 0.034, 0.11 - hh),
+                (x, y - 0.006, 0.11),
+            ],
+            0.01,
+        )
+
+
+def add_shark_teeth(bm, y=4.10, z_up=-0.05, z_lo=-0.14, w=0.18, n_up=7, n_lo=5, hang=0.045):
+    def tooth(x, yy, z0, tip_z, width=0.018):
+        add_poly(
+            bm,
+            [
+                (x - width, yy + 0.006, z0),
+                (x + width, yy + 0.006, z0),
+                (x, yy - 0.004, tip_z),
+            ],
+            0.007,
+        )
+
+    tw = 0.028 if n_up <= 6 else 0.016
+    for i in range(n_up):
+        t = i / max(1, n_up - 1)
+        x = (t - 0.5) * 2.0 * w
+        yy = y + 0.03 * (1.0 - (x / max(w, 1e-4)) ** 2)
+        tooth(x, yy, z_up, z_up - hang, tw)
+    for i in range(n_lo):
+        t = i / max(1, n_lo - 1)
+        wl = w * 0.78
+        x = (t - 0.5) * 2.0 * wl
+        yy = y - 0.04 + 0.02 * (1.0 - (x / max(wl, 1e-4)) ** 2)
+        tooth(x, yy, z_lo, z_lo + hang * 0.9, tw * 0.85)
+
+
+def add_cephalofoil(bm):
+    """Scalloped hammer: wide foil with real chord at the lobes, eyes at the tips."""
+    # x, y_lead, y_trail, hz — modest scallop, trailing edge keeps chord at the tips.
+    half = [
+        (0.0, 4.68, 3.80, 0.15),
+        (0.50, 4.78, 3.92, 0.14),
+        (1.05, 4.66, 4.02, 0.13),
+        (1.60, 4.80, 4.14, 0.13),
+        (2.18, 4.55, 4.22, 0.12),
+    ]
+
+    def ring(x, y_lead, y_trail, hz):
+        return [
+            bm.verts.new((x, y_lead, hz)),
+            bm.verts.new((x, y_trail, hz * 0.65)),
+            bm.verts.new((x, y_trail, -hz * 0.5)),
+            bm.verts.new((x, y_lead, -hz * 0.4)),
+        ]
+
+    def loft(stations):
+        rings = [ring(*st) for st in stations]
+        for i in range(len(rings) - 1):
+            a, b = rings[i], rings[i + 1]
+            for j in range(4):
+                j2 = (j + 1) % 4
+                bm.faces.new((a[j], a[j2], b[j2], b[j]))
+        bm.faces.new(rings[-1])
+
+    loft(half)
+    loft([(-x, yl, yt, hz) for x, yl, yt, hz in half])
+
+
+def add_terminal_mouth(bm, y=5.10, w=0.90, zc=-0.02, h=0.20):
+    add_poly(
+        bm,
+        [
+            (-w, y, zc + h),
+            (w, y, zc + h),
+            (w * 0.82, y, zc - h),
+            (-w * 0.82, y, zc - h),
+        ],
+        0.045,
+    )
+
+
+def add_flank_ridge(bm, x, z=0.55, y0=-2.4, y1=3.6, h=0.10):
+    s = 1.0 if x >= 0 else -1.0
+    add_poly(
+        bm,
+        [
+            (x, y0, z),
+            (x + 0.04 * s, (y0 + y1) * 0.45, z + h),
+            (x, y1, z + 0.02),
+            (x - 0.02 * s, (y0 + y1) * 0.45, z),
+        ],
+        0.035,
+    )
 
 
 def build_shark(name, kind):
     bm = bmesh.new()
     white = kind == "greatwhite"
-    segs = 16
-    add_body(bm, shark_stations(kind), segs, belly=0.72, dorsal=1.08 if white else 1.04)
-    v_dorsal(bm, y=0.08, h=1.55 if white else 1.42, root=1.4)
-    v_caudal(bm, span=2.05 if white else 1.9)
-    v_pec(bm, 1, y=1.35, z=-0.22, reach=2.7 if kind == "shark" else 2.4)
-    v_pec(bm, -1, y=1.35, z=-0.22, reach=2.7 if kind == "shark" else 2.4)
-    v_anal(bm)
-    add_eye(bm, (0.38 if not white else 0.42, 3.55, 0.16), 0.09)
-    add_eye(bm, (-0.38 if not white else -0.42, 3.55, 0.16), 0.09)
-    obj = mesh_from_bm(name, bm)
-    if kind == "tigershark":
-        back, belly = (0.48, 0.34, 0.16), (0.78, 0.68, 0.48)
-
-        def extra(x, y, z, c):
-            stripe = math.sin(y * 2.35 + x * 0.4) > 0.42 and z > -0.05
-            return (c[0] * 0.55, c[1] * 0.5, c[2] * 0.45) if stripe else c
-
-        paint(obj, counter_fn(back, belly, -0.08, extra=extra))
-    elif kind == "greatwhite":
-        paint(obj, counter_fn((0.42, 0.44, 0.46), (0.92, 0.9, 0.86), -0.06))
+    tiger = kind == "tigershark"
+    blue = kind == "shark"
+    segs = 22 if not blue else 24
+    shape = blue_shark_shape if blue else greatwhite_shape if white else tiger_shark_shape if tiger else None
+    add_body(
+        bm,
+        shark_stations(kind),
+        segs,
+        belly=0.70 if blue else 0.74 if tiger else 0.72,
+        dorsal=1.08 if white else 1.04,
+        shape=shape,
+        nose="point" if blue else "fan",
+    )
+    if blue:
+        v_dorsal(bm, y=-0.22, h=1.32, root=1.25)
+        v_caudal(bm, span=1.9)
+        v_pec(bm, 1, y=2.18, z=-0.18, reach=3.15, chord=1.05)
+        v_pec(bm, -1, y=2.18, z=-0.18, reach=3.15, chord=1.05)
+        v_anal(bm, y=-0.85)
+        add_gills(bm, 1, y0=3.08, x0=0.51)
+        add_gills(bm, -1, y0=3.08, x0=0.51)
+        add_lower_jaw(
+            bm,
+            [
+                (3.40, 0.30, 0.055, -0.17),
+                (3.66, 0.26, 0.068, -0.205),
+                (3.90, 0.20, 0.055, -0.185),
+                (4.08, 0.10, 0.032, -0.145),
+            ],
+        )
+        add_gape(bm, [(-0.18, 4.06, -0.04), (0.18, 4.06, -0.04), (0.16, 3.88, -0.16), (-0.16, 3.88, -0.16)])
+        add_shark_teeth(bm)
+        add_eye(bm, (0.45, 3.76, 0.05), 0.125, subdivisions=2, squash=(0.32, 1.08, 1.08))
+        add_eye(bm, (-0.45, 3.76, 0.05), 0.125, subdivisions=2, squash=(0.32, 1.08, 1.08))
+        eye = [(0.45, 3.76, 0.05, 0.14), (-0.45, 3.76, 0.05, 0.14)]
+        mouth = (3.88, 4.18, -0.14, -0.01, 0.24)
+    elif white:
+        v_dorsal(bm, y=0.12, h=1.62, root=1.45)
+        v_caudal(bm, span=2.15)
+        v_pec(bm, 1, y=2.05, z=-0.22, reach=2.55, chord=1.15)
+        v_pec(bm, -1, y=2.05, z=-0.22, reach=2.55, chord=1.15)
+        v_anal(bm, y=-0.75)
+        add_gills(bm, 1, y0=3.15, x0=0.78, span=1.05, h=0.48)
+        add_gills(bm, -1, y0=3.15, x0=0.78, span=1.05, h=0.48)
+        add_lower_jaw(
+            bm,
+            [
+                (3.28, 0.38, 0.07, -0.22),
+                (3.62, 0.46, 0.10, -0.30),
+                (4.00, 0.40, 0.09, -0.26),
+                (4.28, 0.20, 0.05, -0.16),
+            ],
+        )
+        add_gape(bm, [(-0.32, 4.18, -0.05), (0.32, 4.18, -0.05), (0.28, 3.90, -0.22), (-0.28, 3.90, -0.22)])
+        add_shark_teeth(bm, y=4.16, z_up=-0.06, z_lo=-0.18, w=0.30, n_up=6, n_lo=5, hang=0.07)
+        add_eye(bm, (0.82, 3.50, 0.12), 0.13, subdivisions=2, squash=(0.34, 1.05, 1.05))
+        add_eye(bm, (-0.82, 3.50, 0.12), 0.13, subdivisions=2, squash=(0.34, 1.05, 1.05))
+        eye = [(0.82, 3.50, 0.12, 0.15), (-0.82, 3.50, 0.12, 0.15)]
+        mouth = (3.72, 4.22, -0.24, -0.02, 0.30)
     else:
-        paint(obj, counter_fn((0.14, 0.24, 0.42), (0.78, 0.82, 0.86), -0.1))
+        v_dorsal(bm, y=0.22, h=1.38, root=1.35)
+        v_caudal(bm, span=1.85)
+        v_pec(bm, 1, y=2.10, z=-0.20, reach=2.45, chord=1.20)
+        v_pec(bm, -1, y=2.10, z=-0.20, reach=2.45, chord=1.20)
+        v_anal(bm, y=-0.65)
+        add_gills(bm, 1, y0=3.20, x0=0.78, span=0.95, h=0.42)
+        add_gills(bm, -1, y0=3.20, x0=0.78, span=0.95, h=0.42)
+        add_lower_jaw(
+            bm,
+            [
+                (3.35, 0.42, 0.08, -0.20),
+                (3.70, 0.50, 0.10, -0.26),
+                (4.10, 0.44, 0.09, -0.22),
+                (4.38, 0.22, 0.05, -0.14),
+            ],
+        )
+        add_gape(bm, [(-0.36, 4.22, -0.05), (0.36, 4.22, -0.05), (0.32, 3.96, -0.20), (-0.32, 3.96, -0.20)])
+        add_shark_teeth(bm, y=4.18, z_up=-0.06, z_lo=-0.18, w=0.34, n_up=8, n_lo=6, hang=0.05)
+        add_eye(bm, (0.92, 3.62, 0.10), 0.11, subdivisions=2, squash=(0.32, 1.05, 1.05))
+        add_eye(bm, (-0.92, 3.62, 0.10), 0.11, subdivisions=2, squash=(0.32, 1.05, 1.05))
+        eye = [(0.92, 3.62, 0.10, 0.13), (-0.92, 3.62, 0.10, 0.13)]
+        mouth = (3.85, 4.18, -0.24, -0.06, 0.22)
+    obj = mesh_from_bm(name, bm)
+
+    def face_extra(x, y, z, c, mouth_box, stripe=False):
+        y0, y1, z0, z1, xw = mouth_box
+        if y0 < y < y1 and z0 < z < min(z1, -0.05) and abs(x) < xw:
+            if z > z0 + (z1 - z0) * 0.35:
+                return (0.07, 0.045, 0.045)
+            if z < z0 + (z1 - z0) * 0.55:
+                return (0.93, 0.91, 0.86)
+        if stripe and z > -0.08 and y < 4.35:
+            bar = math.sin(y * 1.7 + x * 0.22) * 0.7 + math.sin(y * 3.4) * 0.3
+            if bar > 0.22:
+                return (c[0] * 0.52, c[1] * 0.46, c[2] * 0.40)
+        return c
+
+    if tiger:
+        paint(
+            obj,
+            counter_fn(
+                (0.48, 0.34, 0.16),
+                (0.82, 0.74, 0.56),
+                -0.08,
+                eye=eye,
+                extra=lambda x, y, z, c: face_extra(x, y, z, c, mouth, True),
+            ),
+        )
+    elif white:
+        paint(
+            obj,
+            counter_fn(
+                (0.40, 0.42, 0.44),
+                (0.93, 0.91, 0.88),
+                -0.04,
+                eye=eye,
+                extra=lambda x, y, z, c: face_extra(x, y, z, c, mouth),
+            ),
+        )
+    else:
+        paint(
+            obj,
+            counter_fn(
+                (0.10, 0.22, 0.46),
+                (0.84, 0.88, 0.90),
+                -0.08,
+                eye=eye,
+                extra=lambda x, y, z, c: face_extra(x, y, z, c, mouth),
+            ),
+        )
     return obj
 
 
@@ -378,38 +708,56 @@ def build_hammerhead(name):
         [
             (-5.0, 0.02, 0.02),
             (-4.4, 0.16, 0.18),
-            (-2.6, 0.48, 0.55),
-            (-0.6, 0.68, 0.76),
-            (1.4, 0.62, 0.7),
-            (3.2, 0.42, 0.48),
-            (4.35, 0.22, 0.26),
-            (4.85, 0.14, 0.12),
+            (-2.6, 0.50, 0.56),
+            (-0.5, 0.68, 0.76),
+            (1.3, 0.66, 0.72),
+            (2.55, 0.56, 0.54),
+            (3.20, 0.48, 0.38),
+            (3.70, 0.40, 0.22),
         ],
-        16,
+        20,
         belly=0.76,
         dorsal=1.04,
+        shape=lambda y, a, x, z, rx, rz: _flat_snout(y, a, x, z, 3.05, 3.70, 0.22),
+        nose="fan",
     )
-    # cephalofoil: flattened bar at the snout
-    foil_y, foil_z = 4.72, 0.06
-    for side in (-1, 1):
-        add_poly(
-            bm,
-            [
-                (0.12 * side, foil_y + 0.15, foil_z),
-                (2.05 * side, foil_y + 0.28, foil_z + 0.02),
-                (2.08 * side, foil_y - 0.22, foil_z),
-                (0.15 * side, foil_y - 0.35, foil_z - 0.02),
-            ],
-            0.12,
-        )
-    v_dorsal(bm, y=0.12, h=1.28, root=1.2)
+    add_cephalofoil(bm)
+    v_dorsal(bm, y=0.05, h=1.32, root=1.15)
     v_caudal(bm, span=1.75)
-    v_pec(bm, 1, y=1.15, reach=1.85)
-    v_pec(bm, -1, y=1.15, reach=1.85)
-    add_eye(bm, (1.92, 4.55, 0.08), 0.1)
-    add_eye(bm, (-1.92, 4.55, 0.08), 0.1)
+    v_pec(bm, 1, y=1.85, z=-0.16, reach=1.95, chord=0.90)
+    v_pec(bm, -1, y=1.85, z=-0.16, reach=1.95, chord=0.90)
+    add_gills(bm, 1, y0=2.95, x0=0.48, span=0.80, h=0.30)
+    add_gills(bm, -1, y0=2.95, x0=0.48, span=0.80, h=0.30)
+    add_lower_jaw(
+        bm,
+        [
+            (3.42, 0.16, 0.04, -0.10),
+            (3.68, 0.18, 0.05, -0.13),
+            (3.90, 0.14, 0.04, -0.11),
+            (4.06, 0.06, 0.02, -0.08),
+        ],
+        segs=8,
+    )
+    add_gape(bm, [(-0.12, 4.02, -0.03), (0.12, 4.02, -0.03), (0.10, 3.86, -0.11), (-0.10, 3.86, -0.11)])
+    add_shark_teeth(bm, y=4.00, z_up=-0.04, z_lo=-0.11, w=0.10, n_up=5, n_lo=4, hang=0.03)
+    add_eye(bm, (2.14, 4.52, 0.04), 0.10, subdivisions=2, squash=(0.48, 1.12, 1.12))
+    add_eye(bm, (-2.14, 4.52, 0.04), 0.10, subdivisions=2, squash=(0.48, 1.12, 1.12))
     obj = mesh_from_bm(name, bm)
-    paint(obj, counter_fn((0.28, 0.34, 0.36), (0.7, 0.74, 0.72), -0.08))
+    eye = [(2.14, 4.52, 0.04, 0.12), (-2.14, 4.52, 0.04, 0.12)]
+
+    def extra(x, y, z, c):
+        if abs(x) > 0.38 and y > 3.75:
+            t = smoothstep(-0.12, 0.10, z)
+            return (
+                0.24 + 0.08 * t,
+                0.30 + 0.06 * t,
+                0.32 + 0.06 * t,
+            )
+        if 3.78 < y < 4.06 and -0.13 < z < -0.02 and abs(x) < 0.14:
+            return (0.07, 0.045, 0.045)
+        return c
+
+    paint(obj, counter_fn((0.26, 0.32, 0.34), (0.72, 0.76, 0.74), -0.08, eye=eye, extra=extra))
     return obj
 
 
@@ -418,35 +766,55 @@ def build_whaleshark(name):
     add_body(
         bm,
         [
-            (-5.05, 0.08, 0.08),
-            (-4.3, 0.45, 0.5),
-            (-2.2, 1.05, 1.15),
-            (0.2, 1.35, 1.42),
-            (2.4, 1.28, 1.32),
-            (4.0, 1.15, 1.12),
-            (4.85, 0.85, 0.72),
-            (5.18, 0.22, 0.18),
+            (-5.05, 0.10, 0.10),
+            (-4.2, 0.50, 0.55),
+            (-2.0, 1.15, 1.22),
+            (0.3, 1.42, 1.48),
+            (2.15, 1.38, 1.38),
+            (3.35, 1.36, 1.20),
+            (4.20, 1.34, 0.90),
+            (4.70, 1.30, 0.64),
+            (5.05, 1.24, 0.50),
         ],
-        18,
+        20,
         belly=0.82,
         dorsal=1.02,
+        shape=whale_shark_shape,
+        nose="fan",
     )
     v_dorsal(bm, y=-0.15, h=1.05, root=0.85, z0=0.7)
     v_caudal(bm, span=1.7)
-    v_pec(bm, 1, y=1.5, z=-0.2, reach=2.35, chord=1.1)
-    v_pec(bm, -1, y=1.5, z=-0.2, reach=2.35, chord=1.1)
-    add_eye(bm, (0.78, 3.85, 0.18), 0.08)
-    add_eye(bm, (-0.78, 3.85, 0.18), 0.08)
+    v_pec(bm, 1, y=1.65, z=-0.22, reach=2.45, chord=1.15)
+    v_pec(bm, -1, y=1.65, z=-0.22, reach=2.45, chord=1.15)
+    add_gills(bm, 1, y0=3.35, x0=1.15, span=1.15, h=0.62)
+    add_gills(bm, -1, y0=3.35, x0=1.15, span=1.15, h=0.62)
+    add_terminal_mouth(bm, y=5.055, w=0.88, zc=-0.04, h=0.12)
+    add_lower_jaw(
+        bm,
+        [
+            (4.62, 0.90, 0.10, -0.26),
+            (4.88, 1.00, 0.09, -0.16),
+            (5.02, 1.02, 0.06, -0.08),
+        ],
+        segs=12,
+    )
+    for x in (0.0, 0.42, -0.42, 0.85, -0.85):
+        add_flank_ridge(bm, x, z=0.48 if abs(x) < 0.2 else 0.22, y0=-2.2, y1=3.8, h=0.12 if abs(x) < 0.2 else 0.09)
+    add_eye(bm, (1.18, 4.62, 0.14), 0.08, subdivisions=2, squash=(0.4, 1.0, 1.0))
+    add_eye(bm, (-1.18, 4.62, 0.14), 0.08, subdivisions=2, squash=(0.4, 1.0, 1.0))
     obj = mesh_from_bm(name, bm)
+    eye = [(1.18, 4.62, 0.14, 0.10), (-1.18, 4.62, 0.14, 0.10)]
 
     def extra(x, y, z, c):
+        if y > 4.96 and abs(x) < 0.96 and -0.20 < z < 0.12:
+            return (0.08, 0.07, 0.07)
         h = math.sin(x * 13.1 + y * 7.14 + z * 2.97) * 43758.5453
         fract = h - math.floor(h)
-        if z > -0.08 and fract > 0.78:
-            return (min(1, c[0] + 0.28), min(1, c[1] + 0.26), min(1, c[2] + 0.22))
+        if z > -0.08 and fract > 0.62:
+            return (min(1, c[0] + 0.38), min(1, c[1] + 0.36), min(1, c[2] + 0.32))
         return c
 
-    paint(obj, counter_fn((0.18, 0.24, 0.32), (0.52, 0.56, 0.58), -0.12, extra=extra))
+    paint(obj, counter_fn((0.16, 0.22, 0.30), (0.55, 0.58, 0.60), -0.12, eye=eye, extra=extra))
     return obj
 
 

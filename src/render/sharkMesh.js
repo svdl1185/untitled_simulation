@@ -20,9 +20,11 @@ function prepare(g) {
 }
 
 const EYES = {
-  shark: { x: 0.4, y: 0.18, z: 3.55, r: 0.09 },
-  hammerhead: { x: 1.92, y: 0.08, z: 4.55, r: 0.1 },
-  whaleshark: { x: 0.78, y: 0.2, z: 3.85, r: 0.08 },
+  shark: { x: 0.45, y: 0.05, z: 3.76, r: 0.125 },
+  greatwhite: { x: 0.82, y: 0.12, z: 3.5, r: 0.13 },
+  tigershark: { x: 0.92, y: 0.1, z: 3.62, r: 0.11 },
+  hammerhead: { x: 2.14, y: 0.04, z: 4.52, r: 0.1 },
+  whaleshark: { x: 1.18, y: 0.14, z: 4.62, r: 0.08 },
   tuna: { x: 0.28, y: 0.12, z: 3.35, r: 0.07 },
   cod: { x: 0.34, y: 0.16, z: 3.28, r: 0.08 },
   whale: { x: 0.48, y: 0.22, z: 3.85, r: 0.07 },
@@ -98,7 +100,7 @@ export function createSharkMesh(uniforms, opts = {}) {
   group.add(mesh);
 
   if (!authored) {
-    const eye = EYES[form] || EYES.shark;
+    const eye = EYES[kind] || EYES[form] || EYES.shark;
     const eyeGeo = new THREE.SphereGeometry(eye.r, 8, 8);
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.3 });
     const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
@@ -301,16 +303,40 @@ function _sharkParts(tint, kind) {
       : (x, y, z, t) => _counter(t, tint, 0.18, 0.28, 0.42, 0.72, 0.78, 0.82);
   const snout = white
     ? [
-        [0.02, -4.9],
-        [0.18, -4.5],
-        [0.55, -3.4],
-        [0.88, -1.4],
-        [0.92, 0.6],
-        [0.7, 2.6],
-        [0.42, 4.2],
-        [0.12, 5.05],
+        [0.03, -5.0],
+        [0.22, -4.4],
+        [0.62, -3.15],
+        [0.92, -1.15],
+        [0.98, 0.55],
+        [0.8, 2.85],
+        [0.64, 3.95],
+        [0.26, 4.55],
+        [0.1, 4.7],
       ]
-    : null;
+    : tiger
+      ? [
+          [0.03, -5.0],
+          [0.24, -4.4],
+          [0.78, -2.8],
+          [1.0, -0.55],
+          [0.96, 1.15],
+          [0.9, 3.15],
+          [0.88, 4.15],
+          [0.42, 4.68],
+          [0.16, 4.8],
+        ]
+      : [
+          [0.02, -5.0],
+          [0.14, -4.4],
+          [0.36, -3.2],
+          [0.55, -1.6],
+          [0.62, 0.05],
+          [0.58, 2.35],
+          [0.5, 3.48],
+          [0.36, 4.12],
+          [0.16, 4.74],
+          [0.03, 5.16],
+        ];
   return [
     _body(tint, white ? 1.12 : 1, white ? 0.88 : 0.78, snout, paint),
     _triFin(0, 0.52, 0.05, 1.35, 1.55, 0.22, tint),
@@ -345,8 +371,8 @@ function _whaleSharkParts(tint) {
     if (y > -0.08 && fract > 0.78) return [r + 0.28, g + 0.26, b + 0.22];
     return [r, g, b];
   };
-  const mouth = new THREE.BoxGeometry(1.85, 0.28, 0.55);
-  mouth.translate(0, -0.18, 4.85);
+  const mouth = new THREE.BoxGeometry(1.85, 0.42, 0.22);
+  mouth.translate(0, -0.04, 5.07);
   _paintSolid(mouth, tint, 0.18, 0.2, 0.22);
   return [
     _body(
@@ -354,14 +380,14 @@ function _whaleSharkParts(tint) {
       1.45,
       0.95,
       [
-        [0.08, -5.0],
-        [0.45, -4.3],
-        [1.05, -2.2],
-        [1.35, 0.2],
-        [1.28, 2.4],
-        [1.15, 4.0],
-        [0.85, 4.85],
-        [0.2, 5.15],
+        [0.1, -5.0],
+        [0.5, -4.2],
+        [1.15, -2.0],
+        [1.42, 0.3],
+        [1.38, 2.15],
+        [1.34, 4.2],
+        [1.3, 4.7],
+        [1.24, 5.05],
       ],
       paint
     ),
