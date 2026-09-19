@@ -321,6 +321,109 @@ export function steerOffShore(hx, hz, urgency, gx, gz, rate = 0.22) {
   return { hx: nx / nlen, hz: nz / nlen };
 }
 
+/** Start turning this far from an open cell face. */
+export const CELL_STEER_BAND = 60;
+/** Last metres: kill the outward velocity component. */
+export const CELL_KILL_BAND = 12;
+
+function addBoundFace(nx, nz, inset, band, acc) {
+  if (inset >= band) return;
+  const u = 1 - inset / band;
+  const w = u * u;
+  acc.nx += nx * w;
+  acc.nz += nz * w;
+  if (u > acc.urg) acc.urg = u;
+  if (inset < acc.inset) acc.inset = inset;
+}
+
+/**
+ * Inward unit from the open-ocean faces. Beach +Z is a shore, not a
+ * glass wall — pass `skipPosZ` (default `hasBeach()`).
+ */
+export function boundsInward(x, z, opts = {}) {
+  const band = opts.band ?? CELL_STEER_BAND;
+  const skipPosZ = opts.skipPosZ ?? hasBeach();
+  const maxZ = waterMaxZ();
+  const acc = { nx: 0, nz: 0, urg: 0, inset: Infinity };
+  addBoundFace(-1, 0, CONFIG.halfX - x, band, acc);
+  addBoundFace(1, 0, x + CONFIG.halfX, band, acc);
+  addBoundFace(0, 1, z + CONFIG.halfZ, band, acc);
+  if (!skipPosZ) addBoundFace(0, -1, maxZ - z, band, acc);
+  const len = Math.hypot(acc.nx, acc.nz);
+  if (len < 1e-8) return { nx: 0, nz: 0, urgency: 0, inset: acc.inset };
+  return { nx: acc.nx / len, nz: acc.nz / len, urgency: acc.urg, inset: acc.inset };
+}
+
+/**
+ * Accel toward the interior, plus a damped velocity that has lost its
+ * outward component in the last `kill` metres.
+ */
+export function steerOffBounds(x, z, vx, vz, opts = {}) {
+  const kill = opts.kill ?? CELL_KILL_BAND;
+  const weight = opts.weight ?? 28;
+  const inward = boundsInward(x, z, opts);
+  let ax = 0;
+  let az = 0;
+  let nvx = vx;
+  let nvz = vz;
+  if (inward.urgency > 0) {
+    const w = inward.urgency * inward.urgency * weight;
+    ax = inward.nx * w;
+    az = inward.nz * w;
+    if (inward.inset < kill) {
+      const out = -nvx * inward.nx - nvz * inward.nz;
+      if (out > 0) {
+        const k = Math.max(0, inward.inset / kill);
+        const drop = out * (1 - k * k);
+        nvx += inward.nx * drop;
+        nvz += inward.nz * drop;
+      }
+    }
+  }
+  return { ax, az, vx: nvx, vz: nvz, nx: inward.nx, nz: inward.nz, urgency: inward.urgency, inset: inward.inset };
+}
+
+/** Rotate a cruise heading inward. No 180° flip. */
+export function turnHeadingOffBounds(x, z, hx, hz, rate = 0.22, opts = {}) {
+  const inward = boundsInward(x, z, opts);
+  if (inward.urgency <= 0) return { hx, hz, urgency: 0 };
+  const mix = Math.min(1, (0.28 + inward.urgency * 1.6) * rate);
+  let nx = hx * (1 - mix) + inward.nx * mix;
+  let nz = hz * (1 - mix) + inward.nz * mix;
+  const nlen = Math.hypot(nx, nz) || 1;
+  return { hx: nx / nlen, hz: nz / nlen, urgency: inward.urgency };
+}
+
+/** Hard box on the wet cell. Zero the outward component on contact. */
+export function clampToCell(x, z, vx, vz, opts = {}) {
+  const padX = opts.padX ?? 8;
+  const padZ = opts.padZ ?? 8;
+  const padMaxZ = opts.padMaxZ ?? 10;
+  const minX = -CONFIG.halfX + padX;
+  const maxX = CONFIG.halfX - padX;
+  const minZ = -CONFIG.halfZ + padZ;
+  const maxZ = waterMaxZ() - padMaxZ;
+  let nx = x;
+  let nz = z;
+  let nvx = vx;
+  let nvz = vz;
+  if (nx > maxX) {
+    nx = maxX;
+    if (nvx > 0) nvx = 0;
+  } else if (nx < minX) {
+    nx = minX;
+    if (nvx < 0) nvx = 0;
+  }
+  if (nz > maxZ) {
+    nz = maxZ;
+    if (nvz > 0) nvz = 0;
+  } else if (nz < minZ) {
+    nz = minZ;
+    if (nvz < 0) nvz = 0;
+  }
+  return { x: nx, z: nz, vx: nvx, vz: nvz };
+}
+
 export function steerFromColliders(px, py, pz, colliders, count, pad, weight) {
   let ax = 0;
   let ay = 0;

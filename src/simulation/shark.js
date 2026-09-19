@@ -12,7 +12,7 @@ import {
   airY,
   ascentReserve,
 } from "../world/fauna.js";
-import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, placeInColumn } from "./obstacles.js";
+import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, placeInColumn, steerOffBounds, clampToCell } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { columnQ10 } from "./temperature.js";
 import { o2MetabolicFactor, oxygenLimitY } from "./oxygen.js";
@@ -576,8 +576,16 @@ export class Shark {
   }
 
   _keepInWater(cfg, dt, steer = true) {
-    this.x = Math.max(-CONFIG.halfX + 8, Math.min(CONFIG.halfX - 8, this.x));
-    this.z = Math.max(-CONFIG.halfZ + 8, Math.min(waterMaxZ() - 10, this.z));
+    if (steer) {
+      const bound = steerOffBounds(this.x, this.z, this.vx, this.vz, { weight: 36 });
+      this.vx = bound.vx + bound.ax * dt;
+      this.vz = bound.vz + bound.az * dt;
+    }
+    const boxed = clampToCell(this.x, this.z, this.vx, this.vz);
+    this.x = boxed.x;
+    this.z = boxed.z;
+    this.vx = boxed.vx;
+    this.vz = boxed.vz;
 
     const ground = seafloorHeight(this.x, this.z);
     const ceil = cfg.minDepth;
@@ -694,17 +702,23 @@ export class Shark {
       this._aiFilter(dt, school, cfg, look);
       return;
     }
-    const targetSchool = school.targetFor(this) || school.centroid;
+    const targetSchool = school.targetFor(this);
     const preyV = nearestHuntKind(this, pack, cfg.huntKinds);
     let target = targetSchool;
     let huntVehicle = null;
     if (preyV) {
       const vd = Math.hypot(preyV.x - this.x, preyV.y - this.y, preyV.z - this.z);
-      const sd = Math.hypot(targetSchool.x - this.x, targetSchool.y - this.y, targetSchool.z - this.z);
-      if (vd < 120 || vd < sd * 0.9 || this.energy < cfg.hungry) {
+      const sd = targetSchool
+        ? Math.hypot(targetSchool.x - this.x, targetSchool.y - this.y, targetSchool.z - this.z)
+        : Infinity;
+      if (!targetSchool || vd < 120 || vd < sd * 0.9 || this.energy < cfg.hungry) {
         target = { x: preyV.x, y: preyV.y, z: preyV.z, vx: preyV.vx, vy: preyV.vy, vz: preyV.vz };
         huntVehicle = preyV;
       }
+    }
+    const hasPrey = !!(huntVehicle || targetSchool);
+    if (!target) {
+      target = { x: this.roamX, y: this.roamY, z: this.roamZ, vx: 0, vy: 0, vz: 0 };
     }
     const cx = target.x;
     const cy = target.y;
@@ -722,7 +736,9 @@ export class Shark {
     const fx = -hz;
     const fz = hx;
     const dist = Math.hypot(cx - this.x, cy - this.y, cz - this.z);
-    const holdR = CONFIG.fish.schoolRadius;
+    const holdR = huntVehicle
+      ? Math.max(6, (huntVehicle.cfg?.length ?? 8) * (huntVehicle.scale ?? 1) * 0.65)
+      : (CONFIG.fish.schoolRadius ?? 34);
 
     const lead = podLeader(this, pack);
     this._podFollow = !!(lead && lead !== this);
@@ -751,7 +767,7 @@ export class Shark {
     let force;
     let arriveR = 14;
     if (this.aiMode === "strike") {
-      const detect = 7.2;
+      const detect = cfg.sense === "echo" ? 120 : 22;
       let visR = detect;
       let glowR = detect;
       if (visualHunter(cfg)) {
@@ -832,7 +848,7 @@ export class Shark {
         arriveR = 24;
         this.thrust = 0.36;
       }
-    } else if (satiated && !hungry) {
+    } else if ((satiated && !hungry) || !hasPrey) {
       const rdx = this.roamX - this.x;
       const rdz = this.roamZ - this.z;
       if (rdx * rdx + rdz * rdz < 22 * 22) this._pickRoam();
@@ -864,7 +880,7 @@ export class Shark {
 
     if (this.cfg.gait === "benthic") {
       ty = seafloorHeight(tx, tz) + cfg.floorClearance + 1.6;
-    } else if (cfg.nightDepth != null && this.aiMode !== "strike") {
+    } else if (cfg.nightDepth != null && this.aiMode !== "strike" && !(hungry && hasPrey)) {
       ty = dvmY(look?.hour ?? 12, cfg);
     }
 
@@ -1003,8 +1019,9 @@ export class Shark {
     }
     const hungry = this.energy < (this.cfg.hungry ?? CONFIG.shark.hungry) / this.aggression;
     const satiated = this.energy > (this.cfg.satiated ?? CONFIG.shark.satiated);
+    const prey = hasHuntPrey(this, school, pack, this.cfg);
     if (this.aiMode === "recover") {
-      if (hungry && school.count > 8) {
+      if (hungry && prey) {
         this.aiMode = "stalk";
         this.aiT = 1.5 + Math.random() * 1.4;
       } else {
@@ -1017,7 +1034,7 @@ export class Shark {
     } else if (this.aiMode === "patrol") {
       if (satiated) {
         this.aiT = 3 + Math.random() * 3.5;
-      } else if (school.count > 8 && (hungry || dist < 72)) {
+      } else if (prey && (hungry || dist < 72)) {
         this.aiMode = "stalk";
         this.aiT = hungry ? 2.8 + Math.random() * 2.2 : 6.5 + Math.random() * 4;
       } else {
@@ -1028,7 +1045,7 @@ export class Shark {
         this.aiMode = "patrol";
         this.aiT = 7 + Math.random() * 5;
         this._pickRoam();
-      } else if (dist < holdR * (hungry ? 1.18 : 1.05) && school.count > 8) {
+      } else if (dist < holdR * (hungry ? 1.18 : 1.05) && prey) {
         this.aiMode = "strike";
         this.aiT = hungry ? 2.35 : 1.9;
         this.startLunge();
@@ -1052,9 +1069,14 @@ export class Shark {
       }
     }
     let fallback = -1;
+    const want = this.cfg?.huntTaxa;
     for (let k = 1; k <= school.maxSchools; k++) {
       const idx = (this.huntIndex + k) % school.maxSchools;
-      if (school.schoolN[idx] <= 40) continue;
+      if (school.schoolN[idx] < 8) continue;
+      if (want && want.length) {
+        const id = school.taxa[school.anchors[idx]?.taxon ?? 0]?.id;
+        if (!want.includes(id)) continue;
+      }
       if (fallback < 0) fallback = idx;
       if (!claimed.has(idx)) {
         this.huntIndex = idx;
@@ -1355,7 +1377,7 @@ function formationOff(self, lead) {
   };
 }
 
-function hasHuntPrey(self, school, pack, cfg) {
+export function hasHuntPrey(self, school, pack, cfg) {
   if (nearestHuntKind(self, pack, cfg.huntKinds)) return true;
   const want = cfg.huntTaxa;
   if (!want?.length) return (school?.count ?? 0) > 8;

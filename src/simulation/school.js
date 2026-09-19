@@ -7,7 +7,7 @@ import {
   schoolHunts,
 } from "../world/fauna.js";
 import { UniformGrid3D } from "./grid.js";
-import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore, clampLocalY, placeInColumn, pickHabitatXZ } from "./obstacles.js";
+import { steerFromColliders, resolveColliders, seafloorHeight, seafloorSlope, lookAheadShore, steerOffShore, steerOffBounds, turnHeadingOffBounds, clampToCell, clampLocalY, placeInColumn, pickHabitatXZ } from "./obstacles.js";
 import { sampleFlow } from "./flow.js";
 import { TROPHIC } from "./plankton.js";
 import { columnQ10 } from "./temperature.js";
@@ -573,6 +573,7 @@ export class School {
     const rGlow = glowRadius > radius ? glowRadius : radius;
     const r2 = rGlow * rGlow;
     const vis2 = radius * radius;
+    const reach = Math.min(8, Math.max(1, Math.ceil(rGlow / CONFIG.cellSize)));
     let ix0 = (x - minX) * inv | 0;
     let iy0 = (y - minY) * inv | 0;
     let iz0 = (z - minZ) * inv | 0;
@@ -585,29 +586,38 @@ export class School {
     let best = -1;
     let bestD = r2;
     let inspected = 0;
-    outer: for (let o = 0; o < 27; o++) {
-      const ix = ix0 + N27X[o];
+    const reach2 = reach * reach;
+    outer: for (let dx = -reach; dx <= reach; dx++) {
+      const ix = ix0 + dx;
       if (ix < 0 || ix >= nx) continue;
-      const iy = iy0 + N27Y[o];
-      if (iy < 0 || iy >= ny) continue;
-      const iz = iz0 + N27Z[o];
-      if (iz < 0 || iz >= nz) continue;
-      const want = ix + 1 + (iy + 1) * 512 + (iz + 1) * 32768;
-      const h = (Math.imul(ix, 73856093) ^ Math.imul(iy, 19349663) ^ Math.imul(iz, 83492791)) & mask;
-      for (let j = heads[h]; j >= 0; j = next[j]) {
-        if (keyOf[j] !== want) continue;
-        inspected++;
-        if (inspected > NEIGHBOR_BUDGET) break outer;
-        if (taxa && taxa.length && !taxa.includes(this.taxonId(j))) continue;
-        const j3 = j * 3;
-        const dx = pos[j3] - x;
-        const dy = pos[j3 + 1] - y;
-        const dz = pos[j3 + 2] - z;
-        const d2 = dx * dx + dy * dy + dz * dz;
-        if (d2 < bestD) {
-          if (d2 > vis2 && !this.taxa[this.taxon[j]]?.look?.photophores) continue;
-          bestD = d2;
-          best = j;
+      const dx2 = dx * dx;
+      for (let dy = -reach; dy <= reach; dy++) {
+        const iy = iy0 + dy;
+        if (iy < 0 || iy >= ny) continue;
+        const dxy2 = dx2 + dy * dy;
+        if (dxy2 > reach2) continue;
+        for (let dz = -reach; dz <= reach; dz++) {
+          if (dxy2 + dz * dz > reach2) continue;
+          const iz = iz0 + dz;
+          if (iz < 0 || iz >= nz) continue;
+          const want = ix + 1 + (iy + 1) * 512 + (iz + 1) * 32768;
+          const h = (Math.imul(ix, 73856093) ^ Math.imul(iy, 19349663) ^ Math.imul(iz, 83492791)) & mask;
+          for (let j = heads[h]; j >= 0; j = next[j]) {
+            if (keyOf[j] !== want) continue;
+            inspected++;
+            if (inspected > NEIGHBOR_BUDGET) break outer;
+            if (taxa && taxa.length && !taxa.includes(this.taxonId(j))) continue;
+            const j3 = j * 3;
+            const px = pos[j3] - x;
+            const py = pos[j3 + 1] - y;
+            const pz = pos[j3 + 2] - z;
+            const d2 = px * px + py * py + pz * pz;
+            if (d2 < bestD) {
+              if (d2 > vis2 && !this.taxa[this.taxon[j]]?.look?.photophores) continue;
+              bestD = d2;
+              best = j;
+            }
+          }
         }
       }
     }
@@ -626,16 +636,14 @@ export class School {
 
   targetFor(shark) {
     const want = shark.cfg?.huntTaxa;
-    let best = 0;
+    let best = -1;
     let bestD = Infinity;
-    let matched = false;
     for (let s = 0; s < this.maxSchools; s++) {
       if (this.schoolN[s] < 8) continue;
       if (want && want.length) {
         const tid = this.anchors[s]?.taxon ?? 0;
         const id = this.taxa[tid]?.id;
         if (!want.includes(id)) continue;
-        matched = true;
       }
       const c = this.centroids[s];
       const dx = c.x - shark.x;
@@ -647,11 +655,11 @@ export class School {
         best = s;
       }
     }
-    if (want && want.length && !matched) {
-      return this.centroids[this.schoolN[shark.huntIndex] > 8 ? shark.huntIndex : 0] || this.centroid;
-    }
-    const idx = this.schoolN[shark.huntIndex] > 8 && (!want || want.includes(this.taxa[this.anchors[shark.huntIndex]?.taxon ?? 0]?.id))
-      ? shark.huntIndex
+    if (best < 0) return null;
+    const claimed = shark.huntIndex | 0;
+    const idx = this.schoolN[claimed] >= 8 &&
+      (!want || !want.length || want.includes(this.taxa[this.anchors[claimed]?.taxon ?? 0]?.id))
+      ? claimed
       : best;
     return this.centroids[idx];
   }
@@ -696,8 +704,6 @@ export class School {
 
   _wanderAnchors(dt, pack, look) {
     this.anchorT += dt * 0.11;
-    const boundX = CONFIG.halfX - 32;
-    const boundZ = CONFIG.halfZ - 36;
     for (let s = 0; s < this.maxSchools; s++) {
       const scfg = this.shoalCfg(s);
       const depth = shoalTargetY(look?.hour ?? 12, scfg, this.centroids[s].x, this.centroids[s].z);
@@ -788,7 +794,7 @@ export class School {
           let gx = prey.x - c.x;
           let gz = prey.z - c.z;
           const gLen = Math.hypot(gx, gz) || 1;
-          const pull = 0.22 + hunger * 1.15;
+          const pull = 0.4 + hunger * 2.4;
           a.hx += (gx / gLen) * pull;
           a.hz += (gz / gLen) * pull;
           a.gx = gx / gLen;
@@ -814,10 +820,10 @@ export class School {
         a.gz = 0;
         a.food = 0;
       }
-      if (c.x > boundX) a.hx = -Math.abs(a.hx);
-      else if (c.x < -boundX) a.hx = Math.abs(a.hx);
-      if (c.z > boundZ) a.hz = -Math.abs(a.hz);
-      else if (c.z < -boundZ) a.hz = Math.abs(a.hz);
+      const boundTurn = turnHeadingOffBounds(c.x, c.z, a.hx, a.hz, dt * 3.4);
+      a.hx = boundTurn.hx;
+      a.hz = boundTurn.hz;
+      if (boundTurn.urgency > 0.35) a.wantMill = 0;
       const groundA = seafloorHeight(c.x, c.z);
       if (groundA > depth + 6) {
         const sl = seafloorSlope(c.x, c.z);
@@ -921,7 +927,6 @@ export class School {
       compact[s] = u * u;
     }
 
-    const halfX = CONFIG.halfX;
     const sumX = this._sx;
     const sumY = this._sy;
     const sumZ = this._sz;
@@ -1207,7 +1212,7 @@ export class School {
           tx /= tlen;
           tz /= tlen;
           const invR = 1 / (r > 0.2 ? r : 0.2);
-          const inward = (r - holdR * 0.5) * 0.14;
+          const inward = (r - holdR * 0.5) * 0.06;
           dhx = dhx * (1 - mill) + (tx - rx * invR * inward) * mill;
           dhz = dhz * (1 - mill) + (tz - rz * invR * inward) * mill;
           const hl = Math.hypot(dhx, dhz) || 1;
@@ -1364,10 +1369,11 @@ export class School {
       ay += rock.ay;
       az += rock.az;
 
-      const margin = 12;
-      if (px > halfX - margin) ax -= (px - (halfX - margin)) * cfg.boundsWeight;
-      else if (px < -halfX + margin) ax += (-halfX + margin - px) * cfg.boundsWeight;
-      if (pz < -CONFIG.halfZ + margin) az += (-CONFIG.halfZ + margin - pz) * cfg.boundsWeight;
+      const bound = steerOffBounds(px, pz, vx, vz, { weight: (cfg.boundsWeight ?? 1.6) * 16 });
+      ax += bound.ax;
+      az += bound.az;
+      const bvx = bound.urgency > 0.08 ? bound.vx : vx;
+      const bvz = bound.urgency > 0.08 ? bound.vz : vz;
       const ground = seafloorHeight(px, pz);
       const ceilY = -cfg.surfaceClearance;
       if (py > ceilY) ay -= (py - ceilY) * 5.2;
@@ -1388,14 +1394,13 @@ export class School {
         const slope = shore.urgency > 0
           ? { x: shore.gx, z: shore.gz }
           : seafloorSlope(px, pz);
-        const into = Math.max(0, vx * slope.x + vz * slope.z);
+        const into = Math.max(0, bvx * slope.x + bvz * slope.z);
         const w = 28 + shoreU * shoreU * 70 + into * 22;
         ax -= slope.x * w;
         az -= slope.z * w;
-        if (hasBeach() && vz > 0) az -= vz * (2.5 + shoreU * 10);
+        if (hasBeach() && bvz > 0) az -= bvz * (2.5 + shoreU * 10);
         maxAcc = Math.max(maxAcc, cfg.maxAccel * (1.15 + shoreU * 0.9));
       }
-      if (pz > waterMaxZ() - margin) az -= (pz - (waterMaxZ() - margin)) * cfg.boundsWeight;
       if (hasBeach() && pz > CONFIG.beach.shoreZ - 28) {
         az -= (pz - (CONFIG.beach.shoreZ - 28)) * cfg.boundsWeight * 3.2;
       }
@@ -1408,9 +1413,9 @@ export class School {
         az *= s;
       }
 
-      let nvx = vx + ax * dt;
+      let nvx = bvx + ax * dt;
       let nvy = vy + ay * dt;
-      let nvz = vz + az * dt;
+      let nvz = bvz + az * dt;
       let spd = Math.hypot(nvx, nvy, nvz);
       if (spd < 1e-4) {
         nvx = 1;
@@ -1511,10 +1516,11 @@ export class School {
         nvy = Math.max(nvy, 0);
         if (hasBeach() && nvz > 0) nvz *= 0.32;
       }
-      if (nzPos > waterMaxZ() - 22) {
-        nzPos = waterMaxZ() - 22;
-        nvz = Math.min(nvz, 0);
-      }
+      const boxed = clampToCell(nxPos, nzPos, nvx, nvz, { padX: 22, padZ: 22, padMaxZ: 22 });
+      nxPos = boxed.x;
+      nzPos = boxed.z;
+      nvx = boxed.vx;
+      nvz = boxed.vz;
       const resolved = resolveColliders(nxPos, nyPos, nzPos, colliders, colliderCount, 1.4);
       nxPos = resolved.x;
       nyPos = resolved.y;

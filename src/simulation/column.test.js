@@ -17,8 +17,8 @@ import { presenceAt, rasterHabitat } from "../world/ranges.js";
 import { applyPatch, applyPresence, makeSyntheticPatch, makeTestPatch } from "../world/patch.js";
 import { faunaPresent } from "../config.js";
 import { School } from "./school.js";
-import { spawnPredators } from "./shark.js";
-import { seafloorHeight, findWaterAtDepth } from "./obstacles.js";
+import { spawnPredators, hasHuntPrey } from "./shark.js";
+import { seafloorHeight, findWaterAtDepth, clampToCell, turnHeadingOffBounds } from "./obstacles.js";
 import { vehicleCfg, knobsFor, SPECIES, allocateMixedSchoolCounts, schoolDiet, vehicleCountFor, vehiclePodsFor, vehiclePodId, vehicleIsPod } from "../world/fauna.js";
 import { readFileSync } from "node:fs";
 import { setCoastPolygons, coastKmAt } from "../world/coast.js";
@@ -460,6 +460,8 @@ function assert(cond, msg) {
 
   assert(vehicleCountFor("commondolphin", 0.3) < vehicleCountFor("commondolphin", 1), "vehicle count should scale with presence weight");
   assert(vehicleCountFor("spermwhale", 0.4) === 1, "a scarce vehicle should still seed one when present");
+  assert(vehicleCountFor("giantsquid", 1) === 5, "a full oceanic cell should seed a handful of giant squid");
+  assert(vehicleCountFor("giantsquid", 0.4) === 2, "low giant-squid presence still seeds more than one");
 
   assert(vehicleIsPod(vehicleCfg("orca")), "orca travels as a pod");
   assert(vehicleIsPod(vehicleCfg("commondolphin")), "common dolphin travels as pods");
@@ -809,6 +811,32 @@ function assert(cond, msg) {
   const toPeak = Math.hypot(hx - peak.x, hz - peak.z);
   const toOrigin = Math.hypot(hx, hz);
   assert(toPeak < toOrigin, `grazer home should sit nearer the bloom peak than the origin (peak ${toPeak.toFixed(0)} origin ${toOrigin.toFixed(0)})`);
+}
+
+{
+  const boxed = clampToCell(CONFIG.halfX + 40, 0, 12, -3);
+  assert(boxed.x <= CONFIG.halfX - 8, "clampToCell should keep x inside the cell");
+  assert(boxed.vx <= 0, "clampToCell should kill +X outward speed");
+  const turned = turnHeadingOffBounds(CONFIG.halfX - 8, 0, 1, 0, 1);
+  assert(turned.hx < 0.2, `open-face heading should rotate inward, got hx=${turned.hx.toFixed(2)}`);
+  assert(turned.urgency > 0, "near +X should have bound urgency");
+}
+
+{
+  const herringOnly = {
+    count: 200,
+    maxSchools: 1,
+    schoolN: [200],
+    centroids: [{ x: 0, y: -20, z: 0 }],
+    anchors: [{ taxon: 0 }],
+    taxa: [{ id: "herring" }],
+  };
+  const whale = { x: 10, y: -40, z: 10, huntIndex: 0, cfg: vehicleCfg("spermwhale") };
+  assert(School.prototype.targetFor.call(herringOnly, whale) == null, "sperm whale should not fall back to herring");
+  const emptySchool = { count: 0, maxSchools: 1, schoolN: [0], taxa: [{ id: "herring" }], anchors: [{ taxon: 0 }] };
+  const squid = { kind: "giantsquid", dead: false, x: 0, y: -800, z: 0 };
+  assert(hasHuntPrey(whale, emptySchool, [whale, squid], vehicleCfg("spermwhale")), "giant squid alone should count as hunt prey");
+  assert(!hasHuntPrey(whale, emptySchool, [whale], vehicleCfg("spermwhale")), "sperm whale without squid or huntTaxa schools has no prey");
 }
 
 console.log("column physics: 24 checks ok");
