@@ -40,7 +40,7 @@ export const FISH_DEFAULTS = {
   sepWeight: 2.15,
   aliWeight: 1.7,
   cohWeight: 0.5,
-  holdWeight: 2,
+  holdWeight: 2.4,
   fearWeight: 5.2,
   boundsWeight: 1.6,
   cruiseWeight: 0.68,

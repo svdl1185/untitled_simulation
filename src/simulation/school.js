@@ -1101,6 +1101,7 @@ export class School {
       let springY = 0;
       let springZ = 0;
       let nearN = 0;
+      const corrK = Math.min(0.2, dt * 10);
       for (let t = 0; t < NEAR_K; t++) {
         const j = nj[t];
         if (j < 0) continue;
@@ -1111,23 +1112,24 @@ export class School {
         const dyS = dy * yMul;
         const d = Math.sqrt(dx * dx + dyS * dyS + dz * dz);
         if (d < 1e-4) {
-          corrX += ((i * 13 + j) % 5) - 2;
-          corrZ += ((i * 7 + j) % 5) - 2;
+          corrX += ((((i * 13 + j) % 5) - 2) * 0.05);
+          corrZ += ((((i * 7 + j) % 5) - 2) * 0.05);
           nearN++;
           continue;
         }
         const gap = rest - d;
-        const inv = 1 / d;
-        if (gap > 0) {
-          const push = gap * 0.38;
-          corrX += dx * inv * push;
-          corrY += dy * inv * push * 0.55;
-          corrZ += dz * inv * push;
-        }
-        springX += dx * inv * gap;
-        springY += dy * inv * gap * yMul;
-        springZ += dz * inv * gap;
         nearN++;
+        if (gap <= 0) continue;
+        const inv = 1 / d;
+        corrX += dx * inv * gap * corrK;
+        corrY += dy * inv * gap * corrK * 0.55;
+        corrZ += dz * inv * gap * corrK;
+        const rel =
+          ((vx - vel[j3]) * dx + (vy - vel[j3 + 1]) * dy + (vz - vel[j3 + 2]) * dz) * inv;
+        const approach = rel < 0 ? -rel : 0;
+        springX += dx * inv * (gap + approach * 0.45);
+        springY += dy * inv * (gap + approach * 0.45) * yMul;
+        springZ += dz * inv * (gap + approach * 0.45);
       }
 
       let ax = springX * cfg.sepWeight;
@@ -1212,7 +1214,7 @@ export class School {
           tx /= tlen;
           tz /= tlen;
           const invR = 1 / (r > 0.2 ? r : 0.2);
-          const inward = (r - holdR * 0.5) * 0.06;
+          const inward = Math.max(0, r - holdR * 0.55) * 0.05;
           dhx = dhx * (1 - mill) + (tx - rx * invR * inward) * mill;
           dhz = dhz * (1 - mill) + (tz - rz * invR * inward) * mill;
           const hl = Math.hypot(dhx, dhz) || 1;
@@ -1254,12 +1256,12 @@ export class School {
         const e2 = nxh * nxh + nyh * nyh + nzh * nzh;
         if (e2 > 1) {
           const e = Math.sqrt(e2);
-          const extra = (e - 1) * cfg.holdWeight * (1 + (e - 1) * 0.65);
+          const extra = (e - 1) * cfg.holdWeight * (1 + (e - 1) * 0.22);
           cruiseX -= extra * (nxh * anchor.hx) / alongR - extra * (nzh * anchor.hz) / sideR;
           cruiseY -= extra * nyh / localH;
           cruiseZ -= extra * (nxh * anchor.hz) / alongR + extra * (nzh * anchor.hx) / sideR;
         } else if (along < 0) {
-          const catchUp = (-along / alongR) * 2.6;
+          const catchUp = (-along / alongR) * 1.45;
           cruiseX += dhx * catchUp;
           cruiseZ += dhz * catchUp;
         }
