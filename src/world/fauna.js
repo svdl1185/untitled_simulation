@@ -226,8 +226,9 @@ export function tickBreathHold(surfacing, breathT, dt, cfg, atAir, extra) {
 }
 
 /**
- * How individuals relate. Polarized is the herring pancake.
- * Loose is a surface aggregation (flying fish). Scatter is nearly
+ * How individuals relate. Polarized is a traveling ribbon (herring);
+ * a mill-ball is only when a predator is in fear range. Loose is a
+ * heading-aligned surface patch (flying fish). Scatter is nearly
  * independent — keep it for later solitary pelagics.
  */
 export const SOCIAL = {
