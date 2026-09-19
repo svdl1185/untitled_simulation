@@ -1297,6 +1297,49 @@ function taxonGroup(id) {
   return "Field";
 }
 
+/** Overlay list bins — biological guild, not school vs vehicle. */
+const OVERLAY_GROUP_ORDER = [
+  "Forage",
+  "Squid",
+  "Demersal",
+  "Sharks",
+  "Pelagic predators",
+  "Marine mammals",
+];
+
+function overlayGroup(id) {
+  const spec = SPECIES[id];
+  if (!spec) return "Other";
+  const guild = spec.guild;
+  const mesh = spec.vehicle?.mesh;
+  const named = `${FAUNA[id]?.common || ""} ${FAUNA[id]?.guild || ""}`;
+  if (guild === "mysticete" || guild === "odontocete") return "Marine mammals";
+  if (
+    guild === "filter-feeder" ||
+    mesh === "shark" ||
+    mesh === "hammerhead" ||
+    mesh === "whaleshark" ||
+    /shark/i.test(named)
+  ) {
+    return "Sharks";
+  }
+  if (guild === "cephalopod" || guild === "cephalopod-predator") return "Squid";
+  if (guild === "demersal" || guild === "slope-predator") return "Demersal";
+  if (guild === "pelagic-predator") return "Pelagic predators";
+  if (guild === "forage" || guild === "surface") return "Forage";
+  return "Other";
+}
+
+function overlayBuckets() {
+  const buckets = new Map(OVERLAY_GROUP_ORDER.map((title) => [title, []]));
+  for (const id of [...SCHOOL_IDS, ...VEHICLE_IDS]) {
+    const title = overlayGroup(id);
+    if (!buckets.has(title)) buckets.set(title, []);
+    buckets.get(title).push(id);
+  }
+  return buckets;
+}
+
 function bindFilter(root, emit) {
   if (!root) {
     return { hasSelection() { return false; }, showNotes() {}, trophic: () => false };
@@ -1320,8 +1363,8 @@ function bindFilter(root, emit) {
   const clear = el("button", { type: "button", class: "filter-clear", text: "Clear" });
   actions.append(mode, solo, clear);
   const list = el("div", { class: "filter-list" });
-  const notes = el("div", { class: "filter-notes", hidden: "" });
   const rows = new Map();
+  const groups = [];
 
   function paint() {
     const q = query.trim().toLowerCase();
@@ -1334,39 +1377,20 @@ function bindFilter(root, emit) {
       const latin = (FAUNA[id]?.latin || "").toLowerCase();
       row.hidden = !!(q && !name.includes(q) && !latin.includes(q));
     }
+    for (const group of groups) {
+      group.kicker.hidden = !group.ids.some((id) => !rows.get(id)?.hidden);
+    }
     mode.textContent = trophic ? "Spawn" : "Range";
     mode.title = trophic
       ? "Showing cells that would spawn (trophic gate on)"
       : "Showing geographic range (Wikipedia-style)";
     emit("state", { ids: [...selected], trophic });
-    renderNotes();
-  }
-
-  function renderNotes() {
-    const id = focusId && selected.has(focusId)
-      ? focusId
-      : selected.size === 1
-        ? [...selected][0]
-        : null;
-    if (!id || !FAUNA[id]) {
-      notes.hidden = true;
-      notes.replaceChildren();
-      return;
-    }
-    notes.hidden = false;
-    const sp = FAUNA[id];
-    const missing = (sp.missing || []).slice(0, 2).map((line) => el("p", { text: line }));
-    notes.replaceChildren(
-      el("p", { class: "about-label", text: sp.latin || taxonName(id) }),
-      el("p", { class: "filter-notes-about", text: sp.about || sp.program || "" }),
-      ...(missing.length
-        ? [el("p", { class: "about-label", text: "Not in the model" }), ...missing]
-        : [])
-    );
   }
 
   function addGroup(title, ids) {
-    list.append(el("p", { class: "filter-kicker", text: title }));
+    if (!ids.length) return;
+    const kicker = el("p", { class: "filter-kicker", text: title });
+    list.append(kicker);
     const sorted = ids.slice().sort((a, b) => taxonName(a).localeCompare(taxonName(b)));
     for (const id of sorted) {
       const tint = habitatTint(id);
@@ -1393,10 +1417,10 @@ function bindFilter(root, emit) {
       rows.set(id, row);
       list.append(row);
     }
+    groups.push({ kicker, ids: sorted });
   }
 
-  addGroup("School", SCHOOL_IDS);
-  addGroup("Vehicles", VEHICLE_IDS);
+  for (const [title, ids] of overlayBuckets()) addGroup(title, ids);
   search.addEventListener("input", () => {
     query = search.value;
     paint();
@@ -1427,7 +1451,7 @@ function bindFilter(root, emit) {
     focusId = null;
     paint();
   });
-  root.replaceChildren(lead, search, actions, notes, list);
+  root.replaceChildren(lead, search, actions, list);
   return {
     hasSelection() {
       return selected.size > 0;

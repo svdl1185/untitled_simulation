@@ -1161,19 +1161,6 @@ kbd {
   color: var(--muted);
 }
 
-.filter-notes {
-  margin: 8px 0 12px;
-  padding: 8px 0 0;
-  border-top: 1px solid var(--line);
-}
-
-.filter-notes-about {
-  margin: 4px 0 8px;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-
 .filter-row.focus {
   border-color: rgba(160, 230, 220, 0.55);
 }
@@ -1208,6 +1195,11 @@ kbd {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.filter-row[hidden],
+.filter-kicker[hidden] {
+  display: none;
 }
 
 .filter-row {
