@@ -1332,7 +1332,7 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 10px;
+  margin: 0;
   max-width: 16rem;
   pointer-events: auto;
   font-size: 11px;

@@ -25,13 +25,13 @@ export function createOceanMap({ onEnter, onSeason, onOverlayFocus }) {
         <p class="ocean-map-readout" id="ocean-map-readout">Hover water for coordinates and fauna in range</p>
         <p class="ocean-map-fauna" id="ocean-map-fauna"></p>
         <div class="ocean-map-swatches" id="ocean-map-swatches" hidden></div>
+      </div>
+      <div class="ocean-map-bottom">
+        <p class="ocean-map-status" id="ocean-map-status"></p>
         <label class="ocean-map-season" id="ocean-map-season" hidden>
           <span id="ocean-map-season-read">Day of year</span>
           <input type="range" id="ocean-map-season-input" min="1" max="365" step="1" />
         </label>
-      </div>
-      <div class="ocean-map-bottom">
-        <p class="ocean-map-status" id="ocean-map-status"></p>
         <div class="ocean-map-legend" aria-hidden="true">
           <span>Shelf</span>
           <i></i><i></i><i></i><i></i>
