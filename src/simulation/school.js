@@ -98,10 +98,10 @@ const N27Z = new Int8Array(27);
  * through neighbors as a turn wave; flee blends with hold so a strike
  * opens a hole without detonating the shoal.
  *
- * Trophic: grazers Type II-pull `p` or `z`; piscivores close on a live
- * forage centroid (including depth) and bite named forage on the
- * neighbour walk; demersal taxa graze living infauna on the bed. Starvation and
- * predator kills recycle biomass back into the NPZD water column.
+ * Trophic: grazers Type II-pull `p` or `z`; piscivores charge through a
+ * live forage school (including depth), bite on overlap, then may turn
+ * for another pass; demersal taxa graze living infauna on the bed.
+ * Starvation and predator kills recycle biomass back into the NPZD water column.
  */
 export class School {
   constructor(count, opts = {}) {
@@ -198,6 +198,7 @@ export class School {
         taxon: 0,
         huntTarget: null,
         hunting: 0,
+        passT: 0,
         preyX: 0,
         preyY: 0,
         preyZ: 0,
@@ -748,6 +749,7 @@ export class School {
         this.anchors[s].wantMill = 0;
         this.anchors[s].huntTarget = null;
         this.anchors[s].hunting = 0;
+        this.anchors[s].passT = 0;
         continue;
       }
       const a = this.anchors[s];
@@ -818,28 +820,45 @@ export class School {
         a.preyY = prey.y;
         a.preyZ = prey.z;
       }
+      if (a.passT > 0) a.passT = Math.max(0, a.passT - dt);
       if (hunting || (biter && !grazer)) a.wantMill = 0;
       else if (polarized && scfg.habitat !== "benthic") {
         a.wantMill = sharkNear || this._compact[s] > 0.22 ? 1 : 0;
       } else {
         a.wantMill = 0;
       }
-      if (biter && !grazer) {
-        if (prey) {
-          let gx = prey.x - c.x;
-          let gz = prey.z - c.z;
-          const gLen = Math.hypot(gx, gz) || 1;
-          const pull = 0.4 + hunger * 2.4;
-          a.hx += (gx / gLen) * pull;
-          a.hz += (gz / gLen) * pull;
-          a.gx = gx / gLen;
-          a.gz = gz / gLen;
-          a.food = 0.45;
-        } else {
-          a.gx = 0;
-          a.gz = 0;
-          a.food = 0;
+      if (hunting && prey) {
+        const gx = prey.x - c.x;
+        const gz = prey.z - c.z;
+        const gLen = Math.hypot(gx, gz) || 1;
+        const ax = gx / gLen;
+        const az = gz / gLen;
+        const along = a.hx * gx + a.hz * gz;
+        if (a.passT <= 0 && gLen <= 52 && along > -8) {
+          a.passT = 3.6;
         }
+        if (a.passT <= 0 && gLen > 52) {
+          const flank = ((s % 5) - 2) * 0.1;
+          const rate = Math.min(1, dt * (0.9 + hunger * 0.8));
+          a.hx += (ax - a.hx) * rate - a.hz * flank * dt;
+          a.hz += (az - a.hz) * rate + a.hx * flank * dt;
+          a.gx = ax;
+          a.gz = az;
+        } else {
+          if (along > 16) {
+            const t = Math.min(1, dt * 1.8);
+            a.hx += (ax - a.hx) * t;
+            a.hz += (az - a.hz) * t;
+          }
+          a.gx = a.hx;
+          a.gz = a.hz;
+        }
+        a.food = 0.45;
+      } else if (biter && !grazer) {
+        a.gx = 0;
+        a.gz = 0;
+        a.food = 0;
+        a.passT = 0;
       } else if (bloom) {
         const g = grazeP ? bloom.gradientLayer(TROPHIC.P, c.x, c.z) : bloom.gradient(c.x, c.z);
         let pull = 0.18 + hunger * 1.2;
@@ -1047,10 +1066,6 @@ export class School {
       let fearR = 1;
       let inFear = false;
       let lunging = false;
-      let preyNx = 0;
-      let preyNy = 0;
-      let preyNz = 0;
-      let preyNd2 = 1e15;
       const hunting = isSchoolBiter(cfg) && cfg.habitat !== "benthic" && !!anchor.huntTarget && this.energy[i] < 0.82;
 
       let ix0 = (px - minX) * inv | 0;
@@ -1104,12 +1119,6 @@ export class School {
             }
           }
           if (schoolHunts(cfg, eaterId, preyId) && this.energy[i] < 0.82 && !this._eaten[j]) {
-            if (d2 < preyNd2) {
-              preyNd2 = d2;
-              preyNx = -dx;
-              preyNy = -dy;
-              preyNz = -dz;
-            }
             if (this.biteT[i] <= 0) {
               const br = cfg.biteRadius || 1.2;
               if (d2 < br * br) {
@@ -1122,7 +1131,7 @@ export class School {
           }
           if (d2 > cohR2) continue;
 
-          if (d2 < sepR2) {
+          if (d2 < sepR2 && !(hunting && schoolHunts(cfg, eaterId, preyId))) {
             const dyS = dy * yMul;
             const d2s = dx * dx + dyS * dyS + dz * dz;
             if (d2s < nearWorst) {
@@ -1197,12 +1206,13 @@ export class School {
 
       if (aliN > 0) {
         const invN = 1 / aliN;
-        ax += (aliX * invN - vx) * cfg.aliWeight;
-        ay += (aliY * invN - vy) * cfg.aliWeight * 0.32;
-        az += (aliZ * invN - vz) * cfg.aliWeight;
+        const aliK = hunting ? 0.16 : 1;
+        ax += (aliX * invN - vx) * cfg.aliWeight * aliK;
+        ay += (aliY * invN - vy) * cfg.aliWeight * 0.32 * aliK;
+        az += (aliZ * invN - vz) * cfg.aliWeight * aliK;
       }
 
-      if (cohN > 0) {
+      if (cohN > 0 && !hunting) {
         const invN = 1 / cohN;
         const cx = cohX * invN - px;
         const cy = cohY * invN - py;
@@ -1261,7 +1271,7 @@ export class School {
 
       let dhx = anchor.hx;
       let dhz = anchor.hz;
-      const wantSpd = anchor.cruise * this.pref[i] * (1 - mill * 0.82) * (hunting ? 1.22 : 1);
+      const wantSpd = anchor.cruise * this.pref[i] * (1 - mill * 0.82) * (hunting ? 1.45 : 1);
       if (mill > 0.04) {
         const rx = px - hold.x;
         const rz = pz - hold.z;
@@ -1288,12 +1298,14 @@ export class School {
         dhz = turned.hz;
       }
 
-      let cruiseX = (dhx * wantSpd - vx) * cfg.cruiseWeight;
+      const cruiseK = hunting ? 2.8 : 1;
+      let cruiseX = (dhx * wantSpd - vx) * cfg.cruiseWeight * cruiseK;
       let cruiseY = -vy * cfg.pitchDamp * (hunting ? 0.22 : 1);
-      let cruiseZ = (dhz * wantSpd - vz) * cfg.cruiseWeight;
+      let cruiseZ = (dhz * wantSpd - vz) * cfg.cruiseWeight * cruiseK;
       const nse = Math.sin(simT * 1.25 + this.phase[i] * 2.7);
-      cruiseX += -anchor.hz * nse * cfg.noiseWeight;
-      cruiseZ += anchor.hx * nse * cfg.noiseWeight;
+      const nK = hunting ? 0.18 : 1;
+      cruiseX += -anchor.hz * nse * cfg.noiseWeight * nK;
+      cruiseZ += anchor.hx * nse * cfg.noiseWeight * nK;
 
       const groundHold = seafloorHeight(px, pz);
       const ceilHold = -cfg.surfaceClearance;
@@ -1317,18 +1329,18 @@ export class School {
         const e2 = nxh * nxh + nyh * nyh + nzh * nzh;
         if (e2 > 1) {
           const e = Math.sqrt(e2);
-          const holdK = hunting ? cfg.holdWeight * 0.32 : cfg.holdWeight;
+          const holdK = hunting ? 0 : cfg.holdWeight;
           const extra = (e - 1) * holdK * (1 + (e - 1) * 0.22);
           cruiseX -= extra * (nxh * anchor.hx) / alongR - extra * (nzh * anchor.hz) / sideR;
           cruiseY -= extra * nyh / localH;
           cruiseZ -= extra * (nxh * anchor.hz) / alongR + extra * (nzh * anchor.hx) / sideR;
         } else if (along < 0) {
-          const catchUp = (-along / alongR) * 1.45;
+          const catchUp = (-along / alongR) * (hunting ? 2.4 : 1.45);
           cruiseX += dhx * catchUp;
           cruiseZ += dhz * catchUp;
         }
         const sideAbs = Math.abs(side);
-        if (mill < 0.25 && sideAbs > alongR * 0.4) {
+        if ((hunting || mill < 0.25) && sideAbs > alongR * 0.4) {
           const cut = (sideAbs / sideR - 0.5) * 3.1;
           if (cut > 0) {
             const sgn = side > 0 ? 1 : -1;
@@ -1336,7 +1348,7 @@ export class School {
             cruiseZ -= anchor.hx * sgn * cut;
           }
         }
-      } else if ((cfg.social || "") === "loose") {
+      } else if (!hunting && (cfg.social || "") === "loose") {
         const along = hdx * dhx + hdz * dhz;
         const side = hdx * -dhz + hdz * dhx;
         const r = Math.max(10, cfg.schoolRadius);
@@ -1349,7 +1361,7 @@ export class School {
           cruiseX -= (along * dhx / aR - side * dhz / sR) * w;
           cruiseZ -= (along * dhz / aR + side * dhx / sR) * w;
         }
-      } else {
+      } else if (!hunting) {
         const d2 = hdx * hdx + hdz * hdz;
         const r = Math.max(8, cfg.schoolRadius);
         if (d2 > r * r) {
@@ -1359,24 +1371,7 @@ export class School {
           cruiseZ -= (hdz / d) * w;
         }
       }
-      cruiseY += (anchor.y - py) * cfg.depthWeight * (hunting ? 2.6 : 1);
-      if (hunting) {
-        const pdx = anchor.preyX - px;
-        const pdy = anchor.preyY - py;
-        const pdz = anchor.preyZ - pz;
-        const pd = Math.hypot(pdx, pdy, pdz) || 1;
-        const charge = 7.2 + Math.min(10, Math.abs(pdy) * 0.42);
-        cruiseX += (pdx / pd) * charge;
-        cruiseY += (pdy / pd) * charge * 1.45;
-        cruiseZ += (pdz / pd) * charge;
-        if (preyNd2 < 256) {
-          const d = Math.sqrt(preyNd2) || 1;
-          const w = (1 - d / 16) * 16;
-          cruiseX += (preyNx / d) * w;
-          cruiseY += (preyNy / d) * w * 1.25;
-          cruiseZ += (preyNz / d) * w;
-        }
-      }
+      cruiseY += (anchor.y - py) * cfg.depthWeight * (hunting ? 0.08 : 1);
       let e = this.energy[i];
       const bloom = this._plankton;
       if (alarm < 0.82 && shore.urgency < 0.45 && bloom) {
@@ -1393,9 +1388,11 @@ export class School {
           e += sat * forageGain * dt * (1.08 - e) * (1 - alarm * 0.6);
         }
         const hunger = 1 - e;
-        const pull = cfg.forageWeight * (0.18 + hunger * 1.25);
-        cruiseX += anchor.gx * pull;
-        cruiseZ += anchor.gz * pull;
+        if (!hunting) {
+          const pull = cfg.forageWeight * (0.18 + hunger * 1.25);
+          cruiseX += anchor.gx * pull;
+          cruiseZ += anchor.gz * pull;
+        }
         if (cfg.benthosGraze > 0) {
           const ground = seafloorHeight(px, pz);
           if (py < ground + (cfg.floorClearance ?? 2.4) * 2.6 + 2) {
@@ -1547,7 +1544,7 @@ export class School {
         if (dot > 1) dot = 1;
         else if (dot < -1) dot = -1;
         const ang = Math.acos(dot);
-        const maxAng = cfg.maxTurn * (1 + alarm * 1.05 + shoreU * 1.6) * dt;
+        const maxAng = cfg.maxTurn * (hunting ? 2.4 : 1) * (1 + alarm * 1.05 + shoreU * 1.6) * dt;
         if (ang > maxAng && ang > 1e-4) {
           const t = maxAng / ang;
           let dx = ox + (nxv - ox) * t;

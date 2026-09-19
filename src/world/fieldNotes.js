@@ -143,7 +143,7 @@ export const FAUNA = {
     about:
       "Atlantic mackerel (Scomber scombrus) in the North Atlantic; chub mackerel (S. japonicus) in Pacific cells of this id. Typically 25–40 cm. Fast, looser shoals than herring. Often 0–200 m; recorded to about 400 m. Adults eat small fish as well as zooplankton.",
     program:
-      "Polarized shoal with a smaller share of the bloom-capped grid. Type II graze on z, plus a close on live named forage (including depth) and a neighbour-walk bite on herring, capelin, sprat, sand lance, anchovy, sardine, and polar cod (`diet: both`, `huntTaxa`). Piscivory is extra calories on the grazer cap, not a second headcount.",
+      "Polarized shoal with a smaller share of the bloom-capped grid. Type II graze on z, plus a charge through live named forage (including depth) and a neighbour-walk bite on herring, capelin, sprat, sand lance, anchovy, sardine, and polar cod (`diet: both`, `huntTaxa`). Piscivory is extra calories on the grazer cap, not a second headcount.",
     missing: [
       "Pacific chub mackerel is this id with a localized name, not a second species loop.",
       "Ram-filter feeding through copepod patches is Type II graze, not a ram-filter gait.",
@@ -388,7 +388,7 @@ export const FAUNA = {
     about:
       "Tropical and subtropical tuna, typically 40–80 cm. Ram ventilator — must keep swimming. Usually 0–200 m; recorded to about 260 m. Schools with birds on surface forage. Broadcast spawner.",
     program:
-      "Polarized hashed-grid tuna (`diet: bite`). Closes on a live forage centroid — including depth — then neighbour-walk bites in the photic-to-upper-mesopelagic band. Share of the prey-capped school slice, not a Reynolds handful. o2Min 2.4 ml/L — they will not follow lanternfish or Humboldt into the OMZ. Recruit from the mixed school budget when energy holds. Circumtropical oceanic hulls; the Mediterranean is empty.",
+      "Polarized hashed-grid tuna (`diet: bite`). Charges through a live forage school — including depth — then neighbour-walk bites in the photic-to-upper-mesopelagic band. Share of the prey-capped school slice, not a Reynolds handful. o2Min 2.4 ml/L — they will not follow lanternfish or Humboldt into the OMZ. Recruit from the mixed school budget when energy holds. Circumtropical oceanic hulls; the Mediterranean is empty.",
     missing: [
       "Bird-associated surface feeding is not a cue.",
       "Squid diet is school fish only.",
@@ -637,7 +637,7 @@ export const FAUNA = {
     about:
       "East Pacific jumbo flying squid, typically 0.8–2 m. Famous DVM: night in the upper 100 m, day 200–700 m, recorded to about 1200 m in the oxygen minimum. Hunts anchoveta, sardine, and lanternfish. Cannibalistic.",
     program:
-      "Scatter school, jet pulse–coast on the hashed-grid velocity (same integrator as market squid), not a Reynolds handful. Day DVM follows the OMZ core (`omzCoreY`); night the upper 100 m. Enlarges `gridMinY` when present. Closes on a live huntTaxa centroid, including depth, then neighbour-walk bites anchovy, sardine, mackerel, lanternfish, and jack mackerel. In low PAR, lanternfish photophores restore a fraction of detect range so the day OMZ hunt is not a starve. Flees sperm whales downward (deep day band). East Pacific coastal envelope plus an equatorial tongue toward 140°W, an OMZ presence gate, and climate upwell. Sperm whales hunt this taxon (`huntTaxa`).",
+      "Scatter school, jet pulse–coast on the hashed-grid velocity (same integrator as market squid), not a Reynolds handful. Day DVM follows the OMZ core (`omzCoreY`); night the upper 100 m. Enlarges `gridMinY` when present. Charges through a live huntTaxa school, including depth, then neighbour-walk bites anchovy, sardine, mackerel, lanternfish, and jack mackerel. In low PAR, lanternfish photophores restore a fraction of detect range so the day OMZ hunt is not a starve. Flees sperm whales downward (deep day band). East Pacific coastal envelope plus an equatorial tongue toward 140°W, an OMZ presence gate, and climate upwell. Sperm whales hunt this taxon (`huntTaxa`).",
     missing: [
       "Cannibalism is not a school-on-school huntTaxa loop on this pack.",
       "Rapid chromatophore flashing as pack communication is not a state.",
@@ -657,7 +657,7 @@ export const FAUNA = {
     about:
       "Tropical surface hunter, typically 0.8–1.5 m. Lives with flotsam in the top ~85 m. Fast-growing. Eaten by billfish and sharks.",
     program:
-      "Loose hashed-grid hunter in the surface band (`diet: bite`). Closes on a live forage centroid, including depth, then neighbour-walk bites on school fish. Prey-capped share, not a vehicle pair. Circumtropical oceanic hulls plus the Mediterranean.",
+      "Loose hashed-grid hunter in the surface band (`diet: bite`). Charges through a live forage school, including depth, then neighbour-walk bites on school fish. Prey-capped share, not a vehicle pair. Circumtropical oceanic hulls plus the Mediterranean.",
     missing: [
       "Flotsam / FADs are not objects.",
       "Aerial flying-fish strikes are not a behaviour.",
@@ -678,7 +678,7 @@ export const FAUNA = {
     about:
       "Tropical ambush piscivore, typically 0.6–1.7 m. Reefs, wrecks, and clear coastal water. Usually 0–50 m; recorded to about 110 m. Sit-and-dash, not a ram tuna.",
     program:
-      "Scatter hashed-grid sit-and-dash (`diet: bite`): wide spacing, closes on a live forage centroid including depth, then a short neighbour bite, stays nearly horizontal. Coastal tropical Atlantic, Caribbean, Hawaii, and Indo-West Pacific — not the eastern Pacific. Fades with kilometres from shore. Prey-capped share, not a vehicle pack.",
+      "Scatter hashed-grid sit-and-dash (`diet: bite`): wide spacing, charges through a live forage school including depth, then a short neighbour bite, stays nearly horizontal. Coastal tropical Atlantic, Caribbean, Hawaii, and Indo-West Pacific — not the eastern Pacific. Fades with kilometres from shore. Prey-capped share, not a vehicle pack.",
     missing: [
       "Reef structure as a sit-and-wait landmark is not a collider type.",
       "Hover-then-dash from a wreck or reef is scatter spacing, not ambush-from-structure.",
@@ -697,7 +697,7 @@ export const FAUNA = {
     about:
       "Tropical tuna, typically 1–1.8 m. Deeper and larger than skipjack. Often 0–250 m; recorded to about 500 m. Can share a cell with skipjack because skipjack stay shallower.",
     program:
-      "Polarized hashed-grid tuna (`diet: bite`). Closes on a live forage centroid, including depth, then neighbour-walk bites on school fish. Prey-capped share. o2Min 2 ml/L so the −500 m record is an oxygen ceiling, not a commute. Circumtropical oceanic hulls; the Mediterranean is empty.",
+      "Polarized hashed-grid tuna (`diet: bite`). Charges through a live forage school, including depth, then neighbour-walk bites on school fish. Prey-capped share. o2Min 2 ml/L so the −500 m record is an oxygen ceiling, not a commute. Circumtropical oceanic hulls; the Mediterranean is empty.",
     missing: [
       "FADs and dolphin-associated schools are not cues.",
       "Mixed-species tuna schools are pack spacing, not an association.",
@@ -736,7 +736,7 @@ export const FAUNA = {
     about:
       "Tropical billfish, typically 2–3 m. Fastest cruise in the catalog. Usually the upper 50–100 m; recorded to about 200 m. Raises the sail when herding bait. Depth partitions it from yellowfin.",
     program:
-      "Loose hashed-grid billfish (`diet: bite`). Closes on a live forage centroid, including depth. Circumtropical oceanic hulls with school prey. Neighbour-walk bites restore energy on the prey-capped slice.",
+      "Loose hashed-grid billfish (`diet: bite`). Charges through a live forage school, including depth. Circumtropical oceanic hulls with school prey. Neighbour-walk bites restore energy on the prey-capped slice.",
     missing: [
       "Sail-herding hydrodynamics are not a behaviour.",
       "The sail is the mesh, not a scoring device.",
