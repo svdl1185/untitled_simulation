@@ -14,7 +14,7 @@ export const FAUNA = {
     about:
       "North Atlantic clupeid, typically 20–38 cm. Lives in polarized shoals. Night feeding near 10–40 m; day refuge around 100–150 m. Recorded to about 400 m. Eaten by cod, sharks, tuna, whales, seals, and gannets. Recruits in spring when the bloom can carry the mixed forage budget.",
     program:
-      "Polarized hashed-grid shoal. Traveling is a heading-aligned ribbon; a mill-ball is defensive (predator in fear range) and they hold station. Type II graze on z. Hungry shoals may rise toward zooplankton; satiated shoals sit in the day refuge. Starvation and kills recycle to detritus.",
+      "Polarized hashed-grid shoal. Traveling is a heading-aligned ribbon; a mill-ball is defensive (a vehicle predator in fear range) and they hold station. School hunters open a hole without stopping the ribbon. Type II graze on z. Hungry shoals may rise toward zooplankton; satiated shoals sit in the day refuge. Starvation and kills recycle to detritus.",
     missing: [
       "Seals and gannets are not agents; the day dive is the refuge those visual hunters would create.",
       "Temperature is a mixed-layer field with Q10 on graze and metabolism; spawning grounds are still not a place.",
@@ -126,7 +126,7 @@ export const FAUNA = {
     sex: "Female / male. Females are drawn slightly larger.",
     about:
       "Tropical Atlantic, Caribbean, Gulf of Guinea, and Indian Ocean. Typically 15–25 cm. Upper 100–200 m. The forage that occupies warm water herring never reach.",
-    program: "Polarized tropical shoal. Type II graze on z. Occupancy is a coastal envelope around the tropical Atlantic and Indian Ocean, fading with kilometres from shore.",
+    program: "Polarized tropical shoal. Traveling is a heading-aligned ribbon; a mill-ball is defensive (a vehicle predator in fear range). Type II graze on z. Occupancy is a coastal envelope around the tropical Atlantic and Indian Ocean, fading with kilometres from shore.",
     missing: [
       "Indian oil sardine is the same id with a localized latin name, not a second loop.",
       "Monsoon-driven inshore/offshore shifts are a range hull, not a swim.",

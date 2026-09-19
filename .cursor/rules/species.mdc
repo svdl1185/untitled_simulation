@@ -78,7 +78,7 @@ Current typical DVM (not max): herring night ≈ −20 m, day ≈ −110 m, max 
 
 Spell out the loop, not the vibe.
 
-- **Social.** School: `polarized` (traveling ribbon; mill-ball only when a predator is in fear range), `loose` (heading-aligned aggregation, flying fish), or `scatter` (nearly independent). Only tight-knit schooling fish should be `polarized`. The hashed grid is shared; the program is not. Vehicle: `pods` (fixed unit count — orca one matriline) or `podSize` (split count into groups of about that size — common dolphin). Independent if both are 0. A pod spawns together, follows a leader, and air-breathers share a dive clock.
+- **Social.** School: `polarized` (traveling ribbon; mill-ball only when a vehicle predator is in fear range — school hunters open a hole without stopping the ribbon), `loose` (heading-aligned aggregation, flying fish), or `scatter` (nearly independent). Only tight-knit schooling fish should be `polarized`. The hashed grid is shared; the program is not. Vehicle: `pods` (fixed unit count — orca one matriline) or `podSize` (split count into groups of about that size — common dolphin). Independent if both are 0. A pod spawns together, follows a leader, and air-breathers share a dive clock.
 - Hunt / forage / mill / flee / recover / breathe–dive.
 - Reproduction (energy threshold, season, pup cost) and death (starve, eaten, recycle biomass).
 - Sex / size if it changes the loop (female herring larger; female sharks pup; male sperm whales larger).

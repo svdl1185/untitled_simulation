@@ -94,7 +94,8 @@ const N27Z = new Int8Array(27);
  * fish), not a crowd of cancelling forces. Alignment is same-school only
  * so each shoal stays polarized. A traveling shoal is a heading-aligned
  * ribbon, pinned just ahead of the live centroid. A mill-ball is defensive:
- * predator in fear range, and they hold station. Alarm spreads
+ * a vehicle predator in fear range, and they hold station. School hunters
+ * open a hole (alarm) without stopping the ribbon. Alarm spreads
  * through neighbors as a turn wave; flee blends with hold so a strike
  * opens a hole without detonating the shoal.
  *
@@ -723,11 +724,20 @@ export class School {
         fallbackId = id;
       }
       let score = this.schoolN[k] * Math.exp(-range / 32) / (1 + dy * 0.02);
-      if (locked && id === locked && this.schoolN[k] >= 8 && range < 90) score *= 2.4;
+      if (locked && id === locked && this.schoolN[k] >= 8 && range < 180) score *= 2.8;
       if (score > bestScore) {
         bestScore = score;
         best = c;
         bestId = id;
+      }
+    }
+    if (this.anchors[s]?.passT > 0 && locked && bestId !== locked) {
+      for (let k = 0; k < this.maxSchools; k++) {
+        if (this.schoolN[k] < 4) continue;
+        const id = this.taxa[this.anchors[k]?.taxon ?? 0]?.id;
+        if (id !== locked) continue;
+        const c = this.centroids[k];
+        return { x: c.x, y: c.y, z: c.z, id };
       }
     }
     const pick = bestScore > 0.8 ? best : fallback;
@@ -805,8 +815,8 @@ export class School {
       a.hz = hz / hLen;
 
       const flowA = sampleFlow(c.x, c.y, c.z, look?.simTime ?? 0, look?.storm ?? 0);
-      a.hx += flowA.x * 0.07;
-      a.hz += flowA.z * 0.07;
+      a.hx += flowA.x * dt * 2.2;
+      a.hz += flowA.z * dt * 2.2;
       const prey = biter ? this._preyCentroid(s, scfg) : null;
       a.huntTarget = prey && (!grazer || hunger > 0.48) ? prey.id : null;
       const hunting = !!(
@@ -823,7 +833,7 @@ export class School {
       if (a.passT > 0) a.passT = Math.max(0, a.passT - dt);
       if (hunting || (biter && !grazer)) a.wantMill = 0;
       else if (polarized && scfg.habitat !== "benthic") {
-        a.wantMill = sharkNear || this._compact[s] > 0.22 ? 1 : 0;
+        a.wantMill = sharkNear ? 1 : 0;
       } else {
         a.wantMill = 0;
       }
@@ -861,11 +871,15 @@ export class School {
         a.passT = 0;
       } else if (bloom) {
         const g = grazeP ? bloom.gradientLayer(TROPHIC.P, c.x, c.z) : bloom.gradient(c.x, c.z);
-        let pull = 0.18 + hunger * 1.2;
-        if (food < 0.14) pull += 0.45;
-        if (food > 0.42 && hunger < 0.36) pull *= 0.12;
-        a.hx += g.x * pull;
-        a.hz += g.z * pull;
+        const gLen = Math.hypot(g.x, g.z);
+        if (gLen > 1e-4) {
+          let pull = 0.35 + hunger * 0.9;
+          if (food < 0.14) pull += 0.4;
+          if (food > 0.42 && hunger < 0.36) pull *= 0.12;
+          const rate = Math.min(1, dt * pull * Math.min(1, gLen * 6));
+          a.hx += (g.x / gLen - a.hx) * rate;
+          a.hz += (g.z / gLen - a.hz) * rate;
+        }
         a.gx = g.x;
         a.gz = g.z;
         a.food = food;
@@ -994,7 +1008,7 @@ export class School {
         else if (d < outer) uu = (outer - d) / (outer - inner);
         if (uu > u) u = uu;
       }
-      compact[s] = u * u;
+      compact[s] += (u * u - compact[s]) * Math.min(1, dt * 1.15);
     }
 
     const sumX = this._sx;
@@ -1169,7 +1183,7 @@ export class School {
       let springY = 0;
       let springZ = 0;
       let nearN = 0;
-      const corrK = Math.min(0.2, dt * 10);
+      const corrK = Math.min(0.08, dt * 4);
       for (let t = 0; t < NEAR_K; t++) {
         const j = nj[t];
         if (j < 0) continue;
@@ -1189,15 +1203,17 @@ export class School {
         nearN++;
         if (gap <= 0) continue;
         const inv = 1 / d;
-        corrX += dx * inv * gap * corrK;
-        corrY += dy * inv * gap * corrK * 0.55;
-        corrZ += dz * inv * gap * corrK;
+        if (d < rest * 0.62) {
+          corrX += dx * inv * gap * corrK;
+          corrY += dy * inv * gap * corrK * 0.55;
+          corrZ += dz * inv * gap * corrK;
+        }
         const rel =
           ((vx - vel[j3]) * dx + (vy - vel[j3 + 1]) * dy + (vz - vel[j3 + 2]) * dz) * inv;
-        const approach = rel < 0 ? -rel : 0;
-        springX += dx * inv * (gap + approach * 0.45);
-        springY += dy * inv * (gap + approach * 0.45) * yMul;
-        springZ += dz * inv * (gap + approach * 0.45);
+        const closing = rel < 0 ? -rel : 0;
+        springX += dx * inv * (gap * 0.55 + closing * 0.85);
+        springY += dy * inv * (gap * 0.55 + closing * 0.85) * yMul;
+        springZ += dz * inv * (gap * 0.55 + closing * 0.85);
       }
 
       let ax = springX * cfg.sepWeight;
@@ -1212,7 +1228,7 @@ export class School {
         az += (aliZ * invN - vz) * cfg.aliWeight * aliK;
       }
 
-      if (cohN > 0 && !hunting) {
+      if (cohN > 0 && !hunting && !polarized) {
         const invN = 1 / cohN;
         const cx = cohX * invN - px;
         const cy = cohY * invN - py;
@@ -1260,10 +1276,9 @@ export class School {
       this._alarm[i] = nextAlarm;
       const alarm = nextAlarm;
       const mill = polarized ? anchor.mill : 0;
-      const packed = polarized ? this._compact[sid] : this._compact[sid] * 0.35;
       const holdR = (cfg.schoolRadius * (look?.schoolRadiusScale ?? 1)) *
-        (1 - tight * 0.1) * (1 - packed * 0.24) * (1 - mill * 0.18);
-      const holdH = cfg.schoolHeight * (1 - tight * 0.34) * (1 - packed * 0.16);
+        (1 - tight * 0.1) * (1 - mill * 0.12);
+      const holdH = cfg.schoolHeight * (1 - tight * 0.34);
       const alongR = holdR * (2.05 * (1 - mill) + 0.7 * mill);
       const sideR = holdR * (0.4 * (1 - mill) + 0.7 * mill);
       let maxSpd = cfg.maxSpeed * (0.82 + this.pref[i] * 0.22);
@@ -1298,12 +1313,14 @@ export class School {
         dhz = turned.hz;
       }
 
-      const cruiseK = hunting ? 2.8 : 1;
+      const cruiseK = hunting
+        ? ((cfg.social || "polarized") === "polarized" ? 2.6 : 4.6)
+        : 1;
       let cruiseX = (dhx * wantSpd - vx) * cfg.cruiseWeight * cruiseK;
       let cruiseY = -vy * cfg.pitchDamp * (hunting ? 0.22 : 1);
       let cruiseZ = (dhz * wantSpd - vz) * cfg.cruiseWeight * cruiseK;
       const nse = Math.sin(simT * 1.25 + this.phase[i] * 2.7);
-      const nK = hunting ? 0.18 : 1;
+      const nK = hunting ? 0 : 1;
       cruiseX += -anchor.hz * nse * cfg.noiseWeight * nK;
       cruiseZ += anchor.hx * nse * cfg.noiseWeight * nK;
 
@@ -1327,10 +1344,10 @@ export class School {
         const nyh = hdy / localH;
         const nzh = side / sideR;
         const e2 = nxh * nxh + nyh * nyh + nzh * nzh;
-        if (e2 > 1) {
+        if (e2 > 1.14) {
           const e = Math.sqrt(e2);
           const holdK = hunting ? 0 : cfg.holdWeight;
-          const extra = (e - 1) * holdK * (1 + (e - 1) * 0.22);
+          const extra = (e - 1) * holdK * 0.72;
           cruiseX -= extra * (nxh * anchor.hx) / alongR - extra * (nzh * anchor.hz) / sideR;
           cruiseY -= extra * nyh / localH;
           cruiseZ -= extra * (nxh * anchor.hz) / alongR + extra * (nzh * anchor.hx) / sideR;

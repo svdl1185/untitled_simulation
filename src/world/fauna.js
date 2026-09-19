@@ -227,7 +227,7 @@ export function tickBreathHold(surfacing, breathT, dt, cfg, atAir, extra) {
 
 /**
  * How individuals relate. Polarized is a traveling ribbon (herring);
- * a mill-ball is only when a predator is in fear range. Loose is a
+ * a mill-ball is only when a vehicle predator is in fear range. Loose is a
  * heading-aligned surface patch (flying fish). Scatter is nearly
  * independent — keep it for later solitary pelagics.
  */
@@ -1605,6 +1605,8 @@ export const SPECIES = {
       eatEnergy: 0.07,
       fearRadius: 11,
       groups: 2,
+      cruiseWeight: 0.86,
+      noiseWeight: 0.85,
     },
     look: {
       shape: "mahi",
@@ -1646,6 +1648,8 @@ export const SPECIES = {
       fearRadius: 10,
       groups: 3,
       restSpacing: 7.5,
+      cruiseWeight: 0.84,
+      noiseWeight: 0.7,
     },
     look: {
       shape: "barracuda",
@@ -1770,6 +1774,8 @@ export const SPECIES = {
       fearRadius: 16,
       groups: 2,
       restSpacing: 8.4,
+      cruiseWeight: 0.9,
+      noiseWeight: 0.55,
     },
     look: {
       shape: "billfish",
