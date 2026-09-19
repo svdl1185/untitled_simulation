@@ -2,7 +2,7 @@
 
 Headless Lotka–Volterra check of the catalog. No renderer: spawn a cell, step the day cycle, school, vehicles, and NPZD, then flag programs that go extinct, never eat, boom, or hold energy without a meal.
 
-The default cell is the **catalog tank** — the same 10 km lab as **Cells → Catalog tank**: beach, stepped shelves, canyon, seamount, 2000 m of water, every implemented animal. `--place shelf` is the synthetic North Sea fallback.
+The default cell is the **catalog tank** — the same 2 × 2 km lab as **Cells → Catalog tank**: beach, stepped shelves, canyon, seamount, 2000 m of water, every implemented animal. `--place shelf` is the synthetic North Sea fallback.
 
 Each species also records the shallowest and deepest depth it reached during the run.
 

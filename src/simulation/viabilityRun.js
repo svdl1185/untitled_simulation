@@ -1,6 +1,6 @@
 /**
  * Headless Lotka–Volterra run of a cell. No renderer.
- * Defaults to the 10 km catalog tank (every implemented animal).
+ * Defaults to the 2 × 2 km catalog tank (every implemented animal).
  *
  *   node src/simulation/viabilityRun.js
  *   node src/simulation/viabilityRun.js --days 7 --fish 8000

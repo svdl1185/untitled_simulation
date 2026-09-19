@@ -1,7 +1,7 @@
 import { DEMO_CELLS, defaultToggles, demoById, naturalPresence, presenceFromToggles, sandboxIds } from "./demos.js";
 import { PRESENCE_IDS, SPECIES } from "./fauna.js";
 import { applyPatch, applyPresence, makeSyntheticPatch, makeTestPatch } from "./patch.js";
-import { faunaPresent } from "../config.js";
+import { faunaPresent, CONFIG } from "../config.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -22,7 +22,7 @@ function assert(cond, msg) {
       assert(SPECIES[id], `${demo.id} sandbox id ${id} is not in the catalog`);
     }
   }
-  assert(demoById("catalog")?.kind === "lab", "catalog tank is the 10 km lab");
+  assert(demoById("catalog")?.kind === "lab", "catalog tank is the 2 × 2 km lab");
   assert(DEMO_CELLS.some((d) => d.id === "shelf"), "North Sea shelf demo");
   assert(DEMO_CELLS.some((d) => d.id === "polar" && d.status === "coupled"), "polar ice is coupled");
   assert(DEMO_CELLS.some((d) => d.id === "demersal" && d.status === "coupled"), "living bed is coupled");
@@ -56,7 +56,10 @@ function assert(cond, msg) {
 }
 
 {
-  applyPatch(makeTestPatch());
+  const patch = makeTestPatch();
+  applyPatch(patch);
+  assert(CONFIG.halfX === 1000 && CONFIG.halfZ === 1000, "catalog tank is 2 × 2 km");
+  assert(patch.sizeM === 2000 && patch.floorY <= -1900, "lab still has a 2000 m basin");
   const p = { ...PRESENCE_IDS.reduce((acc, id) => ((acc[id] = 1), acc), {}), herring: 0 };
   applyPresence(p, { honorFloor: false });
   assert(!faunaPresent("herring"), "applyPresence should drop herring in the tank");

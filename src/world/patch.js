@@ -7,7 +7,7 @@ import { bindCellUpwell } from "../simulation/flow.js";
 import { bindCellIce } from "../simulation/ice.js";
 
 export const PATCH_SIZE_M = 1000;
-export const LAB_SIZE_M = 10000;
+export const LAB_SIZE_M = 2000;
 export const ELEV_NX = 80;
 export const ELEV_NZ = 80;
 
@@ -245,7 +245,7 @@ export function makeBootPatch() {
 }
 
 /**
- * 10 km catalog tank: beach, inner/mid/outer shelves, a canyon to 2000 m,
+ * 2 × 2 km catalog tank: beach, inner/mid/outer shelves, a canyon to 2000 m,
  * a slope terrace, and a seamount. Every implemented animal is present.
  */
 export function makeTestPatch() {
@@ -269,7 +269,7 @@ export function makeTestPatch() {
     statics: true,
     presence: fullPresence(1),
     name: "Catalog tank",
-    region: "10 km laboratory cell",
+    region: "2 × 2 km laboratory cell",
     note: "Not a real place. Every catalogued animal, a beach, stepped shelves, a canyon, a seamount, and a 2000 m basin.",
   });
 }
@@ -281,21 +281,23 @@ export function makeTestPatch() {
  */
 function labFloorY(x, z, half) {
   const zn = z / half;
+  /** Horizontal metres were authored on a 10 km lab; keep the same relative layout. */
+  const scale = half / 5000;
   let y;
   if (zn > 0.76) {
     const u = (zn - 0.76) / 0.24;
-    y = 0.4 + u * 7.2 + Math.sin(x * 0.0035) * 0.9 * u;
+    y = 0.4 + u * 7.2 + Math.sin((x * 0.0035) / scale) * 0.9 * u;
   } else if (zn > 0.68) {
     const u = (zn - 0.68) / 0.08;
     y = -6 + u * 6.4;
   } else if (zn > 0.32) {
-    y = -40 + Math.sin(x * 0.0016) * 4;
-    const channel = Math.exp(-((x - 900) * (x - 900)) / (260 * 260));
+    y = -40 + Math.sin((x * 0.0016) / scale) * 4;
+    const channel = Math.exp(-((x - 900 * scale) * (x - 900 * scale)) / ((260 * scale) * (260 * scale)));
     const along = Math.exp(-((zn - 0.48) * (zn - 0.48)) / (0.07 * 0.07));
     y -= channel * along * 34;
   } else if (zn > 0.08) {
-    y = -108 + Math.sin(x * 0.0011 + z * 0.0004) * 6;
-    const ridge = Math.exp(-((x + 700) * (x + 700)) / (380 * 380));
+    y = -108 + Math.sin((x * 0.0011) / scale + (z * 0.0004) / scale) * 6;
+    const ridge = Math.exp(-((x + 700 * scale) * (x + 700 * scale)) / ((380 * scale) * (380 * scale)));
     const along = Math.exp(-((zn - 0.18) * (zn - 0.18)) / (0.05 * 0.05));
     y += ridge * along * 36;
   } else if (zn > -0.04) {
@@ -303,38 +305,38 @@ function labFloorY(x, z, half) {
     const s = u * u * (3 - 2 * u);
     y = -112 + s * (-220 + 112);
   } else if (zn > -0.22) {
-    y = -220 + Math.sin(x * 0.0008) * 12;
+    y = -220 + Math.sin((x * 0.0008) / scale) * 12;
   } else if (zn > -0.48) {
     const u = (-0.22 - zn) / 0.26;
     const s = u * u * (3 - 2 * u);
     y = -230 + s * (-820 + 230);
-    y += Math.sin(x * 0.0007 + z * 0.0003) * 28;
+    y += Math.sin((x * 0.0007) / scale + (z * 0.0003) / scale) * 28;
   } else {
     const u = Math.min(1, (-0.48 - zn) / 0.52);
     y = -820 - u * 1180;
   }
 
-  const canyonX = x + (z + 200) * 0.32;
-  const canyon = Math.exp(-(canyonX * canyonX) / (420 * 420));
+  const canyonX = x + (z + 200 * scale) * 0.32;
+  const canyon = Math.exp(-(canyonX * canyonX) / ((420 * scale) * (420 * scale)));
   const canyonMouth = zn < 0.18 ? 1 : Math.max(0, 1 - (zn - 0.18) / 0.22);
   const cut = zn < -0.12 ? 980 : 260;
   y -= canyon * canyonMouth * cut;
   y = Math.max(-2000, y);
 
-  const smx = x + 1700;
-  const smz = z + 2700;
-  const seamount = Math.exp(-(smx * smx + smz * smz) / (780 * 780));
+  const smx = x + 1700 * scale;
+  const smz = z + 2700 * scale;
+  const seamount = Math.exp(-(smx * smx + smz * smz) / ((780 * scale) * (780 * scale)));
   if (y < -240) {
     const lift = Math.min(-y - 190, 1550);
     y += seamount * lift;
   }
 
-  const knx = x - 2100;
-  const knz = z + 1100;
-  const knoll = Math.exp(-(knx * knx + knz * knz) / (520 * 520));
+  const knx = x - 2100 * scale;
+  const knz = z + 1100 * scale;
+  const knoll = Math.exp(-(knx * knx + knz * knz) / ((520 * scale) * (520 * scale)));
   if (zn < -0.05 && y < -500) y += knoll * 260;
 
-  y += Math.sin(x * 0.0022 + z * 0.0014) * 3.5 + Math.sin(x * 0.008) * 1.2;
+  y += Math.sin((x * 0.0022) / scale + (z * 0.0014) / scale) * 3.5 + Math.sin((x * 0.008) / scale) * 1.2;
   return y;
 }
 

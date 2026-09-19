@@ -24,7 +24,7 @@ export const DEMO_CELLS = [
     kind: "lab",
     status: "coupled",
     title: "Catalog tank",
-    kicker: "10 × 10 km lab",
+    kicker: "2 × 2 km lab",
     region: "Not a real place",
     lat: 22.4,
     lon: -38.2,
@@ -35,7 +35,7 @@ export const DEMO_CELLS = [
     ],
     missing: [],
     about:
-      "A synthetic 10 km cell: a beach on +Z, inner shelf near −40 m, mid-shelf near −110 m, outer ledge near −220 m, slope terrace near −800 m, a canyon and a seamount, basin to −2000 m. Every implemented animal is present. Not a real place — a test of the model.",
+      "A synthetic 2 × 2 km cell: a beach on +Z, inner shelf near −40 m, mid-shelf near −110 m, outer ledge near −220 m, slope terrace near −800 m, a canyon and a seamount, basin to −2000 m. Every implemented animal is present. Not a real place — a test of the model.",
   },
   {
     id: "pelagic",

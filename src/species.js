@@ -17,9 +17,9 @@ export const LOCATIONS = {
   "lab-cell": {
     id: "lab-cell",
     name: "Catalog tank",
-    region: "10 × 10 km laboratory cell",
+    region: "2 × 2 km laboratory cell",
     about:
-      "A synthetic 10 km cell: a beach on +Z, an inner shelf near −40 m, a mid-shelf terrace near −110 m, an outer ledge near −220 m, a slope terrace near −800 m, a canyon and a seamount, and a basin to −2000 m. Every implemented animal is present. Grazers share a bloom-capped budget; piscivores share a prey-capped slice of the same hashed grid. Vehicles are the rares. Not a biogeographic range — a test of the model.",
+      "A synthetic 2 × 2 km cell: a beach on +Z, an inner shelf near −40 m, a mid-shelf terrace near −110 m, an outer ledge near −220 m, a slope terrace near −800 m, a canyon and a seamount, and a basin to −2000 m. Every implemented animal is present. Grazers share a bloom-capped budget; piscivores share a prey-capped slice of the same hashed grid. Vehicles are the rares. Not a biogeographic range — a test of the model.",
     fauna: Object.values(FAUNA),
   },
   "north-sea-shelf": {
