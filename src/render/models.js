@@ -84,26 +84,24 @@ function firstMesh(gltf) {
   return named;
 }
 
+function putVehicle(kind, form, sexKey, geo) {
+  geos.set(`${kind}:${sexKey}`, geo);
+  // Form is a swim-shader bucket (great white and tiger both swim as "shark"),
+  // not a shared mesh. Filling an empty form slot keeps a fallback if a
+  // kind-specific glb fails; overwriting it would give the blue shark the last
+  // carcharhinid that finished loading.
+  const formKey = `${form}:${sexKey}`;
+  if (kind === form || !geos.has(formKey)) geos.set(formKey, geo);
+}
+
 function registerVehicle(kind, named) {
   const form = VEHICLE_FORM[kind] || kind;
   const male = named[`${kind}_male`] || named[`${form}_male`] || named.orca_male;
   const female = named[`${kind}_female`] || named[`${form}_female`] || named.orca_female;
   const first = male || female || Object.values(named)[0];
-  if (male) {
-    const geo = bake(male);
-    geos.set(`${kind}:1`, geo);
-    geos.set(`${form}:1`, geo);
-  }
-  if (female) {
-    const geo = bake(female);
-    geos.set(`${kind}:0`, geo);
-    geos.set(`${form}:0`, geo);
-  }
-  if (!male && !female && first) {
-    const geo = bake(first);
-    geos.set(`${kind}:1`, geo);
-    geos.set(`${form}:1`, geo);
-  }
+  if (male) putVehicle(kind, form, "1", bake(male));
+  if (female) putVehicle(kind, form, "0", bake(female));
+  if (!male && !female && first) putVehicle(kind, form, "1", bake(first));
 }
 
 async function loadAll(loader, entries, onGltf) {
