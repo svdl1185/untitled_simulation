@@ -116,7 +116,7 @@ Hulls, Wikipedia rasters, and catalog niches in `src/world/ranges.js`. When a Wi
 - Most bite-predators need some *forage* school prey in the cell, not another piscivore. Bluefin needs *named* temperate forage (herring, mackerel, sardine, saury, anchovy, pilchard, jack mackerel), not a flying-fish-only cell. Cod need herring, capelin, or sand lance, and a shelf (dropped if floor deeper than ~650 m). Humboldt needs named East-Pacific forage or lanternfish, an OMZ, and climate upwell. Toothfish need silverfish. Common dolphin need surface forage. Giant squid need lanternfish / market squid / Illex, and a floor deeper than ~350 m (`floor.max`).
 - Whale shark and minke eat the bloom — they can occupy a cell with no school fish. Minke feeding occupancy is a local-summer window.
 - Sperm whales are oceanic (`realm: "oceanic"`, floor deeper than ~400 m). Ice-avoid. They still dive if squid are missing; they do not get free calories.
-- Lanternfish and giant squid: oceanic prior, then SST / ice / floor. Blue shark, orca: Wikipedia rasters (Cypron / IUCN 2023). Sperm whale: Wikipedia Cypron raster, then oceanic floor / ice. Flying fish, skipjack, yellowfin, sailfish: circumtropical oceanic hulls (Mediterranean empty except mahi). Tiger shark: Wikipedia Cypron raster (Caribbean, Gulf, Indo-West Pacific; Med empty). Hammerhead: Wikipedia distribution raster (coasts plus Gibraltar). Common dolphin: Wikipedia IUCN 2021 raster. Benthos: every wet cell.
+- Lanternfish and giant squid: oceanic prior, then SST / ice-avoid / floor. Blue shark, orca: Wikipedia rasters (Cypron / IUCN 2023). Sperm whale: Wikipedia Cypron raster, then oceanic floor / ice. Flying fish, skipjack, yellowfin, sailfish: circumtropical oceanic hulls (Mediterranean empty except mahi). Tiger shark: Wikipedia Cypron raster clipped to shore (Caribbean, Gulf, Indo-West Pacific; Med empty). Hammerhead: Wikipedia distribution raster (coasts plus Gibraltar), clipped to shore. Common dolphin: Wikipedia IUCN 2021 raster. Benthos: every wet cell.
 - Humpback feeding hulls peak in local summer; tropical wintering hulls peak in local winter; Wikipedia Cypron raster clips cells outside that map. Herring: North Sea / Georges Bank year-round, Norwegian Sea summer, Vestfjorden winter. Capelin beach-spawn is a coastal spring window. Bluefin feeding is local summer from the northwest Atlantic to Norway, plus the West Pacific; Gulf / Med / West Pacific spawn in spring. Great white: IUCN 2018 Wikipedia raster (possibly extant 0.5, extant resident 1 on coasts, the Mediterranean, Australia–NZ, and both Pacific gyres). Whale shark: Wikipedia Cypron raster as the tropical prior (occupancy 0.32) plus Ningaloo / Yucatán / Mozambique aggregations. Menhaden stay on the inner shelf year-round; summer raises abundance. Occupancy is a window, not a swim between cells.
 - Latin names follow the cell where stocks share an id (anchovy, mackerel, sardinella, sand lance, jack mackerel, Illex, krill, minke, toothfish).
 
@@ -128,7 +128,7 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 
 | Id | Guild · social | Eats | Typical DVM (night / day) · max | Notes |
 | --- | --- | --- | --- | --- |
-| herring | forage · polarized | `z` | −20 / −110 · 400 m | Temp −1.8–20 °C. Default pancake. North Sea year-round; Norwegian Sea summer; Vestfjorden winter. |
+| herring | forage · polarized | `z` | −20 / −110 · 400 m | Temp −1.8–24 °C. Default pancake. North Sea year-round; Norwegian Sea summer; Vestfjorden winter. |
 | capelin | forage · polarized | `z` | −8 / −52 · 300 m | Temp −1.8–12 °C. Coastal spawn is a spring window. |
 | menhaden | forage · polarized | `p` (higher graze) | −6 / −32 · 48 m | Inner-shelf; fades with kilometres from shore. Summer abundance boost, winter still present. Filter on phytoplankton. |
 | sardine | forage · polarized | `z` | −12 / −58 · 200 m | Neritic; fades with kilometres from shore. |
@@ -140,17 +140,17 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 | sprat | forage · polarized | `z` | −8 / −38 · 150 m | |
 | sandlance | forage · polarized (thin) | `z` | −6 / −42 · 120 m | Fear steers down. Burying is not a state. |
 | polarcod | forage · polarized | `z` | −12 / −48 · 700 m | Temp −1.8–6 °C. `iceAssociated`. |
-| silverfish | forage · polarized | `z` | −18 / −82 · 700 m | Temp −1.8–6 °C. Toothfish prey. `iceAssociated`. |
-| saury | surface · loose | `z` | top ~50 m · 50 m | Fear steers up. SST 8–22 °C. |
+| silverfish | forage · polarized | `z` | −18 / −82 · 700 m | Temp −1.8–6 °C. High Antarctic (~60°S). Toothfish prey. `iceAssociated`. |
+| saury | surface · loose | `z` | top ~50 m · 50 m | Fear steers up. SST 6–25 °C. |
 | marketsquid | cephalopod · scatter | `z` | −16 / −200 · 400 m | Jet pulse–coast. Sperm `huntTaxa`. Coastal clip. |
-| lanternfish | forage · scatter | `z` | −40 / −280 · 450 m | `o2Min` 0.08. Photophores restore visual detect. Oceanic realm. Enlarges `gridMinY` when present. |
+| lanternfish | forage · scatter | `z` | −40 / −280 · 450 m | `o2Min` 0.08. Photophores restore visual detect. Oceanic; ice-avoid. Enlarges `gridMinY` when present. |
 | krill | forage · scatter | `p` | −6 / −90 · 220 m | Paddle; mysticetes bite this taxon. `iceAssociated`. |
 | jackmackerel | forage · polarized | `z` | −14 / −95 · 300 m | Humboldt `huntTaxa`. Coastal stocks + oceanic belt. |
 | illex | cephalopod · scatter | `z` | −20 / −240 · 600 m | Atlantic squid. Sperm `huntTaxa`. Coastal clip. |
 | tuna (skipjack) | pelagic predator · polarized | school fish | −8 / −48 · 260 m | `diet: "bite"`. Prey-capped share. `o2Min` 2.4. Circumtropical oceanic hulls. |
 | yellowfin | pelagic predator · polarized | school fish | −12 / −90 · 500 m | Deeper than skipjack. Circumtropical oceanic hulls. |
 | mahi | surface predator · loose | school fish | −3 / −18 · 85 m | Surface band. Temp 16–31 °C. |
-| barracuda | coastal predator · scatter | school fish | −6 / −28 · 110 m | Sit-and-dash spacing. Temp 18–31 °C. |
+| barracuda | coastal predator · scatter | school fish | −6 / −28 · 110 m | Sit-and-dash. Atlantic / Indo-West Pacific / Hawaii, not the Humboldt. Temp 18–31 °C. |
 | sailfish | surface predator · loose | school fish | −6 / −42 · 200 m | Billfish mesh. Temp 16–31 °C. |
 | cod | demersal · scatter | named shelf forage + benthos | bed · 600 m | `habitat: "benthic"`. Shelf only (dropped if floor ≲ −650 m). |
 | toothfish | slope · scatter | silverfish | bed · 2000 m | Antarctic slope. Not the 650 m gate. |
@@ -163,15 +163,15 @@ One table plus presence plus a shared budget. Silhouettes are authored glTFs (`p
 | shark (blue) | burst · tail | any school | 1000 m | Wikipedia Cypron raster. School forage prey; `o2Min` 1.4. |
 | bluefin | ram · thunniform | named temperate forage | 1000 m | One school (`pods: 1`). Feeding occupancy local summer, including Norway. Gulf / Med / West Pacific spawn in spring. `o2Min` 2.2. Count scales with weight. |
 | greatwhite | burst · tail | school | 1200 m | IUCN 2018 Wikipedia raster: possibly extant band, extant gyres and coasts. |
-| tigershark | burst · tail | school | 350 m | Wikipedia Cypron raster. Med empty. |
-| hammerhead | burst · tail | school | 500 m | One school (`pods: 1`). Wikipedia distribution raster (coasts plus Gibraltar). |
+| tigershark | burst · tail | school | 350 m | Wikipedia Cypron raster, clipped to shore. Med empty. |
+| hammerhead | burst · tail | school | 500 m | One school (`pods: 1`). Wikipedia distribution raster (coasts plus Gibraltar), clipped to shore. |
 | whaleshark | ram · tail | filter `z` | 1920 m | Wikipedia Cypron raster as tropical prior plus Ningaloo / Yucatán / Mozambique aggregations. Bloom prey — no school required. |
-| minke | ram · fluke | filter `z` **and** bite (incl. krill) | 400 m · ~50 m | Air-breather. High-lat hull, local-summer occupancy. Bloom prey. Wikipedia common-minke map is NH-only; catalog id is both minke species — hulls stay. |
+| minke | ram · fluke | filter `z` **and** bite (incl. krill) | 400 m · ~50 m | Air-breather. NH coastal envelopes + Southern Ocean band, local-summer occupancy. Bloom prey. Wikipedia common-minke map is NH-only; catalog id is both minke species. |
 | humpback | burst · fluke | school + krill | 500 m · ~60 m | Air-breather. Feeding hulls local summer; tropical hulls local winter. Wikipedia Cypron raster gates the hulls. Two-column blow. |
 | spermwhale | burst · fluke | `huntTaxa` market squid, Illex, lanternfish, Humboldt; `huntKinds` giant squid | 2000 m · ~700 m | Air-breather. Pair travels as a unit when two are present. `sense: echo`. Wikipedia Cypron raster, then oceanic realm / ice. Left spout. No free calories. |
 | orca | ram · fluke | school | 800 m · ~90 m | Air-breather. One pod (`pods: 1`, count 5–8). `sense: echo`. Wikipedia IUCN 2023 raster. Fish-eating programme. Authored glTF (male/female dorsal). |
 | commondolphin | ram · fluke | flying fish, sardinella, anchovy, sardine | 300 m · ~18 m | Air-breather. 1–3 pods (`podSize` ~10). Wikipedia IUCN 2021 raster. Count scales with weight. |
-| giantsquid | jet | lanternfish, market squid, Illex | 1200 m · night −420 / day −850 | Oceanic; floor deeper than ~350 m. Lanternfish glow restores detect. |
+| giantsquid | jet | lanternfish, market squid, Illex | 1200 m · night −420 / day −850 | Oceanic; floor deeper than ~350 m; ice-avoid. Lanternfish glow restores detect. |
 
 **Field guild** — benthos: seafloor carbon plus living infauna. Photic floors grow microphytobenthos. Cod graze the living store. Not named crabs or worms.
 

@@ -337,6 +337,8 @@ def main() -> int:
         }
         if spec.get("occupancy") is not None:
             meta["occupancy"] = spec["occupancy"]
+        if spec.get("coastKm") is not None:
+            meta["coastKm"] = spec["coastKm"]
         if spec.get("reusePacked"):
             packed = reuse_greatwhite_packed()
             print(f"  reused packed raster ({len(packed)} chars)")

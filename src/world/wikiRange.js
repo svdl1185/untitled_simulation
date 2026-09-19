@@ -4,6 +4,7 @@
  */
 
 import { WIKI_META, WIKI_PACKED } from "./wikiRangeData.js";
+import { coastKmAt, coastWeight } from "./coast.js";
 
 const COLS = 360;
 const ROWS = 170;
@@ -47,9 +48,12 @@ export function wikiCode(id, lat, lon) {
 
 export function wikiOccupancy(id, lat, lon) {
   const c = wikiCode(id, lat, lon);
-  if (c >= 2) return EXTANT;
-  if (c === 1) return POSSIBLE;
-  return 0;
+  let w = 0;
+  if (c >= 2) w = EXTANT;
+  else if (c === 1) w = POSSIBLE;
+  const km = wikiMeta(id)?.coastKm;
+  if (w > 0 && km) w *= coastWeight(coastKmAt(lat, lon), km);
+  return w;
 }
 
 export function stampWikiRaster(id, grid, cols, rows, south, north) {
@@ -66,7 +70,8 @@ export function stampWikiRaster(id, grid, cols, rows, south, north) {
       const lon = -180 + ((i + 0.5) / cols) * 360;
       const si = Math.max(0, Math.min(COLS - 1, Math.floor(((lon + 180) / 360) * COLS)));
       const c = src[sj * COLS + si];
-      const w = (c >= 2 ? EXTANT : c === 1 ? POSSIBLE : 0) * scale;
+      let w = (c >= 2 ? EXTANT : c === 1 ? POSSIBLE : 0) * scale;
+      if (w > 0 && meta.coastKm) w *= coastWeight(coastKmAt(lat, lon), meta.coastKm);
       const idx = j * cols + i;
       if (clip && w <= 0.05) grid[idx] = 0;
       else if (!gate && w > grid[idx]) grid[idx] = w;

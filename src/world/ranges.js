@@ -39,10 +39,12 @@ const HERRING_RESIDENT = [
     [-8, 48],
   ],
   [
-    [-76, 40],
-    [-76, 46],
-    [-64, 46],
-    [-64, 40],
+    [-70, 41],
+    [-69, 42.5],
+    [-66, 44],
+    [-64, 45],
+    [-64, 42],
+    [-67, 41],
   ],
 ];
 
@@ -343,13 +345,30 @@ const SANDLANCE_HULLS = [
 const POLARCOD_HULLS = [
   [
     [-180, 66],
-    [-180, 84],
-    [180, 84],
+    [-180, 88],
+    [180, 88],
     [180, 66],
   ],
 ];
 
+/** Pleuragramma: high Antarctic, not the whole ACC. */
 const SILVERFISH_HULLS = [
+  [
+    [-180, -80],
+    [-180, -60],
+    [0, -60],
+    [0, -80],
+  ],
+  [
+    [0, -80],
+    [0, -60],
+    [180, -60],
+    [180, -80],
+  ],
+];
+
+/** Euphausia superba reaches the polar front. */
+const KRILL_SO_HULLS = [
   [
     [-180, -80],
     [-180, -54],
@@ -512,24 +531,76 @@ const HUMPBACK_BREED = [
 const COD_HULLS = [
   [
     [-76, 42],
-    [-76, 78],
-    [52, 78],
-    [52, 42],
+    [-68, 42],
+    [-55, 46],
+    [-48, 52],
+    [-44, 60],
+    [-52, 68],
+    [-65, 60],
+    [-76, 52],
+  ],
+  [
+    [-24, 48],
+    [-10, 43],
+    [2, 43],
+    [12, 50],
+    [24, 60],
+    [44, 72],
+    [52, 76],
+    [30, 78],
+    [8, 72],
+    [-8, 64],
+    [-20, 58],
+    [-24, 52],
   ],
 ];
 
-const MINKE_HULLS = [
+const MINKE_NH = [
   [
-    [-180, 32],
-    [-180, 78],
-    [180, 78],
-    [180, 32],
+    [-76, 48],
+    [-60, 45],
+    [-44, 50],
+    [-20, 52],
+    [8, 50],
+    [30, 58],
+    [50, 72],
+    [40, 78],
+    [10, 78],
+    [-20, 76],
+    [-50, 70],
+    [-70, 62],
   ],
   [
-    [-180, -78],
-    [-180, -32],
-    [180, -32],
-    [180, -78],
+    [140, 42],
+    [155, 44],
+    [180, 50],
+    [180, 66],
+    [160, 66],
+    [145, 58],
+    [140, 50],
+  ],
+  [
+    [-180, 50],
+    [-140, 48],
+    [-122, 50],
+    [-125, 60],
+    [-150, 66],
+    [-180, 66],
+  ],
+];
+
+const MINKE_SH = [
+  [
+    [-180, -70],
+    [-180, -50],
+    [0, -50],
+    [0, -70],
+  ],
+  [
+    [0, -70],
+    [0, -50],
+    [180, -50],
+    [180, -70],
   ],
 ];
 
@@ -637,7 +708,7 @@ const MED_HULL = [
   ],
 ];
 
-/** Galeocerdo / Sphyrna / Sphyraena: coastal and island tropics, not the gyres. */
+/** Sphyraena: coastal tropics of the Atlantic and Indo-West Pacific, not the eastern Pacific. */
 const TROPICAL_COASTAL = [
   [
     [-98, 18],
@@ -656,19 +727,6 @@ const TROPICAL_COASTAL = [
     [-70, 2],
     [-78, 10],
     [-88, 16],
-  ],
-  [
-    [-126, 34],
-    [-110, 34],
-    [-104, 22],
-    [-78, 8],
-    [-72, -2],
-    [-72, -28],
-    [-80, -32],
-    [-92, -16],
-    [-110, 10],
-    [-120, 22],
-    [-126, 28],
   ],
   [
     [-179, 18],
@@ -963,14 +1021,15 @@ const RANGES = [
   { id: "jackmackerel", hulls: JACKMACKEREL_HULLS, coastKm: 900 },
   { id: "jackmackerel", hulls: JACKMACKEREL_BELT },
   { id: "illex", hulls: ILLEX_HULLS, coastKm: 650 },
-  { id: "krill", hulls: [...SILVERFISH_HULLS, ...KRILL_NA_HULLS] },
+  { id: "krill", hulls: [...KRILL_SO_HULLS, ...KRILL_NA_HULLS] },
   { id: "toothfish", hulls: SILVERFISH_HULLS },
   { id: "cod", hulls: COD_HULLS, coastKm: 900 },
   { id: "humpback", hulls: HUMPBACK_FEED, season: { peak: 210, width: 80 } },
   { id: "humpback", hulls: HUMPBACK_BREED, season: { peak: 30, width: 70 } },
   { id: "humboldtsquid", hulls: HUMBOLDT_COAST, coastKm: 950 },
   { id: "humboldtsquid", hulls: HUMBOLDT_EQUATOR },
-  { id: "minke", hulls: MINKE_HULLS, season: { peak: 210, width: 100 } },
+  { id: "minke", hulls: MINKE_NH, season: { peak: 210, width: 100 }, coastKm: 1600 },
+  { id: "minke", hulls: MINKE_SH, season: { peak: 210, width: 100 } },
   { id: "bluefin", hulls: [BLUEFIN_FEED[0]], season: { peak: 210, width: 110 } },
   { id: "bluefin", hulls: [BLUEFIN_FEED[1], BLUEFIN_FEED[2]], season: { peak: 210, width: 110 }, coastKm: 700 },
   { id: "bluefin", hulls: BLUEFIN_SPAWN, season: { peak: 120, width: 55, absolute: true }, coastKm: 450 },

@@ -14,6 +14,7 @@
       "file": "Cypron-Range_Galeocerdo_cuvier.svg",
       "mode": "replace",
       "skipHabitat": true,
+      "coastKm": 720,
       "projection": "robinson",
       "source": "Wikipedia Cypron-Range Galeocerdo cuvier"
     },
@@ -31,6 +32,7 @@
       "file": "Sphyrna_lewini_distribution_map.svg",
       "mode": "replace",
       "skipHabitat": true,
+      "coastKm": 720,
       "projection": "robinson",
       "source": "Wikipedia Sphyrna lewini distribution map"
     },

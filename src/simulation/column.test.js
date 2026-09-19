@@ -377,6 +377,8 @@ function assert(cond, msg) {
   assert(presenceAt(18, -75, { floorY: -80, ...wiki }).tigershark > 0, "Caribbean is tiger-shark water");
   assert(!(presenceAt(12, -30, { floorY: -4000, ...wiki }).tigershark > 0), "open Atlantic gyre is not tiger-shark habitat");
   assert(!(presenceAt(36, 15, { floorY: -200, ...wiki }).tigershark > 0), "Mediterranean is not tiger-shark habitat");
+  assert(presenceAt(-16, -76, { floorY: -200, ...wiki }).tigershark > 0, "Peru coast is on the tiger-shark Wikipedia map");
+  assert(!(presenceAt(-16, -90, { floorY: -4000, ...wiki }).tigershark > 0), "open SE Pacific should not inherit a Robinson smear as tiger-shark habitat");
   assert(presenceAt(36, -5.5, { floorY: -200, ...wiki }).hammerhead > 0, "scalloped hammerhead reaches the Strait of Gibraltar");
   assert(presenceAt(-22, 114, { floorY: -80, ...wiki }).whaleshark > 0, "Ningaloo is on the Wikipedia whale-shark map");
   assert(presenceAt(36, -125, { floorY: -4000, ...wiki }).orca > 0, "California Current is orca water on the Wikipedia map");
@@ -424,6 +426,19 @@ function assert(cond, msg) {
   assert(packSardine.grid.sardine[atS(-16, -76)] > 0.05, "overlay should paint sardine on the Peru coast");
   assert(!(packSardine.grid.sardine[atS(-16, -90)] > 0.05), "overlay should not fill a rectangle west of Peru");
 
+  assert(presenceAt(41.8, -67.2, { floorY: -80, dayOfYear: 180 }).herring > 0, "Georges Bank in June should still hold herring");
+  assert(!(presenceAt(-16, -76, { floorY: -80, dayOfYear: 180 }).barracuda > 0), "great barracuda is not an East Pacific fish");
+  assert(presenceAt(21.2, -157.8, { floorY: -2000, dayOfYear: 180 }).barracuda > 0, "Hawaii should hold great barracuda");
+  assert(presenceAt(24, -76, { floorY: -80, dayOfYear: 180 }).barracuda > 0, "Bahamas should hold great barracuda");
+  assert(!(presenceAt(-55, 0, { floorY: -2000, dayOfYear: 180 }).silverfish > 0.05), "silverfish should not fill the ACC at 55°S");
+  assert(presenceAt(-65, 0, { floorY: -500, dayOfYear: 180 }).silverfish > 0, "high Antarctic should hold silverfish");
+  assert(presenceAt(-55, 0, { floorY: -2000, dayOfYear: 180 }).krill > 0, "Antarctic krill still reach the polar front");
+  assert(presenceAt(40, 160, { floorY: -4000, dayOfYear: 180 }).saury > 0.2, "Kuroshio–Oyashio in June should hold saury");
+  assert(!(presenceAt(75, 20, { floorY: -2000, dayOfYear: 180 }).lanternfish > 0), "pack ice should drop lanternfish from the high Arctic");
+  assert(!(presenceAt(75, 20, { floorY: -2000, dayOfYear: 180 }).giantsquid > 0), "pack ice should drop giant squid from the high Arctic");
+  assert(presenceAt(56, 3.2, { floorY: -71, dayOfYear: 180 }).minke > 0, "June North Sea remains minke feeding water");
+  assert(!(presenceAt(45, -160, { floorY: -4000, dayOfYear: 180 }).minke > 0), "minke should not fill the North Pacific as a latitude band");
+
   const offshore = presenceAt(8, -40, { floorY: -4000, ...wiki });
   assert(!(offshore.tigershark > 0), "open water hundreds of km off Brazil is not tiger-shark habitat");
 
@@ -440,6 +455,7 @@ function assert(cond, msg) {
   };
   assert(pack.grid.tigershark[at(24, -76)] > 0.05, "overlay should paint tiger sharks on the Bahamas shelf");
   assert(!(pack.grid.tigershark[at(12, -30)] > 0.05), "overlay should not paint tiger sharks in the gyre");
+  assert(!(pack.grid.tigershark[at(-16, -90)] > 0.05), "overlay should not paint tiger sharks in the SE Pacific gyre");
   assert(pack.grid.tuna[at(12, -30)] > 0.05, "overlay should paint skipjack across the tropical gyre");
 
   assert(vehicleCountFor("commondolphin", 0.3) < vehicleCountFor("commondolphin", 1), "vehicle count should scale with presence weight");
