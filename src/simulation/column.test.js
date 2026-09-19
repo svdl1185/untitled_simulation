@@ -833,6 +833,16 @@ function assert(cond, msg) {
   };
   const whale = { x: 10, y: -40, z: 10, huntIndex: 0, cfg: vehicleCfg("spermwhale") };
   assert(School.prototype.targetFor.call(herringOnly, whale) == null, "sperm whale should not fall back to herring");
+  const lantern = {
+    count: 200,
+    maxSchools: 1,
+    schoolN: [200],
+    centroids: [{ x: 0, y: -280, z: 0, vx: 0, vz: 0 }],
+    anchors: [{ taxon: 0 }],
+    taxa: [{ id: "lanternfish" }],
+  };
+  const lock = School.prototype.targetFor.call(lantern, whale);
+  assert(lock && lock.id === "lanternfish", "sperm whale should lock lanternfish and name it");
   const emptySchool = { count: 0, maxSchools: 1, schoolN: [0], taxa: [{ id: "herring" }], anchors: [{ taxon: 0 }] };
   const squid = { kind: "giantsquid", dead: false, x: 0, y: -800, z: 0 };
   assert(hasHuntPrey(whale, emptySchool, [whale, squid], vehicleCfg("spermwhale")), "giant squid alone should count as hunt prey");

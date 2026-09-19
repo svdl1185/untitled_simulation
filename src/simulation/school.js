@@ -194,6 +194,7 @@ export class School {
         wantMill: 0,
         modeT: 6 + s * 2.1,
         taxon: 0,
+        huntTarget: null,
       });
     }
 
@@ -661,7 +662,15 @@ export class School {
       (!want || !want.length || want.includes(this.taxa[this.anchors[claimed]?.taxon ?? 0]?.id))
       ? claimed
       : best;
-    return this.centroids[idx];
+    const c = this.centroids[idx];
+    return {
+      x: c.x,
+      y: c.y,
+      z: c.z,
+      vx: c.vx,
+      vz: c.vz,
+      id: this.taxa[this.anchors[idx]?.taxon ?? 0]?.id || null,
+    };
   }
 
   update(dt, sharks, look, plankton) {
@@ -685,6 +694,7 @@ export class School {
   _preyCentroid(s, cfg) {
     const eaterId = this.taxa[this.anchors[s]?.taxon ?? 0]?.id;
     let best = null;
+    let bestId = null;
     let bestD = Infinity;
     for (let k = 0; k < this.maxSchools; k++) {
       if (k === s || this.schoolN[k] < 4) continue;
@@ -697,9 +707,11 @@ export class School {
       if (d2 < bestD) {
         bestD = d2;
         best = c;
+        bestId = id;
       }
     }
-    return best;
+    if (!best) return null;
+    return { x: best.x, y: best.y, z: best.z, id: bestId };
   }
 
   _wanderAnchors(dt, pack, look) {
@@ -713,6 +725,7 @@ export class School {
       if (this.schoolN[s] === 0) {
         this.anchors[s].mill = 0;
         this.anchors[s].wantMill = 0;
+        this.anchors[s].huntTarget = null;
         continue;
       }
       const a = this.anchors[s];
@@ -788,8 +801,9 @@ export class School {
       const flowA = sampleFlow(c.x, c.y, c.z, look?.simTime ?? 0, look?.storm ?? 0);
       a.hx += flowA.x * 0.07;
       a.hz += flowA.z * 0.07;
+      const prey = biter ? this._preyCentroid(s, scfg) : null;
+      a.huntTarget = prey && (!grazer || hunger > 0.48) ? prey.id : null;
       if (biter && !grazer) {
-        const prey = this._preyCentroid(s, scfg);
         if (prey) {
           let gx = prey.x - c.x;
           let gz = prey.z - c.z;
@@ -867,9 +881,8 @@ export class School {
         } else if (hunger > 0.62) {
           wantY += (forageY - wantY) * Math.min(0.28, (hunger - 0.62) * 0.7);
         }
-        if (biter && hunger > 0.48) {
-          const prey = this._preyCentroid(s, scfg);
-          if (prey) wantY += (prey.y - wantY) * 0.42;
+        if (biter && hunger > 0.48 && prey) {
+          wantY += (prey.y - wantY) * 0.42;
         }
       }
       a.y += (wantY - a.y) * Math.min(1, dt * 0.55);

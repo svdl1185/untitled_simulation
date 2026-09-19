@@ -351,6 +351,35 @@ function speciesNotes(spec) {
   return notes;
 }
 
+function huntStat(id) {
+  if (!id || !FAUNA[id]) return null;
+  const spec = faunaOf(id);
+  return {
+    id: "hunting",
+    label: "Hunting",
+    value: spec.common,
+    links: [{ id, label: spec.common }],
+  };
+}
+
+function liveHuntId(s) {
+  const id = s.huntTarget;
+  if (!id) return null;
+  const cfg = s.cfg || CONFIG.shark;
+  if (cfg.breathes && s.surfacing) return null;
+  if (s.energy > (cfg.satiated ?? 0.82) && s.aiMode !== "strike") return null;
+  return id;
+}
+
+function insertHunt(stats, id) {
+  const row = huntStat(id);
+  if (!row) return stats;
+  const i = stats.findIndex((s) => s.id === "state" || s.id === "mode");
+  if (i >= 0) stats.splice(i + 1, 0, row);
+  else stats.push(row);
+  return stats;
+}
+
 export function sharkCard(s, ctx) {
   const spec = faunaOf(s.kind || "shark");
   const cfg = s.cfg || CONFIG.shark;
@@ -370,6 +399,7 @@ export function sharkCard(s, ctx) {
     { id: "speed", label: "Speed", value: speedText(s.vx, s.vy, s.vz) },
     dietStat(spec.id, ctx),
   );
+  insertHunt(stats, liveHuntId(s));
   return {
     kindLabel: spec.guild,
     title: spec.common,
@@ -389,35 +419,37 @@ export function forageCard(school, i, ctx) {
   const sex = sexLabel(school.sex[i]);
   const i3 = i * 3;
   const sid = school.schoolId[i];
+  const stats = [
+    { id: "sex", label: "Sex", value: sex },
+    { id: "size", label: "Size", value: forageSize(school.scale[i]) },
+    { id: "maxdepth", label: "Max depth", value: depthCapText(school.taxonCfg?.(i) || knobsFor(spec.id)) },
+    { id: "energy", label: "Energy", value: `${Math.round(school.energy[i] * 100)}%` },
+    { id: "school", label: "School", value: ctx.schoolLabel },
+    {
+      id: "state",
+      label: "State",
+      value:
+        school.alarm[i] > 0.28
+          ? "Fleeing"
+          : school.taxonCfg?.(i)?.social === "loose"
+            ? "Aggregating"
+            : school.taxonCfg?.(i)?.social === "scatter"
+              ? "Drifting"
+              : school.anchors[sid]?.mill > 0.45
+                ? "Milling"
+                : "Schooling",
+    },
+    { id: "depth", label: "Depth", value: depthText(school.pos[i3 + 1]) },
+    { id: "speed", label: "Speed", value: speedText(school.vel[i3], school.vel[i3 + 1], school.vel[i3 + 2]) },
+    dietStat(spec.id, ctx),
+  ];
+  insertHunt(stats, school.anchors[sid]?.huntTarget);
   return {
     kindLabel: spec.guild,
     title: spec.common,
     subtitle: `${spec.latin} · ${sex}`,
     following: ctx.following,
-    stats: [
-      { id: "sex", label: "Sex", value: sex },
-      { id: "size", label: "Size", value: forageSize(school.scale[i]) },
-      { id: "maxdepth", label: "Max depth", value: depthCapText(school.taxonCfg?.(i) || knobsFor(spec.id)) },
-      { id: "energy", label: "Energy", value: `${Math.round(school.energy[i] * 100)}%` },
-      { id: "school", label: "School", value: ctx.schoolLabel },
-      {
-        id: "state",
-        label: "State",
-        value:
-          school.alarm[i] > 0.28
-            ? "Fleeing"
-            : school.taxonCfg?.(i)?.social === "loose"
-              ? "Aggregating"
-              : school.taxonCfg?.(i)?.social === "scatter"
-                ? "Drifting"
-                : school.anchors[sid]?.mill > 0.45
-                  ? "Milling"
-                  : "Schooling",
-      },
-      { id: "depth", label: "Depth", value: depthText(school.pos[i3 + 1]) },
-      { id: "speed", label: "Speed", value: speedText(school.vel[i3], school.vel[i3 + 1], school.vel[i3 + 2]) },
-      dietStat(spec.id, ctx),
-    ],
+    stats,
     notes: speciesNotes(spec),
   };
 }
@@ -430,33 +462,35 @@ export function schoolCard(school, id, ctx) {
   const mill = school.anchors[id]?.mill ?? 0;
   const fem = school.schoolFem[id] || 0;
   const mal = school.schoolMal[id] || 0;
+  const stats = [
+    { id: "sex", label: "Sex", value: "Mixed" },
+    { id: "sexes", label: "F / M", value: `${fem.toLocaleString()} / ${mal.toLocaleString()}` },
+    { id: "members", label: spec.common, value: n.toLocaleString() },
+    { id: "maxdepth", label: "Max depth", value: depthCapText(school.shoalCfg?.(id) || knobsFor(spec.id)) },
+    { id: "energy", label: "Energy", value: `${Math.round((1 - (school.schoolHunger[id] ?? 0.5)) * 100)}%` },
+    { id: "id", label: "Shoal", value: ctx.schoolLabel },
+    { id: "depth", label: "Depth", value: depthText(c?.y ?? 0) },
+    {
+      id: "mode",
+      label: "Mode",
+      value:
+        mill > 0.45
+          ? "Milling"
+          : school.shoalCfg?.(id)?.social === "loose"
+            ? "Aggregating"
+            : school.shoalCfg?.(id)?.social === "scatter"
+              ? "Scattered"
+              : "Foraging",
+    },
+    dietStat(spec.id, ctx),
+  ];
+  insertHunt(stats, school.anchors[id]?.huntTarget);
   return {
     kindLabel: "Shoal",
     title: `${spec.common} shoal`,
     subtitle: `${spec.latin} · mixed sex`,
     following: ctx.following,
-    stats: [
-      { id: "sex", label: "Sex", value: "Mixed" },
-      { id: "sexes", label: "F / M", value: `${fem.toLocaleString()} / ${mal.toLocaleString()}` },
-      { id: "members", label: spec.common, value: n.toLocaleString() },
-      { id: "maxdepth", label: "Max depth", value: depthCapText(school.shoalCfg?.(id) || knobsFor(spec.id)) },
-      { id: "energy", label: "Energy", value: `${Math.round((1 - (school.schoolHunger[id] ?? 0.5)) * 100)}%` },
-      { id: "id", label: "Shoal", value: ctx.schoolLabel },
-      { id: "depth", label: "Depth", value: depthText(c?.y ?? 0) },
-      {
-        id: "mode",
-        label: "Mode",
-        value:
-          mill > 0.45
-            ? "Milling"
-            : school.shoalCfg?.(id)?.social === "loose"
-              ? "Aggregating"
-              : school.shoalCfg?.(id)?.social === "scatter"
-                ? "Scattered"
-                : "Foraging",
-      },
-      dietStat(spec.id, ctx),
-    ],
+    stats,
     notes: speciesNotes(spec),
   };
 }

@@ -70,6 +70,7 @@ export class Shark {
     this.aiT = 4 + Math.random() * 5;
     this.circleA = Math.random() * Math.PI * 2;
     this.huntIndex = 0;
+    this.huntTarget = null;
     this.flankSign = Math.random() < 0.5 ? 1 : -1;
     this.thrust = 0.45;
     this.swimT = Math.random() * Math.PI * 2;
@@ -697,6 +698,7 @@ export class Shark {
   _ai(dt, school, cfg, pack, look) {
     this.aiT -= dt;
     this._tickLocomotion(dt);
+    this.huntTarget = null;
     const diet = cfg.diet || "bite";
     if (diet === "filter") {
       this._aiFilter(dt, school, cfg, look);
@@ -716,6 +718,8 @@ export class Shark {
         huntVehicle = preyV;
       }
     }
+    if (huntVehicle) this.huntTarget = huntVehicle.kind;
+    else if (targetSchool?.id) this.huntTarget = targetSchool.id;
     const hasPrey = !!(huntVehicle || targetSchool);
     if (!target) {
       target = { x: this.roamX, y: this.roamY, z: this.roamZ, vx: 0, vy: 0, vz: 0 };
@@ -788,6 +792,7 @@ export class Shark {
         tx = prey.x + prey.vx * lead;
         ty = prey.y + prey.vy * lead;
         tz = prey.z + prey.vz * lead;
+        if (!huntVehicle && Number.isFinite(prey.i)) this.huntTarget = school.taxonId(prey.i);
       } else {
         const ahead = Math.min(8, 2.5 + dist * 0.1);
         tx = cx + hx * ahead - fx * this.flankSign * holdR * 0.22;
